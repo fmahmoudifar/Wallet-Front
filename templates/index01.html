@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask CRUD with AWS API</title>
+</head>
+<body>
+    <h1>Flask CRUD App with AWS API</h1>
+
+    <!-- Create Item Form -->
+    <h2>Create Item</h2>
+    <form action="/create" method="POST">
+        <input type="text" name="name" placeholder="Enter item name" required>
+        <button type="submit">Create</button>
+    </form>
+
+    <!-- Display Items -->
+    <h2>Items</h2>
+    {% if items %}
+        {% items %}
+        <ul>
+            {% for item in items %}
+                <li>
+                    {{ item.walletName }}
+                    <form action="/update/{{ item.id }}" method="POST" style="display:inline;">
+                        <input type="text" name="name" placeholder="Update name" required>
+                        <button type="submit">Update</button>
+                    </form>
+                    <a href="/delete/{{ item.id }}" onclick="return confirm('Are you sure?')">Delete</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No items found.</p>
+    {% endif %}
+</body>
+</html>

@@ -43,6 +43,16 @@ def make_aws_request():
     )
     return response
 
+@app.route('/wallet', methods=['DELETE'])
+def delete_wallet():
+    # data = request.json
+    data = {
+        "walletName": "Cash",
+        "username": "fmahmoudifar@gmail.com"}
+    response = requests.delete(f"{API_BASE_URL}/wallet", json=data)
+    return jsonify(response.json())
+
+
 
 @app.route("/health", methods=["GET"])
 def health_check():
@@ -82,11 +92,11 @@ def update_wallet():
     response = requests.patch(f"{API_BASE_URL}/wallet", json=data)
     return jsonify(response.json())
 
-@app.route('/wallet', methods=['DELETE'])
-def delete_wallet():
-    data = request.json
-    response = requests.delete(f"{API_BASE_URL}/wallet", json=data)
-    return jsonify(response.json())
+# @app.route('/wallet', methods=['DELETE'])
+# def delete_wallet():
+#     data = request.json
+#     response = requests.delete(f"{API_BASE_URL}/wallet", json=data)
+#     return jsonify(response.json())
 
 if __name__ == '__main__':
     app.run(debug=True)
