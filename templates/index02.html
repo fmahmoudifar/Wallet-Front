@@ -5,14 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wallet Manager</title>
     <script>
-        function editWallet(walletName, username, balance, walletType, accountNumber, currency, note) {
+        function editWallet(walletName, username, balance) {
             document.getElementById("updateWalletName").value = walletName;
             document.getElementById("updateUsername").value = username;
             document.getElementById("updateBalance").value = balance;
-            document.getElementById("updateWalletType").value = walletType;
-            document.getElementById("UpdateAccountNumber").value = accountNumber;
-            document.getElementById("updateCurrency").value = currency;
-            document.getElementById("updateNote").value = note;
             document.getElementById("updateForm").style.display = "block";
         }
     </script>
@@ -20,7 +16,7 @@
 <body>
     <h1>Wallet Manager</h1>
 
-    <!-- Debugging Info -->
+    <!-- Debugging: Print all wallets -->
     <h3>🔍 Debug Info</h3>
     <pre>{{ wallets }}</pre>
 
@@ -43,17 +39,12 @@
         <ul>
             {% for wallet in wallets %}
                 <li>
-                    <strong>User:</strong> {{ wallet.username }}<br>
                     <strong>Wallet:</strong> {{ wallet.walletName }}<br>
-                    <strong>Wallet Type:</strong> {{ wallet.walletType }}<br>
+                    <strong>User:</strong> {{ wallet.username }}<br>
                     <strong>Balance:</strong> {{ wallet.balance }}<br>
-                    <strong>Account Number:</strong> {{ wallet.accountNumber }}<br>
-                    <strong>Currency:</strong> {{ wallet.currency }}<br>
-                    <strong>Note:</strong> {{ wallet.note }}<br>
 
                     <!-- Edit Button -->
-                    <button onclick="editWallet('{{ wallet.walletName }}', '{{ wallet.username }}','{{ wallet.walletType }}','{{ wallet.balance }}',
-                        '{{ wallet.accountNumber }}','{{ wallet.currency }}','{{ wallet.note }}')">Edit</button>
+                    <button onclick="editWallet('{{ wallet.walletName }}', '{{ wallet.username }}', '{{ wallet.balance }}')">Edit</button>
 
                     <!-- Delete Wallet -->
                     <form action="/delete/{{ wallet.walletName }}/{{ wallet.username }}" method="POST" style="display:inline;">
@@ -73,21 +64,9 @@
         <label>Wallet Name:</label>
         <input type="text" id="updateWalletName" name="walletName">
         <br>
-        <label>Wallet Type:</label>
-        <input type="text" id="updateWalletType" name="walletType" required>
-        <br>
         <label>Balance:</label>
         <input type="number" id="updateBalance" name="balance" required>
-        <br>
-        <label>Account Number:</label>
-        <input type="text" id="UpdateAccountNumber" name="accountNumber" required>
-        <br>
-        <label>Currency:</label>
-        <input type="text" id="updateCurrency" name="currency" required>
-        <br>
-        <label>Note:</label>
-        <input type="text" id="updateNote" name="Note" required>
-        <br>
+
         <button type="submit">Save Changes</button>
     </form>
 </body>
