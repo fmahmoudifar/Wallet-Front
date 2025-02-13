@@ -1,10 +1,9 @@
-from flask import Flask, jsonify, render_template, request, redirect, url_for
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session
 import boto3
 import requests
 from requests_aws4auth import AWS4Auth
 from dotenv import load_dotenv
 import os
-import uuid  # Import UUID module
 
 load_dotenv()
 
@@ -13,7 +12,7 @@ app = Flask(__name__)
 AWS_ACCESS_KEY = os.getenv("ACCESS_KEY")
 AWS_SECRET_KEY = os.getenv("SECRET_KEY")
 AWS_REGION = "eu-north-1"
-AWS_SERVICE = "execute-api"
+AWS_SERVICE = "execute-api" 
 
 # API Gateway details
 API_URL = "https://e31gpskeu0.execute-api.eu-north-1.amazonaws.com/PROD"
@@ -35,23 +34,20 @@ def index():
 
 @app.route('/wallet', methods=['POST'])
 def create_wallet():
-    """Create a new wallet with a unique UUID."""
-    wallet_id = str(uuid.uuid4())  # Generate a unique wallet ID
-    # username = request.form["username"]
-    username = "fmahmoudifar@gmail.com"
+    """Create a new wallet."""
+    username = request.form["username"]
     wallet_name = request.form["walletName"]
     wallet_type = request.form["walletType"]
-    account_number = request.form["accountNumber"]
+    accountNumber = request.form["accountNumber"]
     note = request.form["note"]
     currency = request.form["currency"]
     balance = request.form["balance"]
 
     data = {
-        "walletId": wallet_id,  # Include UUID
         "username": username,
         "walletName": wallet_name,
         "walletType": wallet_type,
-        "accountNumber": account_number,
+        "accountNumber": accountNumber,
         "note": note,
         "currency": currency,
         "balance": balance
@@ -70,25 +66,15 @@ def create_wallet():
 @app.route('/update', methods=['POST'])
 def update_wallet():
     """Update an existing wallet balance."""
-    wallet_id = request.form["walletId"]
-    # username = request.form["username"]
-    username = "fmahmoudifar@gmail.com"
-    currency = request.form["currency"]
-    new_walletName = request.form["walletName"]
-    new_walletType = request.form["walletType"]
-    new_accountNumber = request.form["accountNumber"]
+    wallet_name = request.form["walletName"]
+    username = request.form["username"]
     new_balance = request.form["balance"]
-    new_note = request.form["note"]
 
     data = {
-        "walletId": wallet_id,
+        "walletName": wallet_name,
         "username": username,
-        "currency": currency,
-        "walletName": new_walletName,
-        "walletType": new_walletType,
-        "accountNumber": new_accountNumber,
-        "balance": new_balance,
-        "note": new_note
+        "updateKey": "balance",
+        "updateValue": new_balance
     }
     print(f"🔄 [DEBUG] Updating wallet: {data}")
 
@@ -101,11 +87,11 @@ def update_wallet():
         print(f"❌ [ERROR] Failed to update wallet: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
-@app.route('/delete/<wallet_id>/<username>', methods=['POST'])
-def delete_wallet(wallet_id, username):
+@app.route('/delete/<wallet_name>/<username>', methods=['POST'])
+def delete_wallet(wallet_name, username):
     """Delete a wallet."""
     data = {
-        "walletId": wallet_id,
+        "walletName": wallet_name,
         "username": username
     }
     print(f"🗑️ [DEBUG] Deleting wallet: {data}")

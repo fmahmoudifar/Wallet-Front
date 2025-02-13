@@ -5,90 +5,93 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wallet Manager</title>
     <script>
-        function editWallet(walletName, username, balance, walletType, accountNumber, currency, note) {
-            document.getElementById("updateWalletName").value = walletName;
+        function editWallet(username, walletName, walletType, currency, accountNumber, balance, note, walletId) {
             document.getElementById("updateUsername").value = username;
-            document.getElementById("updateBalance").value = balance;
+            document.getElementById("updateWalletName").value = walletName;
             document.getElementById("updateWalletType").value = walletType;
-            document.getElementById("UpdateAccountNumber").value = accountNumber;
             document.getElementById("updateCurrency").value = currency;
+            document.getElementById("UpdateAccountNumber").value = accountNumber;
+            document.getElementById("updateBalance").value = balance;
             document.getElementById("updateNote").value = note;
             document.getElementById("updateForm").style.display = "block";
-        }
+            document.getElementById("updateWalletId").value = walletId;  // Add UUID to form for update
+        }        
     </script>
 </head>
 <body>
     <h1>Wallet Manager</h1>
 
-    <!-- Debugging Info -->
+    <!-- Debugging Info 
     <h3>🔍 Debug Info</h3>
-    <pre>{{ wallets }}</pre>
+    <pre>{{ wallets }}</pre> -->
 
     <!-- Create Wallet Form -->
     <h2>Create Wallet</h2>
     <form action="/wallet" method="POST">
-        <input type="text" name="username" value:"fmahmoudifar@gmail.com" ><br>
+       <!-- <input type="text" name="username" value:"fmahmoudifar@gmail.com" ><br> -->
         <input type="text" name="walletName" placeholder="Wallet Name" required><br>
         <input type="text" name="walletType" placeholder="Wallet Type" required><br>
-        <input type="number" name="balance" placeholder="Balance" ><br>
-        <input type="text" name="accountNumber" placeholder="Account Number" ><br>
         <input type="text" name="currency" placeholder="Currency" required><br>
+        <input type="text" name="accountNumber" placeholder="Account Number"><br>
+        <input type="number" name="balance" placeholder="Balance"><br>
         <input type="text" name="note" placeholder="Note"><br>
         <button type="submit">Create</button>
     </form>
 
     <!-- Wallet List -->
-    <h2>Wallets</h2>
-    {% if wallets %}
-        <ul>
-            {% for wallet in wallets %}
-                <li>
-                    <strong>User:</strong> {{ wallet.username }}<br>
-                    <strong>Wallet:</strong> {{ wallet.walletName }}<br>
-                    <strong>Wallet Type:</strong> {{ wallet.walletType }}<br>
-                    <strong>Balance:</strong> {{ wallet.balance }}<br>
-                    <strong>Account Number:</strong> {{ wallet.accountNumber }}<br>
-                    <strong>Currency:</strong> {{ wallet.currency }}<br>
-                    <strong>Note:</strong> {{ wallet.note }}<br>
+<h2>Wallets</h2>
+{% if wallets %}
+    <ul>
+        {% for wallet in wallets %}
+            <li>
+                <strong>UUID:</strong> {{ wallet.walletId }}<br> <!-- Add UUID here -->
+                <strong>User:</strong> {{ wallet.username }}<br>
+                <strong>Wallet:</strong> {{ wallet.walletName }}<br>
+                <strong>Wallet Type:</strong> {{ wallet.walletType }}<br>
+                <strong>Currency:</strong> {{ wallet.currency }}<br>
+                <strong>Account Number:</strong> {{ wallet.accountNumber }}<br>
+                <strong>Balance:</strong> {{ wallet.balance }}<br>
+                <strong>Note:</strong> {{ wallet.note }}<br>
 
-                    <!-- Edit Button -->
-                    <button onclick="editWallet('{{ wallet.walletName }}', '{{ wallet.username }}','{{ wallet.walletType }}','{{ wallet.balance }}',
-                        '{{ wallet.accountNumber }}','{{ wallet.currency }}','{{ wallet.note }}')">Edit</button>
+                <!-- Edit Button -->
+                <button onclick="editWallet('{{ wallet.username }}','{{ wallet.walletName }}','{{ wallet.walletType }}','{{ wallet.currency }}',
+                    '{{ wallet.accountNumber }}','{{ wallet.balance }}','{{ wallet.note }}', '{{ wallet.walletId }}')">Edit</button>
 
-                    <!-- Delete Wallet -->
-                    <form action="/delete/{{ wallet.walletName }}/{{ wallet.username }}" method="POST" style="display:inline;">
-                        <button type="submit" onclick="return confirm('Are you sure?')">Delete</button>
-                    </form>
-                </li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>No wallets found.</p>
-    {% endif %}
+                <!-- Delete Wallet -->
+                <form action="/delete/{{ wallet.walletId }}/{{ wallet.username }}" method="POST" style="display:inline;">
+                    <button type="submit" onclick="return confirm('Are you sure?')">Delete</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No wallets found.</p>
+{% endif %}
 
-    <!-- Update Wallet Form (Initially Hidden) -->
-    <h2>Update Wallet</h2>
-    <form id="updateForm" action="/update" method="POST" style="display: none;">
-        <input type="hidden" id="updateUsername" name="username">
-        <label>Wallet Name:</label>
-        <input type="text" id="updateWalletName" name="walletName">
-        <br>
-        <label>Wallet Type:</label>
-        <input type="text" id="updateWalletType" name="walletType" required>
-        <br>
-        <label>Balance:</label>
-        <input type="number" id="updateBalance" name="balance" required>
-        <br>
-        <label>Account Number:</label>
-        <input type="text" id="UpdateAccountNumber" name="accountNumber" required>
-        <br>
-        <label>Currency:</label>
-        <input type="text" id="updateCurrency" name="currency" required>
-        <br>
-        <label>Note:</label>
-        <input type="text" id="updateNote" name="Note" required>
-        <br>
-        <button type="submit">Save Changes</button>
-    </form>
+
+<!-- Update Wallet Form (Initially Hidden) -->
+<h2>Update Wallet</h2>
+<form id="updateForm" action="/update" method="POST" style="display: none;">
+    <input type="hidden" id="updateUsername" name="username">
+    <input type="hidden" id="updateWalletId" name="walletId"> <!-- Hidden UUID field -->
+    <input type="hidden" id="updateCurrency" name="currency" required>
+    <label>Wallet Name:</label>
+    <input type="text" id="updateWalletName" name="walletName" required>
+    <br>
+    <label>Wallet Type:</label>
+    <input type="text" id="updateWalletType" name="walletType" required>
+    <br>
+    <label>Account Number:</label>
+    <input type="text" id="UpdateAccountNumber" name="accountNumber" >
+    <br>
+    <label>Balance:</label>
+    <input type="number" id="updateBalance" name="balance" >
+    <br>
+    <label>Note:</label>
+    <input type="text" id="updateNote" name="note">
+    <br>
+    <button type="submit">Save Changes</button>
+</form>
+
 </body>
 </html>
