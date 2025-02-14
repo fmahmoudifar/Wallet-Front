@@ -74,12 +74,14 @@
 <form id="updateForm" action="/update" method="POST" style="display: none;">
     <input type="hidden" id="updateUsername" name="username">
     <input type="hidden" id="updateWalletId" name="walletId"> <!-- Hidden UUID field -->
-    <input type="hidden" id="updateCurrency" name="currency" required>
     <label>Wallet Name:</label>
     <input type="text" id="updateWalletName" name="walletName" required>
     <br>
     <label>Wallet Type:</label>
     <input type="text" id="updateWalletType" name="walletType" required>
+    <br>
+    <label>Currency:</label>
+    <input type="text" id="updateCurrency" name="currency" readonly>
     <br>
     <label>Account Number:</label>
     <input type="text" id="UpdateAccountNumber" name="accountNumber" >
