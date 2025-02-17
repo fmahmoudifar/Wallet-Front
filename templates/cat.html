@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Manager</title>
+</head>
+<body>
+    <h1>Transaction Manager</h1>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>
+          {% for message in messages %}
+            <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Form -->
+    <form method="post">
+        <label>Transaction ID:</label>
+        <input type="text" name="transaction_id" required><br>
+
+        <label>Category:</label>
+        <input type="text" name="category"><br>
+
+        <label>Subcategories (comma separated):</label>
+        <input type="text" name="subcategories"><br>
+
+        <button type="submit" name="action" value="Add">Add Transaction</button>
+        <button type="submit" name="action" value="Get">Get Transaction</button>
+        <button type="submit" name="action" value="Update">Update Transaction</button>
+        <button type="submit" name="action" value="Delete">Delete Transaction</button>
+    </form>
+
+    <!-- Display Transaction -->
+    {% if transaction %}
+        <h2>Transaction Details</h2>
+        <p><strong>ID:</strong> {{ transaction.transaction_id }}</p>
+        <p><strong>Category:</strong> {{ transaction.category }}</p>
+        <p><strong>Subcategories:</strong> {{ transaction.subcategories }}</p>
+    {% endif %}
+</body>
+</html>
