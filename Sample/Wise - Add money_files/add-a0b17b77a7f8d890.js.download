@@ -1,0 +1,2 @@
+(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[9631],{16430:(_,a,e)=>{"use strict";e.r(a),e.d(a,{__N_SSP:()=>u,default:()=>n.A});var n=e(32848),u=!0},61689:(_,a,e)=>{(window.__NEXT_P=window.__NEXT_P||[]).push(["/public/balances/[balanceId]/add",function(){return e(16430)}])}},_=>{var a=a=>_(_.s=a);_.O(0,[7436,3651,9534,3674,8001,2237,542,2512,9957,9885,2345,9023,3031,9202,6976,9731,4024,9690,323,4618,1917,3013,2280,8469,2356,1511,35,2758,2998,814,3836,3664,9560,7451,9311,636,6593,8792],()=>a(61689)),_N_E=_.O()}]);
+//# sourceMappingURL=add-a0b17b77a7f8d890.js.map

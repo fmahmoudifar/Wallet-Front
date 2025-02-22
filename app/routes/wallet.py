@@ -13,8 +13,10 @@ from config import API_URL, aws_auth
 
 wallet_bp = Blueprint('wallet', __name__)
 
-@wallet_bp.route('/')
-def index():
+# @wallet_bp.route('/')
+# def index():
+@wallet_bp.route('/wallet', methods=['GET'])
+def wallet_page():
     try:
         response = requests.get(f"{API_URL}/wallets", auth=aws_auth)
         wallets = response.json().get("wallets", []) if response.status_code == 200 else []
@@ -36,17 +38,29 @@ def create_wallet():
         "currency": request.form["currency"],
         "balance": request.form["balance"]
     }
+    print(data)
+    print(aws_auth)
+    print(API_URL)
+    # try:
+    #     requests.post(f"{API_URL}/wallet", json=data, auth=aws_auth)
+    #     return redirect(url_for("wallet.index"))
+    # except:
+    #     return jsonify({"error": "Internal Server Error"}), 500
+
     try:
-        requests.post(f"{API_URL}/wallet", json=data, auth=aws_auth)
-        return redirect(url_for("wallet.index"))
-    except:
+        response = requests.post(f"{API_URL}/wallet", json=data, auth=aws_auth)
+        print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {response.json()}")
+
+        return redirect(url_for("wallet.wallet_page"))
+    except Exception as e:
+        print(f"❌ [ERROR] Failed to create wallet: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
 @wallet_bp.route('/update', methods=['POST'])
 def update_wallet():
     data = {
         "walletId": request.form["walletId"],
-        "userId": "123",
+        "userId": request.form["userId"],
         "currency": request.form["currency"],
         "walletName": request.form["walletName"],
         "walletType": request.form["walletType"],
@@ -54,17 +68,31 @@ def update_wallet():
         "balance": request.form["balance"],
         "note": request.form["note"]
     }
+    print(f"🔄 [DEBUG] Updating wallet: {data}")
+    
     try:
-        requests.patch(f"{API_URL}/wallet", json=data, auth=aws_auth)
-        return redirect(url_for("wallet.index"))
-    except:
+        response = requests.patch(f"{API_URL}/wallet", json=data, auth=aws_auth)
+        print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {response.json()}")
+
+        return redirect(url_for("wallet.wallet_page"))
+    except Exception as e:
+        print(f"❌ [ERROR] Failed to update wallet: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
 @wallet_bp.route('/delete/<wallet_id>/<user_id>', methods=['POST'])
 def delete_wallet(wallet_id, user_id):
-    data = {"walletId": wallet_id, "userId": user_id}
+    """Delete a wallet."""
+    data = {
+        "walletId": wallet_id,
+        "userId": user_id
+    }
+    print(f"🗑️ [DEBUG] Deleting wallet: {data}")
+
     try:
-        requests.delete(f"{API_URL}/wallet", json=data, auth=aws_auth)
-        return redirect(url_for("wallet.index"))
-    except:
+        response = requests.delete(f"{API_URL}/wallet", json=data, auth=aws_auth)
+        print(f"✅ [DEBUG] Delete Response: {response.status_code}, JSON: {response.json()}")
+
+        return redirect(url_for("wallet.wallet_page"))
+    except Exception as e:
+        print(f"❌ [ERROR] Failed to delete wallet: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500

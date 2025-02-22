@@ -1,4 +1,88 @@
 {% extends "layout.html" %}
+
 {% block content %}
-<h1>Transactions</h1>
+
+<script>
+    function editWallet(userId, walletName, walletType, currency, accountNumber, balance, note, walletId) {
+        document.getElementById("updateuserId").value = userId;
+        document.getElementById("updateWalletName").value = walletName;
+        document.getElementById("updateWalletType").value = walletType;
+        document.getElementById("updateCurrency").value = currency;
+        document.getElementById("UpdateAccountNumber").value = accountNumber;
+        document.getElementById("updateBalance").value = balance;
+        document.getElementById("updateNote").value = note;
+        document.getElementById("updateWalletId").value = walletId;
+        document.getElementById("updateForm").style.display = "block";
+
+        // Update the delete form action dynamically
+        document.getElementById("deleteForm").action = `/delete/${walletId}/${userId}`;
+    }        
+</script>
+
+<h1>Wallet Manager</h1>
+
+<h2>Create Wallet</h2>
+<form action="/wallet" method="POST">
+    <input type="text" name="walletName" placeholder="Wallet Name" required><br>
+    <input type="text" name="walletType" placeholder="Wallet Type" required><br>
+    <input type="text" name="currency" placeholder="Currency" required><br>
+    <input type="text" name="accountNumber" placeholder="Account Number"><br>
+    <input type="number" name="balance" placeholder="Balance"><br>
+    <input type="text" name="note" placeholder="Note"><br>
+    <button type="submit">Create</button>
+</form>
+
+<h2>Wallets</h2>
+{% if wallets %}
+<ul>
+    {% for wallet in wallets %}
+    <li>
+        <strong>UUID:</strong> {{ wallet.walletId }}<br>
+        <strong>User:</strong> {{ wallet.userId }}<br>
+        <strong>Wallet:</strong> {{ wallet.walletName }}<br>
+        <strong>Wallet Type:</strong> {{ wallet.walletType }}<br>
+        <strong>Currency:</strong> {{ wallet.currency }}<br>
+        <strong>Account Number:</strong> {{ wallet.accountNumber }}<br>
+        <strong>Balance:</strong> {{ wallet.balance }}<br>
+        <strong>Note:</strong> {{ wallet.note }}<br>
+        <button onclick="editWallet('{{ wallet.userId }}','{{ wallet.walletName }}','{{ wallet.walletType }}','{{ wallet.currency }}','{{ wallet.accountNumber }}','{{ wallet.balance }}','{{ wallet.note }}', '{{ wallet.walletId }}')">Edit</button>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No wallets found.</p>
+{% endif %}
+
+<!-- Update Wallet Form (Initially Hidden) -->
+<form id="updateForm" action="/update" method="POST" style="display: none;">
+    <h2>Update Wallet</h2>
+    <input type="hidden" id="updateuserId" name="userId">
+    <input type="hidden" id="updateWalletId" name="walletId">
+    <label>Wallet Name:</label>
+    <input type="text" id="updateWalletName" name="walletName" required>
+    <br>
+    <label>Wallet Type:</label>
+    <input type="text" id="updateWalletType" name="walletType" required>
+    <br>
+    <label>Currency:</label>
+    <input type="text" id="updateCurrency" name="currency" readonly>
+    <br>
+    <label>Account Number:</label>
+    <input type="text" id="UpdateAccountNumber" name="accountNumber">
+    <br>
+    <label>Balance:</label>
+    <input type="number" id="updateBalance" name="balance">
+    <br>
+    <label>Note:</label>
+    <input type="text" id="updateNote" name="note">
+    <br>
+    <button type="submit">Save Changes</button>
+
+    <!-- Delete Wallet Button -->
+    <button type="submit" form="deleteForm" onclick="return confirm('Are you sure?')">Delete</button>
+</form>
+
+<!-- Separate Delete Form (Dynamically Updated) -->
+<form id="deleteForm" method="POST"></form>
+
 {% endblock %}
