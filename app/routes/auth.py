@@ -10,7 +10,7 @@ def login():
         # Here you should validate credentials with AWS Lambda API
         if username == "admin" and password == "password":  # Replace with actual authentication logic
             session["user"] = username
-            return redirect(url_for("wallet.wallet"))  # Redirect to wallet page after login
+            return redirect(url_for("login.login"))  # Redirect to wallet page after login
         return "Invalid credentials", 401
     return render_template("login.html")
 

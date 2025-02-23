@@ -1,11 +1,3 @@
-# from flask import Blueprint, render_template
-
-# wallet_bp = Blueprint("wallet", __name__, url_prefix="/wallet")
-
-# @wallet_bp.route("/")
-# def wallet():
-#     return render_template("wallet.html")
-
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify
 import requests
 import uuid
@@ -39,13 +31,6 @@ def create_wallet():
         "balance": request.form["balance"]
     }
     print(data)
-    print(aws_auth)
-    print(API_URL)
-    # try:
-    #     requests.post(f"{API_URL}/wallet", json=data, auth=aws_auth)
-    #     return redirect(url_for("wallet.index"))
-    # except:
-    #     return jsonify({"error": "Internal Server Error"}), 500
 
     try:
         response = requests.post(f"{API_URL}/wallet", json=data, auth=aws_auth)

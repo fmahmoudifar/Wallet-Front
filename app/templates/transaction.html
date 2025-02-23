@@ -1,0 +1,120 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<script>
+    function editTransaction(transId, userId, type, transType, mainCat, subCat, date, fromWallet, toWallet, amount, price, currency, fee, note) {
+        document.getElementById("updateTransId").value = transId;
+        document.getElementById("updateuserId").value = userId;
+        document.getElementById("updateType").value = type;
+        document.getElementById("updateTransType").value = transType;
+        document.getElementById("updateMainCat").value = mainCat;
+        document.getElementById("updateSubCat").value = subCat;
+        document.getElementById("updateDate").value = date;
+        document.getElementById("updateFromWallet").value = fromWallet;
+        document.getElementById("updateToWallet").value = toWallet;
+        document.getElementById("updateAmount").value = amount;
+        document.getElementById("updatePrice").value = price;
+        document.getElementById("updateCurrency").value = currency;
+        document.getElementById("updateFee").value = fee;
+        document.getElementById("updateNote").value = note;
+        document.getElementById("updateForm").style.display = "block";
+        document.getElementById("deleteForm").action = `/deleteTrans/${transId}/${userId}`;
+    }  
+</script>
+
+<h1>Transactions Manager</h1>
+
+<h2>Add New Transaction</h2>
+<form action="/transaction" method="POST">
+    <input type="text" name="type" placeholder="type" required><br>
+    <input type="text" name="transType" placeholder="transType"><br>
+    <input type="text" name="mainCat" placeholder="mainCat"><br>
+    <input type="text" name="subCat" placeholder="subCat"><br>
+    <input type="datetime-local" name="date" placeholder="date" required><br>
+    <input type="text" name="fromWallet" placeholder="fromWallet"><br>
+    <input type="text" name="toWallet" placeholder="toWallet"><br>
+    <input type="float" name="amount" placeholder="amount"><br>
+    <input type="float" name="price" placeholder="price" required><br>
+    <input type="text" name="currency" placeholder="Currency" required><br>
+    <input type="float" name="fee" placeholder="fee"><br>
+    <input type="text" name="note" placeholder="Note"><br>
+    <button type="submit">Create</button>
+</form>
+
+<h2>Transactions</h2>
+{% if transactions %}
+<ul>
+    {% for transaction in transactions %}
+    <li>
+        <strong>Transaction ID:</strong> {{ transaction.transId }}<br>
+        <strong>User ID:</strong> {{ transaction.userId }}<br>
+        <strong>Type:</strong> {{ transaction.type }}<br>
+        <strong>Transaction Type:</strong> {{ transaction.transType }}<br>
+        <strong>Main Category:</strong> {{ transaction.mainCat }}<br>
+        <strong>Sub Category:</strong> {{ transaction.subCat }}<br>
+        <strong>Date:</strong> {{ transaction.date }}<br>
+        <strong>From Wallet:</strong> {{ transaction.fromWallet }}<br>
+        <strong>To Wallet:</strong> {{ transaction.toWallet }}<br>
+        <strong>Amount:</strong> {{ transaction.amount }}<br>
+        <strong>Price:</strong> {{ transaction.price }}<br>
+        <strong>Currency:</strong> {{ transaction.currency }}<br>
+        <strong>Fee:</strong> {{ transaction.fee }}<br>
+        <strong>Note:</strong> {{ transaction.note }}<br>
+        <button onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.type }}','{{ transaction.transType }}',
+        '{{ transaction.mainCat }}','{{ transaction.subCat }}','{{ transaction.date }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}',
+        '{{ transaction.amount }}','{{ transaction.price }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}')">Edit</button>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No transactions found.</p>
+{% endif %}
+
+<form id="updateForm" action="/updateTrans" method="POST" style="display: none;">
+    <h2>Update Transaction</h2>
+    <input type="hidden" id="updateTransId" name="transId">
+    <input type="hidden" id="updateuserId" name="userId">
+    <label>Type:</label>
+    <input type="text" id="updateType" name="type" required>
+    <br>
+    <label>Transaction Type:</label>
+    <input type="text" id="updateTransType" name="transType">
+    <br>
+    <label>Main Category:</label>
+    <input type="text" id="updateMainCat" name="mainCat">
+    <br>
+    <label>Sub Category:</label>
+    <input type="text" id="updateSubCat" name="subCat">
+    <br>
+    <label>Date:</label>
+    <input type="datetime-local" id="updateDate" name="date" required>
+    <br>
+    <label>From Wallet:</label>
+    <input type="text" id="updateFromWallet" name="fromWallet">
+    <br>
+    <label>To Wallet:</label>
+    <input type="text" id="updateToWallet" name="toWallet">
+    <br>
+    <label>Amount:</label>
+    <input type="float" id="updateAmount" name="amount">
+    <br>
+    <label>Price:</label>
+    <input type="float" id="updatePrice" name="price" required>
+    <br>
+    <label>Currency:</label>
+    <input type="text" id="updateCurrency" name="currency" required>
+    <br>
+    <label>Fee:</label>
+    <input type="float" id="updateFee" name="fee">
+    <br>
+    <label>Note:</label>
+    <input type="text" id="updateNote" name="note">
+    <br>
+    <button type="submit">Save Changes</button>
+    <button type="submit" form="deleteForm" onclick="return confirm('Are you sure?')">Delete</button>
+</form>
+
+<form id="deleteForm" method="POST"></form>
+
+{% endblock %}
