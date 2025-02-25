@@ -3,14 +3,14 @@
 {% block content %}
 
 <script>
-    function editTransaction(transId, userId, type, transType, mainCat, subCat, date, fromWallet, toWallet, amount, price, currency, fee, note) {
+    function editTransaction(transId, userId, mtype, transType, mainCat, subCat, tdate, fromWallet, toWallet, amount, price, currency, fee, note) {
         document.getElementById("updateTransId").value = transId;
         document.getElementById("updateuserId").value = userId;
-        document.getElementById("updateType").value = type;
+        document.getElementById("updateMtype").value = mtype;
         document.getElementById("updateTransType").value = transType;
         document.getElementById("updateMainCat").value = mainCat;
         document.getElementById("updateSubCat").value = subCat;
-        document.getElementById("updateDate").value = date;
+        document.getElementById("updateTdate").value = tdate;
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
         document.getElementById("updateAmount").value = amount;
@@ -27,11 +27,11 @@
 
 <h2>Add New Transaction</h2>
 <form action="/transaction" method="POST">
-    <input type="text" name="type" placeholder="type"><br>
+    <input type="text" name="mtype" placeholder="mtype"><br>
     <input type="text" name="transType" placeholder="transType"><br>
     <input type="text" name="mainCat" placeholder="mainCat"><br>
     <input type="text" name="subCat" placeholder="subCat"><br>
-    <input type="text" name="date" placeholder="date"><br>
+    <input type="text" name="tdate" placeholder="tdate"><br>
     <input type="text" name="fromWallet" placeholder="fromWallet"><br>
     <input type="text" name="toWallet" placeholder="toWallet"><br>
     <input type="text" name="amount" placeholder="amount"><br>
@@ -52,11 +52,11 @@
     <li>
         <strong>Transaction ID:</strong> {{ transaction.transId }}<br>
         <strong>User ID:</strong> {{ transaction.userId }}<br>
-        <strong>Type:</strong> {{ transaction.type }}<br>
+        <strong>Type:</strong> {{ transaction.mtype }}<br>
         <strong>Transaction Type:</strong> {{ transaction.transType }}<br>
         <strong>Main Category:</strong> {{ transaction.mainCat }}<br>
         <strong>Sub Category:</strong> {{ transaction.subCat }}<br>
-        <strong>Date:</strong> {{ transaction.date }}<br>
+        <strong>Date:</strong> {{ transaction.tdate }}<br>
         <strong>From Wallet:</strong> {{ transaction.fromWallet }}<br>
         <strong>To Wallet:</strong> {{ transaction.toWallet }}<br>
         <strong>Amount:</strong> {{ transaction.amount }}<br>
@@ -64,8 +64,8 @@
         <strong>Currency:</strong> {{ transaction.currency }}<br>
         <strong>Fee:</strong> {{ transaction.fee }}<br>
         <strong>Note:</strong> {{ transaction.note }}<br>
-        <button onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.type }}','{{ transaction.transType }}',
-        '{{ transaction.mainCat }}','{{ transaction.subCat }}','{{ transaction.date }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}',
+        <button onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.mtype }}','{{ transaction.transType }}',
+        '{{ transaction.mainCat }}','{{ transaction.subCat }}','{{ transaction.tdate }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}',
         '{{ transaction.amount }}','{{ transaction.price }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}')">Edit</button>
     </li>
     {% endfor %}
@@ -79,7 +79,7 @@
     <input type="hidden" id="updateTransId" name="transId">
     <input type="hidden" id="updateuserId" name="userId">
     <label>Type:</label>
-    <input type="text" id="updateType" name="type">
+    <input type="text" id="updateMtype" name="mtype">
     <br>
     <label>Transaction Type:</label>
     <input type="text" id="updateTransType" name="transType">
@@ -91,7 +91,7 @@
     <input type="text" id="updateSubCat" name="subCat">
     <br>
     <label>Date:</label>
-    <input type="text" id="updateDate" name="date">
+    <input type="text" id="updateTdate" name="tdate">
     <br>
     <label>From Wallet:</label>
     <input type="text" id="updateFromWallet" name="fromWallet">
