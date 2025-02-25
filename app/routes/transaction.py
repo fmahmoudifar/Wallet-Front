@@ -2,6 +2,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, jsonif
 import requests
 import uuid
 from config import API_URL, aws_auth
+from decimal import Decimal
+
 
 transaction_bp = Blueprint('transaction', __name__)
 
@@ -28,10 +30,10 @@ def create_transaction():
         "toWallet": request.form["toWallet"],
         "mainCat": request.form["mainCat"],
         "subCat": request.form["subCat"],
-        "amount": request.form["amount"],
-        "price": request.form["price"],
+        "amount": Decimal(request.form["amount"]) if request.form["amount"] else Decimal("0"),  # ✅ Convert to Decimal
+        "price": Decimal(request.form["price"]) if request.form["price"] else Decimal("0"),  # ✅ Convert to Decimal
         "currency": request.form["currency"],
-        "fee": request.form["fee"],
+        "fee": Decimal(request.form["fee"]) if request.form["fee"] else Decimal("0"),  # ✅ Convert to Decimal
         "note": request.form["note"]
     }
     print(data)
@@ -56,10 +58,10 @@ def update_transaction():
         "tdate": request.form["tdate"],        
         "fromWallet": request.form["fromWallet"],
         "toWallet": request.form["toWallet"],
-        "amount": request.form["amount"],
-        "price": request.form["price"],
+        "amount": Decimal(request.form["amount"]) if request.form["amount"] else Decimal("0"),  # ✅ Convert to Decimal
+        "price": Decimal(request.form["price"]) if request.form["price"] else Decimal("0"),  # ✅ Convert to Decimal
         "currency": request.form["currency"],
-        "fee": request.form["fee"],
+        "fee": Decimal(request.form["fee"]) if request.form["fee"] else Decimal("0"),  # ✅ Convert to Decimal
         "note": request.form["note"]
     }
     print(f"🔄 [DEBUG] Updating transaction: {data}")
