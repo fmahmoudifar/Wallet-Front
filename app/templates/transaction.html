@@ -13,13 +13,13 @@
         document.getElementById("updateTdate").value = tdate;
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
-        // document.getElementById("updateAmount").value = amount;
-        // document.getElementById("updatePrice").value = price;
-        document.getElementById("updateAmount").value = parseFloat(amount);
-        document.getElementById("updatePrice").value = parseFloat(price);
+        document.getElementById("updateAmount").value = amount;
+        document.getElementById("updatePrice").value = price;
+        // document.getElementById("updateAmount").value = parseFloat(amount);
+        // document.getElementById("updatePrice").value = parseFloat(price);
         document.getElementById("updateCurrency").value = currency;
-        // document.getElementById("updateFee").value = fee;
-        document.getElementById("updateFee").value = parseFloat(fee);
+        document.getElementById("updateFee").value = fee;
+        // document.getElementById("updateFee").value = parseFloat(fee);
         document.getElementById("updateNote").value = note;
         document.getElementById("updateForm").style.display = "block";
         document.getElementById("deleteForm").action = `/deleteTrans/${transId}/${userId}`;
@@ -34,16 +34,17 @@
     <input type="text" name="transType" placeholder="transType"><br>
     <input type="text" name="mainCat" placeholder="mainCat"><br>
     <input type="text" name="subCat" placeholder="subCat"><br>
-    <input type="datetime-local" name="tdate" placeholder="date"><br>
+    <!-- <input type="datetime-local" name="tdate" placeholder="date"><br> -->
+    <input type="text" name="tdate" placeholder="date"><br>
     <input type="text" name="fromWallet" placeholder="fromWallet"><br>
     <input type="text" name="toWallet" placeholder="toWallet"><br>
-    <!-- <input type="text" name="amount" placeholder="amount"><br>
-    <input type="text" name="price" placeholder="price"><br> -->
-    <input type="number" step="0.00000001" name="amount" placeholder="amount"><br>
-    <input type="number" step="0.00000001" name="price" placeholder="price" required><br>
+    <input type="text" name="amount" placeholder="amount"><br>
+    <input type="text" name="price" placeholder="price"><br>
+    <!-- <input type="number" step="0.00000001" name="amount" placeholder="amount"><br>
+    <input type="number" step="0.00000001" name="price" placeholder="price" required><br> -->
     <input type="text" name="currency" placeholder="Currency"><br>
-    <!-- <input type="text" name="fee" placeholder="fee"><br> -->
-    <input type="number" step="0.00000001" name="fee" placeholder="fee"><br>
+    <input type="text" name="fee" placeholder="fee"><br>
+    <!-- <input type="number" step="0.00000001" name="fee" placeholder="fee"><br> -->
     <input type="text" name="note" placeholder="Note"><br>
     <button type="submit">Create</button>
 </form>
@@ -69,7 +70,7 @@
         <strong>Note:</strong> {{ transaction.note }}<br>
         <button onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.mtype }}','{{ transaction.transType }}',
         '{{ transaction.mainCat }}','{{ transaction.subCat }}','{{ transaction.tdate }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}',
-        '{{ transaction.amount }}',{{ transaction.price }},'{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}')">Edit</button>
+        '{{ transaction.amount }}','{{ transaction.price }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}')">Edit</button>
     </li>
     {% endfor %}
 </ul>
@@ -103,19 +104,19 @@
     <input type="text" id="updateToWallet" name="toWallet">
     <br>
     <label>Amount:</label>
-    <input type="number" step="0.00000001" id="updateAmount" name="amount">
-    <!-- <input type="text" id="updateAmount" name="amount"> -->
+    <!-- <input type="number" step="0.00000001" id="updateAmount" name="amount"> -->
+    <input type="text" id="updateAmount" name="amount">
     <br>
     <label>Price:</label>
-    <input type="number" step="0.00000001" id="updatePrice" name="price" required>
-    <!-- <input type="text" id="updatePrice" name="price"> -->
+    <!-- <input type="number" step="0.00000001" id="updatePrice" name="price" required> -->
+    <input type="text" id="updatePrice" name="price">
     <br>
     <label>Currency:</label>
     <input type="text" id="updateCurrency" name="currency">
     <br>
     <label>Fee:</label>
-    <input type="number" step="0.00000001" id="updateFee" name="fee">
-    <!-- <input type="text" id="updateFee" name="fee"> -->
+    <!-- <input type="number" step="0.00000001" id="updateFee" name="fee"> -->
+    <input type="text" id="updateFee" name="fee">
     <br>
     <label>Note:</label>
     <input type="text" id="updateNote" name="note">

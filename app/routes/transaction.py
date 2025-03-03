@@ -30,12 +30,13 @@ def create_transaction():
         "toWallet": request.form["toWallet"],
         "mainCat": request.form["mainCat"],
         "subCat": request.form["subCat"],
-        "amount": Decimal(request.form["amount"]) if request.form["amount"] else Decimal("0"),  # ✅ Convert to Decimal
-        "price": Decimal(request.form["price"]) if request.form["price"] else Decimal("0"),  # ✅ Convert to Decimal
+        "amount": float(request.form["amount"]),  
+        "price": float(request.form["price"]),  
         "currency": request.form["currency"],
-        "fee": Decimal(request.form["fee"]) if request.form["fee"] else Decimal("0"),  # ✅ Convert to Decimal
+        "fee": float(request.form["fee"]),  
         "note": request.form["note"]
     }
+
     print(data)
     try:
         response = requests.post(f"{API_URL}/transaction", json=data, auth=aws_auth)
@@ -58,10 +59,10 @@ def update_transaction():
         "tdate": request.form["tdate"],        
         "fromWallet": request.form["fromWallet"],
         "toWallet": request.form["toWallet"],
-        "amount": Decimal(request.form["amount"]) if request.form["amount"] else Decimal("0"),  # ✅ Convert to Decimal
-        "price": Decimal(request.form["price"]) if request.form["price"] else Decimal("0"),  # ✅ Convert to Decimal
+        "amount": float(request.form["amount"]),  
+        "price": float(request.form["price"]),  
         "currency": request.form["currency"],
-        "fee": Decimal(request.form["fee"]) if request.form["fee"] else Decimal("0"),  # ✅ Convert to Decimal
+        "fee": float(request.form["fee"]),  
         "note": request.form["note"]
     }
     print(f"🔄 [DEBUG] Updating transaction: {data}")
