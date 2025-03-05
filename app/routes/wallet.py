@@ -28,7 +28,7 @@ def create_wallet():
         "accountNumber": request.form["accountNumber"],
         "note": request.form["note"],
         "currency": request.form["currency"],
-        "balance": request.form["balance"]
+        "balance": float(request.form["balance"])
     }
     print(data)
 

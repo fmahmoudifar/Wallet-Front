@@ -30,10 +30,13 @@ def create_transaction():
         "toWallet": request.form["toWallet"],
         "mainCat": request.form["mainCat"],
         "subCat": request.form["subCat"],
-        "amount": float(request.form["amount"]),  
-        "price": float(request.form["price"]),  
+        # "amount": float(request.form["amount"]),  
+        # "price": float(request.form["price"]),  
+        "amount": request.form["amount"],  
+        "price": request.form["price"],  
         "currency": request.form["currency"],
-        "fee": float(request.form["fee"]),  
+        # "fee": float(request.form["fee"]),
+        "fee": request.form["fee"],
         "note": request.form["note"]
     }
 
@@ -59,10 +62,13 @@ def update_transaction():
         "tdate": request.form["tdate"],        
         "fromWallet": request.form["fromWallet"],
         "toWallet": request.form["toWallet"],
-        "amount": float(request.form["amount"]),  
-        "price": float(request.form["price"]),  
+        # "amount": float(request.form["amount"]),  
+        # "price": float(request.form["price"]),  
+        "amount": request.form["amount"],  
+        "price": request.form["price"],  
         "currency": request.form["currency"],
-        "fee": float(request.form["fee"]),  
+        # "fee": float(request.form["fee"]),  
+        "fee": request.form["fee"],  
         "note": request.form["note"]
     }
     print(f"🔄 [DEBUG] Updating transaction: {data}")
