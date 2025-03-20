@@ -3,19 +3,16 @@
 {% block content %}
 
 <script>
-    function editCrypto(cryptoId, userId, mtype, cryptoType, mainCat, subCat, tdate, fromWallet, toWallet, amount, price, currency, fee, note) {
+    function editCrypto(cryptoId, userId, cryptoName, tdate, fromWallet, toWallet, quantity, price, currency, fee, note) {
         document.getElementById("updateCryptoId").value = cryptoId;
         document.getElementById("updateUserId").value = userId;
-        document.getElementById("updateMtype").value = mtype;
-        document.getElementById("updateCryptoType").value = cryptoType;
-        document.getElementById("updateMainCat").value = mainCat;
-        document.getElementById("updateSubCat").value = subCat;
+        document.getElementById("updateCryptoName").value = cryptoName;
         document.getElementById("updateTdate").value = tdate;
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
-        document.getElementById("updateAmount").value = amount;
+        document.getElementById("updateQuantity").value = quantity;
         document.getElementById("updatePrice").value = price;
-        // document.getElementById("updateAmount").value = parseFloat(amount);
+        // document.getElementById("updateQuantity").value = parseFloat(quantity);
         // document.getElementById("updatePrice").value = parseFloat(price);
         document.getElementById("updateCurrency").value = currency;
         document.getElementById("updateFee").value = fee;
@@ -26,51 +23,44 @@
     }  
 </script>
 
-<h1>cryptos Manager</h1>
+<h1>Cryptos Manager</h1>
 
 <h2>Add New Crypto</h2>
 <form action="/crypto" method="POST">
-    <input type="text" name="mtype" placeholder="type"><br>
-    <input type="text" name="cryptoType" placeholder="cryptoType"><br>
-    <input type="text" name="mainCat" placeholder="mainCat"><br>
-    <input type="text" name="subCat" placeholder="subCat"><br>
+    <input type="text" name="cryptoName" placeholder="cryptoName"><br>
     <!-- <input type="datetime-local" name="tdate" placeholder="date"><br> -->
     <input type="text" name="tdate" placeholder="date"><br>
     <input type="text" name="fromWallet" placeholder="fromWallet"><br>
     <input type="text" name="toWallet" placeholder="toWallet"><br>
-    <input type="text" name="amount" placeholder="amount"><br>
+    <input type="text" name="quantity" placeholder="quantity"><br>
     <input type="text" name="price" placeholder="price"><br>
-    <!-- <input type="number" step="0.00000001" name="amount" placeholder="amount"><br>
+    <!-- <input type="number" step="0.00000001" name="quantity" placeholder="quantity"><br>
     <input type="number" step="0.00000001" name="price" placeholder="price" required><br> -->
     <input type="text" name="currency" placeholder="Currency"><br>
     <input type="text" name="fee" placeholder="fee"><br>
     <!-- <input type="number" step="0.00000001" name="fee" placeholder="fee"><br> -->
     <input type="text" name="note" placeholder="Note"><br>
-    <button type="submit">Create</button>
+    <button type="submit">Insert</button>
 </form>
 
-<h2>cryptos</h2>
+<h2>Cryptos</h2>
 {% if cryptos %}
 <ul>
     {% for crypto in cryptos %}
     <li>
         <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br>
         <strong>User ID:</strong> {{ crypto.userId }}<br>
-        <strong>Type:</strong> {{ crypto.mtype }}<br>
-        <strong>Crypto Type:</strong> {{ crypto.cryptoType }}<br>
-        <strong>Main Category:</strong> {{ crypto.mainCat }}<br>
-        <strong>Sub Category:</strong> {{ crypto.subCat }}<br>
+        <strong>Crypto:</strong> {{ crypto.cryptoName }}<br>
         <strong>Date:</strong> {{ crypto.tdate }}<br>
         <strong>From Wallet:</strong> {{ crypto.fromWallet }}<br>
         <strong>To Wallet:</strong> {{ crypto.toWallet }}<br>
-        <strong>Amount:</strong> {{ crypto.amount }}<br>
+        <strong>Quantity:</strong> {{ crypto.quantity }}<br>
         <strong>Price:</strong> {{ crypto.price }}<br>
         <strong>Currency:</strong> {{ crypto.currency }}<br>
         <strong>Fee:</strong> {{ crypto.fee }}<br>
         <strong>Note:</strong> {{ crypto.note }}<br>
-        <button onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.mtype }}','{{ crypto.cryptoType }}',
-        '{{ crypto.mainCat }}','{{ crypto.subCat }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}','{{ crypto.toWallet }}',
-        '{{ crypto.amount }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
+        <button onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.cryptoName }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}',
+        '{{ crypto.toWallet }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
     </li>
     {% endfor %}
 </ul>
@@ -83,16 +73,7 @@
     <input type="hidden" id="updateCryptoId" name="cryptoId">
     <input type="hidden" id="updateUserId" name="userId">
     <label>Type:</label>
-    <input type="text" id="updateMtype" name="mtype">
-    <br>
-    <label>crypto Type:</label>
-    <input type="text" id="updateCryptoType" name="cryptoType">
-    <br>
-    <label>Main Category:</label>
-    <input type="text" id="updateMainCat" name="mainCat">
-    <br>
-    <label>Sub Category:</label>
-    <input type="text" id="updateSubCat" name="subCat">
+    <input type="text" id="updateCryptoName" name="cryptoName">
     <br>
     <label>Date:</label>
     <input type="text" id="updateTdate" name="tdate">
@@ -103,9 +84,9 @@
     <label>To Wallet:</label>
     <input type="text" id="updateToWallet" name="toWallet">
     <br>
-    <label>Amount:</label>
-    <!-- <input type="number" step="0.00000001" id="updateAmount" name="amount"> -->
-    <input type="text" id="updateAmount" name="amount">
+    <label>quantity:</label>
+    <!-- <input type="number" step="0.00000001" id="updateQuantity" name="quantity"> -->
+    <input type="text" id="updateQuantity" name="quantity">
     <br>
     <label>Price:</label>
     <!-- <input type="number" step="0.00000001" id="updatePrice" name="price" required> -->
