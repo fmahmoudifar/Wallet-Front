@@ -18,7 +18,7 @@
         document.getElementById("updateFee").value = fee;
         // document.getElementById("updateFee").value = parseFloat(fee);
         document.getElementById("updateNote").value = note;
-        document.getElementById("updateForm").style.display = "block";
+        document.getElementById("updateForm").style.display = "grid";
         document.getElementById("deleteForm").action = `/deleteCrypto/${cryptoId}/${userId}`;
     }  
 
@@ -42,8 +42,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
 <!-- <div style="text-align: left;"> -->
-<div>
-    <h2>Add New Crypto</h2>
+<h2>Add New Crypto</h2>
+<div style="display: flex;
+    flex-direction: column;
+    align-items: center;">
+
     <form action="/crypto" method="POST" style="display: grid;
     grid-template-columns: 1fr 1fr;
     align-items: end;
@@ -90,7 +93,10 @@ document.addEventListener("DOMContentLoaded", function() {
         <label for="note">Note:</label>
         <input type="text" name="note" placeholder="Note"><br>
         </div>
+        <div>
+        <button type="reset">Clear</button>
         <button type="submit">Insert</button>
+        </div>
     </form>
 
 </div>
@@ -150,44 +156,77 @@ document.addEventListener("DOMContentLoaded", function() {
 <p>No Cryptos found.</p>
 {% endif %}
 
-<form id="updateForm" action="/updateCrypto" method="POST" style="display: none;">
+<div>
+<form id="updateForm" action="/updateCrypto" method="POST" style="display: none;
+grid-template-columns: 1fr 1fr;
+align-items: end;
+row-gap: 20px;
+justify-items: end;
+margin-bottom: 1rem;">
     <h2>Update crypto</h2>
     <input type="hidden" id="updateCryptoId" name="cryptoId">
     <input type="hidden" id="updateUserId" name="userId">
+    <div>
     <label>Type:</label>
-    <input type="text" id="updateCryptoName" name="cryptoName">
-    <br>
+    <input type="text" id="updateCryptoName" name="cryptoName"><br>
+    </div>
+    <div>
     <label>Date:</label>
-    <input type="datetime-local" id="updateTdate" name="tdate">
-    <br>
+    <input type="datetime-local" id="updateTdate" name="tdate"><br>
+    </div>
+    <div>
     <label>From Wallet:</label>
-    <input type="text" id="updateFromWallet" name="fromWallet">
-    <br>
+    <input type="text" id="updateFromWallet" name="fromWallet"><br>
+    </div>
+    <div>
     <label>To Wallet:</label>
-    <input type="text" id="updateToWallet" name="toWallet">
-    <br>
+    <input type="text" id="updateToWallet" name="toWallet"><br>
+    </div>
+    <div>
     <label>quantity:</label>
     <!-- <input type="number" step="0.00000001" id="updateQuantity" name="quantity"> -->
-    <input type="text" id="updateQuantity" name="quantity">
-    <br>
+    <input type="text" id="updateQuantity" name="quantity"><br>
+    </div>
+    <div>
     <label>Price:</label>
     <!-- <input type="number" step="0.00000001" id="updatePrice" name="price" required> -->
-    <input type="text" id="updatePrice" name="price">
-    <br>
+    <input type="text" id="updatePrice" name="price"><br>
+    </div>
+    <div>
     <label>Currency:</label>
-    <input type="text" id="updateCurrency" name="currency">
-    <br>
+    <input type="text" id="updateCurrency" name="currency"><br>
+    </div>
+    <div>
     <label>Fee:</label>
     <!-- <input type="number" step="0.00000001" id="updateFee" name="fee"> -->
-    <input type="text" id="updateFee" name="fee">
-    <br>
+    <input type="text" id="updateFee" name="fee"><br>
+    </div>
+    <div>
     <label>Note:</label>
-    <input type="text" id="updateNote" name="note">
-    <br>
+    <input type="text" id="updateNote" name="note"><br>
+    <div>
     <button type="submit">Save Changes</button>
     <button type="submit" form="deleteForm" onclick="return confirm('Are you sure?')">Delete</button>
+    </div>
 </form>
+</div>
 
+/* display: grid
+; */
+    grid-template-columns: 1fr 1fr;
+    place-items: end;
+    row-gap: 20px;
+    margin-bottom: 1rem;
+    justify-items: end;
+    align-items: center;
+    justify-content: space-around;
+    align-content: space-around;
+    #
+    div display: flex
+    ;
+        flex-direction: column;
+        align-items: center;
+        flex-wrap: nowrap;
 <form id="deleteForm" method="POST"></form>
 
 {% endblock %}
