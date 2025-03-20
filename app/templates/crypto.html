@@ -3,11 +3,11 @@
 {% block content %}
 
 <script>
-    function editTransaction(transId, userId, mtype, transType, mainCat, subCat, tdate, fromWallet, toWallet, amount, price, currency, fee, note) {
-        document.getElementById("updateTransId").value = transId;
+    function editCrypto(cryptoId, userId, mtype, cryptoType, mainCat, subCat, tdate, fromWallet, toWallet, amount, price, currency, fee, note) {
+        document.getElementById("updateCryptoId").value = cryptoId;
         document.getElementById("updateUserId").value = userId;
         document.getElementById("updateMtype").value = mtype;
-        document.getElementById("updateTransType").value = transType;
+        document.getElementById("updateCryptoType").value = cryptoType;
         document.getElementById("updateMainCat").value = mainCat;
         document.getElementById("updateSubCat").value = subCat;
         document.getElementById("updateTdate").value = tdate;
@@ -22,16 +22,16 @@
         // document.getElementById("updateFee").value = parseFloat(fee);
         document.getElementById("updateNote").value = note;
         document.getElementById("updateForm").style.display = "block";
-        document.getElementById("deleteForm").action = `/deleteTrans/${transId}/${userId}`;
+        document.getElementById("deleteForm").action = `/deleteCrypto/${cryptoId}/${userId}`;
     }  
 </script>
 
-<h1>Transactions Manager</h1>
+<h1>cryptos Manager</h1>
 
-<h2>Add New Transaction</h2>
-<form action="/transaction" method="POST">
+<h2>Add New Crypto</h2>
+<form action="/crypto" method="POST">
     <input type="text" name="mtype" placeholder="type"><br>
-    <input type="text" name="transType" placeholder="transType"><br>
+    <input type="text" name="cryptoType" placeholder="cryptoType"><br>
     <input type="text" name="mainCat" placeholder="mainCat"><br>
     <input type="text" name="subCat" placeholder="subCat"><br>
     <!-- <input type="datetime-local" name="tdate" placeholder="date"><br> -->
@@ -49,44 +49,44 @@
     <button type="submit">Create</button>
 </form>
 
-<h2>Transactions</h2>
-{% if transactions %}
+<h2>cryptos</h2>
+{% if cryptos %}
 <ul>
-    {% for transaction in transactions %}
+    {% for crypto in cryptos %}
     <li>
-        <strong>Transaction ID:</strong> {{ transaction.transId }}<br>
-        <strong>User ID:</strong> {{ transaction.userId }}<br>
-        <strong>Type:</strong> {{ transaction.mtype }}<br>
-        <strong>Transaction Type:</strong> {{ transaction.transType }}<br>
-        <strong>Main Category:</strong> {{ transaction.mainCat }}<br>
-        <strong>Sub Category:</strong> {{ transaction.subCat }}<br>
-        <strong>Date:</strong> {{ transaction.tdate }}<br>
-        <strong>From Wallet:</strong> {{ transaction.fromWallet }}<br>
-        <strong>To Wallet:</strong> {{ transaction.toWallet }}<br>
-        <strong>Amount:</strong> {{ transaction.amount }}<br>
-        <strong>Price:</strong> {{ transaction.price }}<br>
-        <strong>Currency:</strong> {{ transaction.currency }}<br>
-        <strong>Fee:</strong> {{ transaction.fee }}<br>
-        <strong>Note:</strong> {{ transaction.note }}<br>
-        <button onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.mtype }}','{{ transaction.transType }}',
-        '{{ transaction.mainCat }}','{{ transaction.subCat }}','{{ transaction.tdate }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}',
-        '{{ transaction.amount }}','{{ transaction.price }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}')">Edit</button>
+        <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br>
+        <strong>User ID:</strong> {{ crypto.userId }}<br>
+        <strong>Type:</strong> {{ crypto.mtype }}<br>
+        <strong>Crypto Type:</strong> {{ crypto.cryptoType }}<br>
+        <strong>Main Category:</strong> {{ crypto.mainCat }}<br>
+        <strong>Sub Category:</strong> {{ crypto.subCat }}<br>
+        <strong>Date:</strong> {{ crypto.tdate }}<br>
+        <strong>From Wallet:</strong> {{ crypto.fromWallet }}<br>
+        <strong>To Wallet:</strong> {{ crypto.toWallet }}<br>
+        <strong>Amount:</strong> {{ crypto.amount }}<br>
+        <strong>Price:</strong> {{ crypto.price }}<br>
+        <strong>Currency:</strong> {{ crypto.currency }}<br>
+        <strong>Fee:</strong> {{ crypto.fee }}<br>
+        <strong>Note:</strong> {{ crypto.note }}<br>
+        <button onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.mtype }}','{{ crypto.cryptoType }}',
+        '{{ crypto.mainCat }}','{{ crypto.subCat }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}','{{ crypto.toWallet }}',
+        '{{ crypto.amount }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
     </li>
     {% endfor %}
 </ul>
 {% else %}
-<p>No transactions found.</p>
+<p>No Cryptos found.</p>
 {% endif %}
 
-<form id="updateForm" action="/updateTrans" method="POST" style="display: none;">
-    <h2>Update Transaction</h2>
-    <input type="hidden" id="updateTransId" name="transId">
+<form id="updateForm" action="/updateCrypto" method="POST" style="display: none;">
+    <h2>Update crypto</h2>
+    <input type="hidden" id="updateCryptoId" name="cryptoId">
     <input type="hidden" id="updateUserId" name="userId">
     <label>Type:</label>
     <input type="text" id="updateMtype" name="mtype">
     <br>
-    <label>Transaction Type:</label>
-    <input type="text" id="updateTransType" name="transType">
+    <label>crypto Type:</label>
+    <input type="text" id="updateCryptoType" name="cryptoType">
     <br>
     <label>Main Category:</label>
     <input type="text" id="updateMainCat" name="mainCat">
