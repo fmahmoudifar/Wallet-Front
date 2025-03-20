@@ -24,6 +24,7 @@ from app.routes.home import home_bp
 from app.routes.wallet import wallet_bp
 from app.routes.transaction import transaction_bp
 from app.routes.crypto import crypto_bp
+from app.routes.stock import stock_bp
 from app.routes.account import account_bp
 
 def create_app():
@@ -32,5 +33,6 @@ def create_app():
     app.register_blueprint(wallet_bp)
     app.register_blueprint(transaction_bp)
     app.register_blueprint(crypto_bp)
+    app.register_blueprint(stock_bp)
     app.register_blueprint(account_bp)
     return app
