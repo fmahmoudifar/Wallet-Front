@@ -3,6 +3,7 @@ import requests
 import uuid
 from config import API_URL, aws_auth
 from decimal import Decimal
+from datetime import datetime
 
 
 crypto_bp = Blueprint('crypto', __name__)
@@ -15,6 +16,30 @@ def crypto_page():
     except Exception:
         cryptos = []
     return render_template("crypto.html", cryptos=cryptos)
+
+
+# @crypto_bp.route('/crypto', methods=['GET'])
+# def crypto_page():
+#     try:
+#         response = requests.get(f"{API_URL}/cryptos", auth=aws_auth)
+#         cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
+        
+#         # Convert 'tdate' to datetime for sorting
+#         for crypto in cryptos:
+#             crypto['tdate'] = datetime.strptime(crypto['tdate'], "%Y-%m-%dT%H:%M")
+
+#         # Sort by 'tdate' (latest first)
+#         cryptos.sort(key=lambda x: x['tdate'], reverse=True)
+
+#         # Convert back to string format
+#         for crypto in cryptos:
+#             crypto['tdate'] = crypto['tdate'].strftime("%Y-%m-%d %H:%M")
+
+#     except Exception:
+#         cryptos = []
+
+#     return render_template("crypto.html", cryptos=cryptos)
+
 
 @crypto_bp.route('/crypto', methods=['POST'])
 def create_crypto():

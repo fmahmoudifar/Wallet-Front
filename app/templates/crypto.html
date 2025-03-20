@@ -21,7 +21,22 @@
         document.getElementById("updateForm").style.display = "block";
         document.getElementById("deleteForm").action = `/deleteCrypto/${cryptoId}/${userId}`;
     }  
+
+document.addEventListener("DOMContentLoaded", function() {
+    let list = document.getElementById("cryptoList");
+    let items = Array.from(list.children);
+
+    items.sort((a, b) => {
+        let dateA = new Date(a.getAttribute("data-tdate"));
+        let dateB = new Date(b.getAttribute("data-tdate"));
+        return dateB - dateA;  // Sort descending
+    });
+
+    // Append sorted items back to the list
+    items.forEach(item => list.appendChild(item));
+});
 </script>
+
 
 <h1>Cryptos Manager</h1>
 
@@ -29,7 +44,7 @@
 <form action="/crypto" method="POST">
     <input type="text" name="cryptoName" placeholder="cryptoName"><br>
     <!-- <input type="datetime-local" name="tdate" placeholder="date"><br> -->
-    <input type="text" name="tdate" placeholder="date"><br>
+    <input type="datetime-local" name="tdate" placeholder="date"><br>
     <input type="text" name="fromWallet" placeholder="fromWallet"><br>
     <input type="text" name="toWallet" placeholder="toWallet"><br>
     <input type="text" name="quantity" placeholder="quantity"><br>
@@ -45,13 +60,32 @@
 
 <h2>Cryptos</h2>
 {% if cryptos %}
-<ul>
+<!-- <ul>
     {% for crypto in cryptos %}
     <li>
         <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br>
         <strong>User ID:</strong> {{ crypto.userId }}<br>
         <strong>Crypto:</strong> {{ crypto.cryptoName }}<br>
-        <strong>Date:</strong> {{ crypto.tdate }}<br>
+        <strong>Date:</strong> {{ crypto.tdate | replace("T", " ") }}<br>
+        <strong>From Wallet:</strong> {{ crypto.fromWallet }}<br>
+        <strong>To Wallet:</strong> {{ crypto.toWallet }}<br>
+        <strong>Quantity:</strong> {{ crypto.quantity }}<br>
+        <strong>Price:</strong> {{ crypto.price }}<br>
+        <strong>Currency:</strong> {{ crypto.currency }}<br>
+        <strong>Fee:</strong> {{ crypto.fee }}<br>
+        <strong>Note:</strong> {{ crypto.note }}<br>
+        <button onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.cryptoName }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}',
+        '{{ crypto.toWallet }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
+    </li>
+    {% endfor %}
+</ul> -->
+<ul id="cryptoList">
+    {% for crypto in cryptos %}
+    <li data-tdate="{{ crypto.tdate }}">
+        <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br>
+        <strong>User ID:</strong> {{ crypto.userId }}<br>
+        <strong>Crypto:</strong> {{ crypto.cryptoName }}<br>
+        <strong>Date:</strong> {{ crypto.tdate | replace("T", " ") }}<br>
         <strong>From Wallet:</strong> {{ crypto.fromWallet }}<br>
         <strong>To Wallet:</strong> {{ crypto.toWallet }}<br>
         <strong>Quantity:</strong> {{ crypto.quantity }}<br>
@@ -64,6 +98,7 @@
     </li>
     {% endfor %}
 </ul>
+
 {% else %}
 <p>No Cryptos found.</p>
 {% endif %}
@@ -76,7 +111,7 @@
     <input type="text" id="updateCryptoName" name="cryptoName">
     <br>
     <label>Date:</label>
-    <input type="text" id="updateTdate" name="tdate">
+    <input type="datetime-local" id="updateTdate" name="tdate">
     <br>
     <label>From Wallet:</label>
     <input type="text" id="updateFromWallet" name="fromWallet">
