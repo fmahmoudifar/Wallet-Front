@@ -18,7 +18,8 @@
         document.getElementById("updateFee").value = fee;
         // document.getElementById("updateFee").value = parseFloat(fee);
         document.getElementById("updateNote").value = note;
-        document.getElementById("updateForm").style.display = "grid";
+        document.getElementById("updateForm").style = "display: flex; flex-wrap: wrap; flex-direction: column; align-items: flex-end; align-content: center;";
+        document.getElementById("cryptoList").style.display = "none" 
         document.getElementById("deleteForm").action = `/deleteCrypto/${cryptoId}/${userId}`;
     }  
 
@@ -157,12 +158,7 @@ document.addEventListener("DOMContentLoaded", function() {
 {% endif %}
 
 <div>
-<form id="updateForm" action="/updateCrypto" method="POST" style="display: none;
-grid-template-columns: 1fr 1fr;
-align-items: end;
-row-gap: 20px;
-justify-items: end;
-margin-bottom: 1rem;">
+<form id="updateForm" action="/updateCrypto" method="POST" style="display: none;">
     <h2>Update crypto</h2>
     <input type="hidden" id="updateCryptoId" name="cryptoId">
     <input type="hidden" id="updateUserId" name="userId">
@@ -207,26 +203,12 @@ margin-bottom: 1rem;">
     <div>
     <button type="submit">Save Changes</button>
     <button type="submit" form="deleteForm" onclick="return confirm('Are you sure?')">Delete</button>
+    <button type="submit" onclick="refresh">Cancel</button>
     </div>
 </form>
 </div>
 
-/* display: grid
-; */
-    grid-template-columns: 1fr 1fr;
-    place-items: end;
-    row-gap: 20px;
-    margin-bottom: 1rem;
-    justify-items: end;
-    align-items: center;
-    justify-content: space-around;
-    align-content: space-around;
-    #
-    div display: flex
-    ;
-        flex-direction: column;
-        align-items: center;
-        flex-wrap: nowrap;
+
 <form id="deleteForm" method="POST"></form>
 
 {% endblock %}
