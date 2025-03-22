@@ -19,8 +19,8 @@
         // document.getElementById("updateFee").value = parseFloat(fee);
         document.getElementById("updateNote").value = note;
         document.getElementById("updateCryptoDiv").style.display = "block";
-        document.getElementById("cryptoListDiv").style.display = "none" 
-        document.getElementById("newCryptoB").style.display = "none" 
+        document.getElementById("cryptoListDiv").style.display = "none";
+        document.getElementById("newCryptoB").style.display = "none"; 
         document.getElementById("deleteForm").action = `/deleteCrypto/${cryptoId}/${userId}`;
     }  
 
@@ -113,37 +113,17 @@ function newCryptoDiv() {
         <div>
         <button type="submit">Insert</button>
         <button type="reset">Clear</button>
-        <button type="submit" onclick="refresh">Cancel</button>
-        
+        <button type="button" onclick="location.reload();">Cancel</button>
         </div>
     </form>
 
 </div>
 </div>
     
-{% if cryptos %}
-<!-- <ul>
-    {% for crypto in cryptos %}
-    <li>
-        <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br>
-        <strong>User ID:</strong> {{ crypto.userId }}<br>
-        <strong>Crypto:</strong> {{ crypto.cryptoName }}<br>
-        <strong>Date:</strong> {{ crypto.tdate | replace("T", " ") }}<br>
-        <strong>From Wallet:</strong> {{ crypto.fromWallet }}<br>
-        <strong>To Wallet:</strong> {{ crypto.toWallet }}<br>
-        <strong>Quantity:</strong> {{ crypto.quantity }}<br>
-        <strong>Price:</strong> {{ crypto.price }}<br>
-        <strong>Currency:</strong> {{ crypto.currency }}<br>
-        <strong>Fee:</strong> {{ crypto.fee }}<br>
-        <strong>Note:</strong> {{ crypto.note }}<br>
-        <button onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.cryptoName }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}',
-        '{{ crypto.toWallet }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
-    </li>
-    {% endfor %}
-</ul> -->
 
 <div style="text-align: left;" id="cryptoListDiv" >
     <h2 style="text-align: center;">Cryptos Transactions History</h2>
+{% if cryptos %}
 <ul id="cryptoList" style="display: flex;
     flex-wrap: wrap;
     align-content: center;
@@ -151,7 +131,7 @@ function newCryptoDiv() {
     align-items: baseline;
     flex-direction: column;">
     {% for crypto in cryptos %}
-    <li data-tdate="{{ crypto.tdate }}" style="    background-color: lightgrey;
+    <li data-tdate="{{ crypto.tdate }}" style="background-color: lightgrey;
     border: 1px black;
     padding: 20px;
     border-radius: 10px;
@@ -257,7 +237,7 @@ margin-bottom: 1rem;">
     <div>
     <button type="submit">Save</button>
     <button type="submit" form="deleteForm" onclick="return confirm('Are you sure?')">Delete</button>
-    <button type="submit" onclick="refresh">Cancel</button>
+    <button type="button" onclick="location.reload();">Cancel</button>
     </div>
 </form>
 </div>

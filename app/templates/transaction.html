@@ -3,17 +3,15 @@
 {% block content %}
 
 <script>
-    function editTransaction(transId, userId, mtype, transType, mainCat, subCat, tdate, fromWallet, toWallet, amount, price, currency, fee, note) {
+    function editTransaction(transId, userId, transType, mainCat, tdate, fromWallet, toWallet, amount, price, currency, fee, note) {
         document.getElementById("updateTransId").value = transId;
         document.getElementById("updateUserId").value = userId;
-        document.getElementById("updateMtype").value = mtype;
         document.getElementById("updateTransType").value = transType;
         document.getElementById("updateMainCat").value = mainCat;
-        document.getElementById("updateSubCat").value = subCat;
         document.getElementById("updateTdate").value = tdate;
+        document.getElementById("updateAmount").value = amount;
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
-        document.getElementById("updateAmount").value = amount;
         document.getElementById("updatePrice").value = price;
         // document.getElementById("updateAmount").value = parseFloat(amount);
         // document.getElementById("updatePrice").value = parseFloat(price);
@@ -21,110 +19,256 @@
         document.getElementById("updateFee").value = fee;
         // document.getElementById("updateFee").value = parseFloat(fee);
         document.getElementById("updateNote").value = note;
-        document.getElementById("updateForm").style.display = "block";
+        document.getElementById("updateTransDiv").style.display = "block";
+        document.getElementById("transListDiv").style.display = "none";
+        document.getElementById("newTransB").style.display = "none";
         document.getElementById("deleteForm").action = `/deleteTrans/${transId}/${userId}`;
     }  
+
+    document.addEventListener("DOMContentLoaded", function() {
+    let list = document.getElementById("transList");
+    let items = Array.from(list.children);
+
+    items.sort((a, b) => {
+        let dateA = new Date(a.getAttribute("data-tdate"));
+        let dateB = new Date(b.getAttribute("data-tdate"));
+        return dateB - dateA;  // Sort descending
+    });
+
+    // Append sorted items back to the list
+    items.forEach(item => list.appendChild(item));
+});
+
+function newTransDiv() {
+    let div = document.getElementById("newTrans");
+    let button = document.getElementById("newTransB");
+
+    if (div.style.display === "none" || div.style.display === "") {
+        div.style.display = "block";  // Show the div
+        document.getElementById("transListDiv").style.display = "none";
+        button.innerText = "Cancel" ;
+    } else {
+        div.style.display = "none";   // Hide the div
+        document.getElementById("transListDiv").style.display = "block";
+        button.innerText = "Add New Transaction" ;
+    }
+}
 </script>
 
 <h1>Transactions Manager</h1>
 
+<button id="newTransB" onclick="newTransDiv()">Add New Transaction</button>
+
+<div id="newTrans" style="display: none">
 <h2>Add New Transaction</h2>
-<form action="/transaction" method="POST">
-    <input type="text" name="mtype" placeholder="type"><br>
-    <input type="text" name="transType" placeholder="transType"><br>
+<div style="display: flex;
+    flex-direction: column;
+    align-items: center;">
+
+    <form action="/transaction" method="POST" style="display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    row-gap: 20px;
+    justify-items: end;
+    margin-bottom: 1rem;">
+    <div>
+    <label for="transType">Transaction Type:</label>
+    <!-- <input type="text" name="mtype" placeholder="type"><br> -->
+    <input type="text" name="transType" placeholder="transType" required><br>
+    </div>
+    <div>
+    <label for="mainCat">Category:</label>
     <input type="text" name="mainCat" placeholder="mainCat"><br>
-    <input type="text" name="subCat" placeholder="subCat"><br>
+    </div>
+    <!-- <input type="text" name="subCat" placeholder="subCat"><br> -->
     <!-- <input type="datetime-local" name="tdate" placeholder="date"><br> -->
-    <input type="text" name="tdate" placeholder="date"><br>
+    <div>
+    <label for="tdate">Date:</label>
+    <input type="datetime-local" name="tdate" placeholder="date" required><br>
+    </div>
+    <div>
+    <label for="amount">Amount:</label>
+    <input type="text" name="amount" placeholder="amount" required><br>
+    </div>
+    <div>
+    <label for="fromWallet">From Wallet:</label>
     <input type="text" name="fromWallet" placeholder="fromWallet"><br>
-    <input type="text" name="toWallet" placeholder="toWallet"><br>
-    <input type="text" name="amount" placeholder="amount"><br>
-    <input type="text" name="price" placeholder="price"><br>
+    </div>
+    <div>
+    <label for="toWallet">To Wallet:</label>
+    <input type="text" name="toWallet" placeholder="toWallet" required><br>
+    </div>
+    <div>
+    <label for="price">Price:</label>
+    <input type="text" name="price" placeholder="price" required><br>
+    </div>
     <!-- <input type="number" step="0.00000001" name="amount" placeholder="amount"><br>
     <input type="number" step="0.00000001" name="price" placeholder="price" required><br> -->
-    <input type="text" name="currency" placeholder="Currency"><br>
+    <div>
+    <label for="currency">Currency:</label>
+    <input type="text" name="currency" placeholder="Currency" required><br>
+    </div>
+    <div>
+    <label for="fee">Fee:</label>
     <input type="text" name="fee" placeholder="fee"><br>
+    </div>
     <!-- <input type="number" step="0.00000001" name="fee" placeholder="fee"><br> -->
+    <div>
+    <label for="note">Note:</label>
     <input type="text" name="note" placeholder="Note"><br>
-    <button type="submit">Create</button>
+    </div>
+    <div>
+    <button type="submit">Insert</button>
+    <button type="reset">Clear</button>
+    <button type="button" onclick="location.reload();">Cancel</button>
+    </div>
 </form>
+</div>
+</div>
 
-<h2>Transactions</h2>
+<div style="text-align: left;" id="transListDiv" >
+    <h2 style="text-align: center;">Transactions History</h2>
 {% if transactions %}
-<ul>
+<ul id="transList" style="display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    justify-content: center;
+    align-items: baseline;
+    flex-direction: column;">
     {% for transaction in transactions %}
-    <li>
-        <strong>Transaction ID:</strong> {{ transaction.transId }}<br>
-        <strong>User ID:</strong> {{ transaction.userId }}<br>
-        <strong>Type:</strong> {{ transaction.mtype }}<br>
-        <strong>Transaction Type:</strong> {{ transaction.transType }}<br>
-        <strong>Main Category:</strong> {{ transaction.mainCat }}<br>
-        <strong>Sub Category:</strong> {{ transaction.subCat }}<br>
-        <strong>Date:</strong> {{ transaction.tdate }}<br>
-        <strong>From Wallet:</strong> {{ transaction.fromWallet }}<br>
-        <strong>To Wallet:</strong> {{ transaction.toWallet }}<br>
-        <strong>Amount:</strong> {{ transaction.amount }}<br>
-        <strong>Price:</strong> {{ transaction.price }}<br>
-        <strong>Currency:</strong> {{ transaction.currency }}<br>
-        <strong>Fee:</strong> {{ transaction.fee }}<br>
-        <strong>Note:</strong> {{ transaction.note }}<br>
-        <button onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.mtype }}','{{ transaction.transType }}',
-        '{{ transaction.mainCat }}','{{ transaction.subCat }}','{{ transaction.tdate }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}',
-        '{{ transaction.amount }}','{{ transaction.price }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}')">Edit</button>
+    <li data-tdate="{{ transaction.tdate }}" style="background-color: lightgrey;
+    border: 1px black;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 10px;
+    list-style-type: none;">
+        <div style="display: grid;  grid-template-columns: 1fr 1fr;">
+
+        <!-- <div>
+            <strong>Transaction ID:</strong> {{ transaction.transId }}<br>
+        </div>
+        <div>
+            <strong>User ID:</strong> {{ transaction.userId }}<br>
+        </div>  -->
+        <div>
+            <strong>Transaction Type:</strong> {{ transaction.transType }}<br>
+        </div>
+        <div>
+            <strong>Main Category:</strong> {{ transaction.mainCat }}<br>
+        </div>
+        <!-- <div>
+            <strong>Sub Category:</strong> {{ transaction.subCat }}<br>
+        </div> -->
+        <div>
+            <strong>Date:</strong> {{ transaction.tdate }}<br>
+        </div>
+        <div>
+            <strong>Amount:</strong> {{ transaction.amount }}<br>
+        </div>
+        <div>
+            <strong>From Wallet:</strong> {{ transaction.fromWallet }}<br>
+        </div>
+        <div>
+            <strong>To Wallet:</strong> {{ transaction.toWallet }}<br>
+        </div>
+        <div>
+            <strong>Price:</strong> {{ transaction.price }}<br>
+        </div>
+        <div>
+            <strong>Currency:</strong> {{ transaction.currency }}<br>
+        </div>
+        <div>
+            <strong>Fee:</strong> {{ transaction.fee }}<br>
+        </div>
+        <div>
+            <strong>Note:</strong> {{ transaction.note }}<br>
+        </div>
+        <div>
+        <button onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.transType }}',
+        '{{ transaction.mainCat }}','{{ transaction.tdate }}','{{ transaction.amount }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}',
+        '{{ transaction.price }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}')">Edit</button>
+        </div>
+        </div>
     </li>
     {% endfor %}
 </ul>
+</div>
+
 {% else %}
 <p>No transactions found.</p>
 {% endif %}
 
-<form id="updateForm" action="/updateTrans" method="POST" style="display: none;">
-    <h2>Update Transaction</h2>
+
+<div id="updateTransDiv" style="display: none;">
+        <h2>Update Transaction</h2>
+<div style="display: flex;
+    flex-direction: column;
+    align-items: center;">
+    <form id="updateForm" action="/updateTrans" method="POST" style="display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    row-gap: 20px;
+    justify-items: end;
+    margin-bottom: 1rem;">
     <input type="hidden" id="updateTransId" name="transId">
     <input type="hidden" id="updateUserId" name="userId">
-    <label>Type:</label>
-    <input type="text" id="updateMtype" name="mtype">
-    <br>
-    <label>Transaction Type:</label>
-    <input type="text" id="updateTransType" name="transType">
-    <br>
-    <label>Main Category:</label>
-    <input type="text" id="updateMainCat" name="mainCat">
-    <br>
-    <label>Sub Category:</label>
-    <input type="text" id="updateSubCat" name="subCat">
-    <br>
-    <label>Date:</label>
-    <input type="text" id="updateTdate" name="tdate">
-    <br>
-    <label>From Wallet:</label>
-    <input type="text" id="updateFromWallet" name="fromWallet">
-    <br>
-    <label>To Wallet:</label>
-    <input type="text" id="updateToWallet" name="toWallet">
-    <br>
-    <label>Amount:</label>
-    <!-- <input type="number" step="0.00000001" id="updateAmount" name="amount"> -->
-    <input type="text" id="updateAmount" name="amount">
-    <br>
-    <label>Price:</label>
-    <!-- <input type="number" step="0.00000001" id="updatePrice" name="price" required> -->
-    <input type="text" id="updatePrice" name="price">
-    <br>
-    <label>Currency:</label>
-    <input type="text" id="updateCurrency" name="currency">
-    <br>
-    <label>Fee:</label>
-    <!-- <input type="number" step="0.00000001" id="updateFee" name="fee"> -->
-    <input type="text" id="updateFee" name="fee">
-    <br>
-    <label>Note:</label>
-    <input type="text" id="updateNote" name="note">
-    <br>
-    <button type="submit">Save Changes</button>
+    <!-- <label>Type:</label>
+    <input type="text" id="updateMtype" name="mtype"><br> -->
+    <div>
+        <label>Transaction Type:</label>
+        <input type="text" id="updateTransType" name="transType" required><br>
+    </div>
+    <div>
+        <label>Main Category:</label>
+        <input type="text" id="updateMainCat" name="mainCat" required><br>
+    </div>
+    <!-- <label>Sub Category:</label>
+    <input type="text" id="updateSubCat" name="subCat"><br> -->
+    <div>
+        <label>Date:</label>
+        <input type="datetime-local" id="updateTdate" name="tdate" required><br>
+    </div>
+    <div>
+        <label>Amount:</label>
+        <!-- <input type="number" step="0.00000001" id="updateAmount" name="amount"> -->
+        <input type="text" id="updateAmount" name="amount" required><br>
+    </div>
+    <div>
+        <label>From Wallet:</label>
+        <input type="text" id="updateFromWallet" name="fromWallet"><br>
+    </div>
+    <div>
+        <label>To Wallet:</label>
+        <input type="text" id="updateToWallet" name="toWallet" required><br>
+    </div>
+    <div>
+        <label>Price:</label>
+        <!-- <input type="number" step="0.00000001" id="updatePrice" name="price" required> -->
+        <input type="text" id="updatePrice" name="price" required><br>
+    </div>
+    <div>
+        <label>Currency:</label>
+        <input type="text" id="updateCurrency" name="currency" required><br>
+    </div>
+    <div>
+        <label>Fee:</label>
+        <!-- <input type="number" step="0.00000001" id="updateFee" name="fee"> -->
+        <input type="text" id="updateFee" name="fee"><br>
+    </div>
+    <div>
+        <label>Note:</label>
+        <input type="text" id="updateNote" name="note"><br>
+    </div>
+    <div>
+    <button type="submit">Save</button>
     <button type="submit" form="deleteForm" onclick="return confirm('Are you sure?')">Delete</button>
+    <button type="button" onclick="location.reload();">Cancel</button>
+    </div>
+
 </form>
+</div>
 
 <form id="deleteForm" method="POST"></form>
+</div>
 
 {% endblock %}
