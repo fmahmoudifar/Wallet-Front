@@ -6,7 +6,7 @@
 <h2>Crypto Totals</h2>
 <ul>
     {% for crypto_name, total_quantity in crypto_totals.items() %}
-    <li>
+    <li style="list-style-type: none;">
         <strong>{{ crypto_name }}:</strong> {{ total_quantity }}
     </li>
     {% endfor %}
@@ -15,7 +15,7 @@
 <h2>Total Per ToWallet</h2>
 <ul>
     {% for wallet, total_quantity in to_wallet_totals.items() %}
-    <li>
+    <li style="list-style-type: none;">
         <strong>{{ wallet }}:</strong> {{ total_quantity }}
     </li>
     {% endfor %}

@@ -151,7 +151,12 @@ function newCryptoDiv() {
     align-items: baseline;
     flex-direction: column;">
     {% for crypto in cryptos %}
-    <li data-tdate="{{ crypto.tdate }}">
+    <li data-tdate="{{ crypto.tdate }}" style="    background-color: lightgrey;
+    border: 1px black;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 10px;
+    list-style-type: none;">
         <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br>
         <strong>User ID:</strong> {{ crypto.userId }}<br>
         <strong>Crypto:</strong> {{ crypto.cryptoName }}<br>
