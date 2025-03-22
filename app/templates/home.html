@@ -3,4 +3,13 @@
 {% block content %}
 <h1>Home</h1>
 
+<h2>Crypto Totals</h2>
+<ul>
+    {% for crypto_name, total_quantity in crypto_totals.items() %}
+    <li>
+        <strong>{{ crypto_name }}:</strong> {{ total_quantity }}
+    </li>
+    {% endfor %}
+</ul>
+
 {% endblock %}
