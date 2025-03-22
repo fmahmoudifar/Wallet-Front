@@ -157,19 +157,41 @@ function newCryptoDiv() {
     border-radius: 10px;
     margin: 10px;
     list-style-type: none;">
-        <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br>
-        <strong>User ID:</strong> {{ crypto.userId }}<br>
-        <strong>Crypto:</strong> {{ crypto.cryptoName }}<br>
-        <strong>Date:</strong> {{ crypto.tdate | replace("T", " ") }}<br>
-        <strong>From Wallet:</strong> {{ crypto.fromWallet }}<br>
-        <strong>To Wallet:</strong> {{ crypto.toWallet }}<br>
-        <strong>Quantity:</strong> {{ crypto.quantity }}<br>
-        <strong>Price:</strong> {{ crypto.price }}<br>
-        <strong>Currency:</strong> {{ crypto.currency }}<br>
-        <strong>Fee:</strong> {{ crypto.fee }}<br>
-        <strong>Note:</strong> {{ crypto.note }}<br>
+        <!-- <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br>
+        <strong>User ID:</strong> {{ crypto.userId }}<br> -->
+        <div style="display: grid;  grid-template-columns: 1fr 1fr;">
+        <div>
+            <strong>Crypto:</strong> {{ crypto.cryptoName }}<br>
+        </div>
+        <div>
+            <strong>Date:</strong> {{ crypto.tdate | replace("T", " ") }}<br>
+        </div>
+        <div>
+            <strong>From Wallet:</strong> {{ crypto.fromWallet }}<br>
+        </div>
+        <div>
+            <strong>To Wallet:</strong> {{ crypto.toWallet }}<br>
+        </div>
+        <div>
+            <strong>Quantity:</strong> {{ crypto.quantity }}<br>
+        </div>
+        <div>
+            <strong>Price:</strong> {{ crypto.price }}<br>
+        </div>
+        <div>
+            <strong>Currency:</strong> {{ crypto.currency }}<br>
+        </div>
+        <div>
+            <strong>Fee:</strong> {{ crypto.fee }}<br>
+        </div>
+        <div>
+            <strong>Note:</strong> {{ crypto.note }}<br>
+        </div>
+        <div>
         <button onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.cryptoName }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}',
         '{{ crypto.toWallet }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
+        </div>
+    </div>
     </li>
     {% endfor %}
 </ul>
