@@ -12,4 +12,13 @@
     {% endfor %}
 </ul>
 
+<h2>Total Per ToWallet</h2>
+<ul>
+    {% for wallet, total_quantity in to_wallet_totals.items() %}
+    <li>
+        <strong>{{ wallet }}:</strong> {{ total_quantity }}
+    </li>
+    {% endfor %}
+</ul>
+
 {% endblock %}

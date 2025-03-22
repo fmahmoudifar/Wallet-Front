@@ -9,31 +9,19 @@ home_bp = Blueprint("home", __name__, url_prefix="/")
 
 @home_bp.route("/", methods=['GET'])
 def users():
-#     return render_template("home.html")
-
-#     try:
-#         response = requests.get(f"{API_URL}/cryptos", auth=aws_auth)
-#         cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
-#     except Exception:
-#         cryptos = []
-#     return render_template("crypto.html", cryptos=cryptos)
-
-
-
-# API_URL = "https://your-api-url.com"  # Replace with your actual API URL
-
-# @app.route('/crypto', methods=['GET'])
-# def crypto_page():
     try:
         response = requests.get(f"{API_URL}/cryptos")  
         cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
     except Exception:
         cryptos = []
 
-    # Aggregate quantities by crypto name
     crypto_totals = defaultdict(float)
-    for crypto in cryptos:
-        crypto_totals[crypto["cryptoName"]] += float(crypto["quantity"])
+    to_wallet_totals = defaultdict(float)
 
-    return render_template("home.html", cryptos=cryptos, crypto_totals=crypto_totals)
+    for crypto in cryptos:
+        quantity = float(crypto["quantity"])
+        crypto_totals[crypto["cryptoName"]] += quantity
+        to_wallet_totals[crypto["toWallet"]] += quantity
+
+    return render_template("home.html", cryptos=cryptos, crypto_totals=crypto_totals, to_wallet_totals=to_wallet_totals)
 
