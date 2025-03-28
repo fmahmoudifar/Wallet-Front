@@ -112,3 +112,4 @@ def delete_crypto(crypto_id, user_id):
     except Exception as e:
         print(f"❌ [ERROR] Failed to delete crypto: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
+    
