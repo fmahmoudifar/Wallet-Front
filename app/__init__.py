@@ -26,7 +26,7 @@ from app.routes.transaction import transaction_bp
 from app.routes.crypto import crypto_bp
 from app.routes.stock import stock_bp
 from app.routes.account import account_bp
-from app.routes.account import auth_bp
+from app.routes.auth import auth_bp
 
 def create_app():
     app = Flask(__name__)
