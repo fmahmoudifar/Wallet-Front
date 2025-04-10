@@ -19,6 +19,7 @@
     
 #     return app
 
+
 from flask import Flask
 from app.routes.home import home_bp
 from app.routes.wallet import wallet_bp
