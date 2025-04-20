@@ -21,6 +21,7 @@
 
 
 from flask import Flask
+import os
 from app.routes.home import home_bp
 from app.routes.wallet import wallet_bp
 from app.routes.transaction import transaction_bp
@@ -29,8 +30,12 @@ from app.routes.stock import stock_bp
 from app.routes.account import account_bp
 from app.routes.auth import auth_bp
 
+FLASK_SECRET_KEY = os.urandom(24)
+
 def create_app():
     app = Flask(__name__)
+    # app.config['SECRET_KEY'] = os.getenv('CLIENT_SECRET', 'your_default_secret_key_here')
+    app.config['SECRET_KEY'] = os.urandom(24)
     app.register_blueprint(home_bp)
     app.register_blueprint(wallet_bp)
     app.register_blueprint(transaction_bp)
