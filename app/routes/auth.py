@@ -216,11 +216,10 @@ def on_load(state):
 @auth_bp.route('/login')
 def login():
     # Alternate option to redirect to /authorize
-    #redirect_uri = url_for('auth.authorize', _external=True)
-    #return oauth.oidc.authorize_redirect(redirect_uri)
-    #return oauth.oidc.authorize_redirect(URL)
     redirect_uri = url_for('auth.auth_callback', _external=True)
     return oauth.oidc.authorize_redirect(redirect_uri)
+    #return oauth.oidc.authorize_redirect(URL)
+ 
 
 # @auth_bp.route('/signup')
 # def signup():
@@ -253,12 +252,12 @@ def auth_callback():
     session['user'] = user_info
     return redirect(url_for('home'))
 
-@auth_bp.route('/authorize')
-def authorize():
-    token = oauth.oidc.authorize_access_token()
-    user = token['userinfo']
-    session['user'] = user
-    return redirect(url_for(URL))
+# @auth_bp.route('/authorize')
+# def authorize():
+#     token = oauth.oidc.authorize_access_token()
+#     user = token['userinfo']
+#     session['user'] = user
+#     return redirect(url_for(URL))
 
 # @auth_bp.route('/logout')
 # def logout():

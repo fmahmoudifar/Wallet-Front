@@ -28,5 +28,5 @@ def users():
             crypto_totals[crypto["cryptoName"]] += quantity
             to_wallet_totals[crypto["toWallet"]] += quantity
 
-        return render_template("home.html", cryptos=cryptos, crypto_totals=crypto_totals, to_wallet_totals=to_wallet_totals)
+        return render_template("home.html", cryptos=cryptos, crypto_totals=crypto_totals, to_wallet_totals=to_wallet_totals, user = user)
  
