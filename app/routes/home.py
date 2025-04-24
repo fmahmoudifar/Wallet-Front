@@ -11,8 +11,8 @@ home_bp = Blueprint("home", __name__, url_prefix="/")
 def users():
     user = session.get('user')
     if user:
-       return render_template('home.html', user=user)
-    else:
+    #    return render_template('home.html', user=user)
+    # else:
         # return redirect(url_for('auth.login'))
         try:
             response = requests.get(f"{API_URL}/cryptos")  
@@ -30,3 +30,6 @@ def users():
 
         return render_template("home.html", cryptos=cryptos, crypto_totals=crypto_totals, to_wallet_totals=to_wallet_totals, user = user)
  
+    else:
+        # return redirect(url_for('auth.login'))
+        return render_template("home.html")

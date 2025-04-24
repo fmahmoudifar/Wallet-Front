@@ -183,21 +183,35 @@
 from flask import Blueprint, redirect, url_for, session, request
 from authlib.integrations.flask_client import OAuth
 from  config import AUTHORITY, SERVER_METADATA_URL, URL
+import urllib.parse
 import os
 
 # app.secret_key = os.urandom(24)
 
 # Initialize Blueprint for authentication
 auth_bp = Blueprint('auth', __name__)
+# auth_bp.secret_key = os.urandom(24) 
 
 # === Flask OAuth Setup ===
+# oauth = OAuth()
+# oauth.register(
+#     name='oidc',
+#     #authority="https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_vGqk3w4TZ",
+#     client_id=os.getenv('CLIENT_ID'),  # Fetch from environment variables
+#     client_secret=os.getenv('CLIENT_SECRET'),  # Fetch from environment variables
+#     # authorize_params=None,
+#     server_metadata_url="https://eu-north-1vgqk3w4tz.auth.eu-north-1.amazoncognito.com/.well-known/openid-configuration",
+#     # refresh_token_url=None,
+#     client_kwargs={'scope': 'email openid phone'}
+# )
+
 oauth = OAuth()
 oauth.register(
     name='oidc',
-    authority=AUTHORITY,
-    client_id=os.getenv('CLIENT_ID'),  # Fetch from environment variables
-    client_secret=os.getenv('CLIENT_SECRET'),  # Fetch from environment variables
-    server_metadata_url=SERVER_METADATA_URL,
+    client_id=os.getenv('CLIENT_ID'),
+    client_secret=os.getenv('CLIENT_SECRET'),
+    # server_metadata_url='https://eu-north-1vgqk3w4tz.auth.eu-north-1.amazoncognito.com/.well-known/openid-configuration',
+    server_metadata_url="https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_vGqk3w4TZ/.well-known/openid-configuration",
     client_kwargs={'scope': 'email openid phone'}
 )
 
@@ -217,6 +231,8 @@ def on_load(state):
 def login():
     # Alternate option to redirect to /authorize
     redirect_uri = url_for('auth.auth_callback', _external=True)
+    # redirect_uri = 'http://localhost:5000/callback'
+    print(f'Redirect URI: {redirect_uri}')
     return oauth.oidc.authorize_redirect(redirect_uri)
     #return oauth.oidc.authorize_redirect(URL)
  
@@ -240,17 +256,31 @@ def login():
 
 #     return redirect(url_for('main.home'))  # Redirect to the home page (or wherever after login)
 
+# @auth_bp.route('/callback')
+# def auth_callback():
+#     # Get the authorization code from the URL
+#     token = oauth.oidc.authorize_access_token()
+
+#     # Retrieve user information
+#     user_info = oauth.oidc.parse_id_token(token)
+
+#     # Store user information in session
+#     session['user'] = user_info
+#     return redirect("/home")
+#     # return redirect(url_for('home'))
+#     # return redirect(url_for('http://localhost:5000/callback'))
+
 @auth_bp.route('/callback')
 def auth_callback():
-    # Get the authorization code from the URL
+    # Get the token using the authorization code
     token = oauth.oidc.authorize_access_token()
 
-    # Retrieve user information
-    user_info = oauth.oidc.parse_id_token(token)
+    # Get user info from the userinfo endpoint (recommended way)
+    user_info = oauth.oidc.userinfo()  # Secure and nonce-free
 
-    # Store user information in session
+    # Store user info in session
     session['user'] = user_info
-    return redirect(url_for('home'))
+    return redirect(url_for('home.users'))
 
 # @auth_bp.route('/authorize')
 # def authorize():
@@ -271,9 +301,28 @@ def auth_callback():
 #     return redirect(logout_url)  # Redirect to Cognito's logout URL to log out from both the app and Cognito
 
 
-@auth_bp.route('/logout')
+# @auth_bp.route('/logout')
+# def logout():
+#     print("Session before logout:", session)
+#     session.pop('user', None)  # Or session.clear()
+#     print("Session after logout:", session)
+#     return redirect(url_for('home.users'))
+
+# @auth_bp.route('/logout')
+# def logout():
+#     print("Session before logout:", session)
+#     session.clear()
+#     print("Session after logout:", session)
+#     return redirect(url_for('home.users'))
+
+
+@auth_bp.route("/logout")
 def logout():
-    print("Session before logout:", session)
-    session.pop('user', None)  # Or session.clear()
-    print("Session after logout:", session)
-    return redirect(url_for('home.users'))
+    session.clear()
+    client_id=os.getenv('CLIENT_ID')
+    logout_url = (
+        "https://eu-north-1vgqk3w4tz.auth.eu-north-1.amazoncognito.com/logout"
+        f"?client_id={client_id}"
+        f"&logout_uri={url_for('home.users', _external=True)}"
+    )
+    return redirect(logout_url)

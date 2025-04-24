@@ -29,6 +29,7 @@ from app.routes.crypto import crypto_bp
 from app.routes.stock import stock_bp
 from app.routes.account import account_bp
 from app.routes.auth import auth_bp
+# from app.routes.layout import layout_bp
 
 FLASK_SECRET_KEY = os.urandom(24)
 
@@ -43,4 +44,5 @@ def create_app():
     app.register_blueprint(stock_bp)
     app.register_blueprint(account_bp)
     app.register_blueprint(auth_bp)
+    # app.register_blueprint(layout_bp)
     return app
