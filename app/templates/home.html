@@ -3,8 +3,8 @@
 {% block content %}
 <h1>Home</h1>
 {% if session.get('user') %}
+<h6>{{ user }}</h6>
 <h2>Crypto Totals</h2>
-<h3>{{ user }}</h3>
 <ul>
     {% for crypto_name, total_quantity in crypto_totals.items() %}
     <li style="list-style-type: none;">
@@ -23,11 +23,10 @@
 </ul>
 
 <h2>Transactions Totals</h2>
-
 <ul>
-    {% for crypto_name, total_quantity in crypto_totals.items() %}
+    {% for mainCat, total_quantity in transaction_totals.items() %}
     <li style="list-style-type: none;">
-        <strong>{{ crypto_name }}:</strong> {{ total_quantity }}
+        <strong>{{ mainCat }}:</strong> {{ total_quantity }}
     </li>
     {% endfor %}
 </ul>
@@ -40,5 +39,8 @@
     </li>
     {% endfor %}
 </ul>
+{% else %}
+
+<h2>Please Login to continue...</h2>
 {% endif %}
 {% endblock %}

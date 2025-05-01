@@ -1,6 +1,243 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<h1>Stocks</h1>
+
+<script>
+    function editStock(stockId, userId, stockName, tdate, fromWallet, toWallet, quantity, price, currency, fee, note) {
+        document.getElementById("updateStockId").value = stockId;
+        document.getElementById("updateUserId").value = userId;
+        document.getElementById("updateStockName").value = stockName;
+        document.getElementById("updateTdate").value = tdate;
+        document.getElementById("updateFromWallet").value = fromWallet;
+        document.getElementById("updateToWallet").value = toWallet;
+        document.getElementById("updateQuantity").value = quantity;
+        document.getElementById("updatePrice").value = price;
+        document.getElementById("updateCurrency").value = currency;
+        document.getElementById("updateFee").value = fee;
+        document.getElementById("updateNote").value = note;
+        document.getElementById("updatestockDiv").style.display = "block";
+        document.getElementById("stockListDiv").style.display = "none";
+        document.getElementById("newStockB").style.display = "none"; 
+        document.getElementById("deleteForm").action = `/deleteStock/${stockId}/${userId}`;
+    }  
+
+document.addEventListener("DOMContentLoaded", function() {
+    let list = document.getElementById("stockList");
+    let items = Array.from(list.children);
+
+    items.sort((a, b) => {
+        let dateA = new Date(a.getAttribute("data-tdate"));
+        let dateB = new Date(b.getAttribute("data-tdate"));
+        return dateB - dateA;  // Sort descending
+    });
+
+    // Append sorted items back to the list
+    items.forEach(item => list.appendChild(item));
+});
+
+function newstockDiv() {
+    let div = document.getElementById("newStock");
+    let button = document.getElementById("newStockB");
+
+    if (div.style.display === "none" || div.style.display === "") {
+        div.style.display = "block";  // Show the div
+        document.getElementById("stockListDiv").style.display = "none";
+        button.innerText = "Cancel" ;
+    } else {
+        div.style.display = "none";   // Hide the div
+        document.getElementById("stockListDiv").style.display = "block";
+        button.innerText = "Add New stock" ;
+    }
+}
+</script>
+
+
+<h1 style="text-align: left;">stocks Manager</h1>
+
+<button id="newStockB" onclick="newStockDiv()">Add New Stock</button>
+
+<div id="newStock" style="display: none">
+<h2>Add New Stock Transaction</h2>
+<div style="display: flex;
+    flex-direction: column;
+    align-items: center;">
+
+    <form action="/stock" method="POST" style="display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    row-gap: 20px;
+    justify-items: end;
+    margin-bottom: 1rem;">
+        <div>
+        <label for="stockName">stock:</label>
+        <input type="text" name="stockName" placeholder="stockName" required><br>
+        </div>
+        <div>
+        <label for="tdate">Date:</label>
+        <input type="datetime-local" name="tdate" placeholder="date" required><br>
+        </div>
+        <div>
+        <label for="fromWallet">From Wallet:</label>
+        <input type="text" name="fromWallet" placeholder="fromWallet" required><br>
+        </div>
+        <div>
+        <label for="toWallet">To Wallet:</label>
+        <input type="text" name="toWallet" placeholder="toWallet" required><br>
+        </div>
+        <div>
+        <label for="quantity">Quantity:</label>
+        <input type="text" name="quantity" placeholder="quantity" required><br>
+        </div>
+        <div>
+        <label for="price">Price:</label>
+        <input type="text" name="price" placeholder="price" required><br>
+        </div>
+        <div>
+        <label for="currency">Currency:</label>
+        <input type="text" name="currency" placeholder="Currency" required><br>
+        </div>
+        <div>
+        <label for="fee">Fee:</label>
+        <input type="text" name="fee" placeholder="fee"><br>
+        </div>
+        <div>
+        <label for="note">Note:</label>
+        <input type="text" name="note" placeholder="Note"><br>
+        </div>
+        <div>
+        <button type="submit">Insert</button>
+        <button type="reset">Clear</button>
+        <button type="button" onclick="location.reload();">Cancel</button>
+        </div>
+    </form>
+
+</div>
+</div>
+    
+
+<div style="text-align: left;" id="stockListDiv" >
+    <h2 style="text-align: center;">stocks Transactions History</h2>
+{% if stocks %}
+<ul id="stockList" style="display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    justify-content: center;
+    align-items: baseline;
+    flex-direction: column;">
+    {% for stock in stocks %}
+    <li data-tdate="{{ stock.tdate }}" style="background-color: lightgrey;
+    border: 1px black;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 10px;
+    list-style-type: none;">
+        <!-- <strong>stock ID:</strong> {{ stock.stockId }}<br>
+        <strong>User ID:</strong> {{ stock.userId }}<br> -->
+        <div style="display: grid;  grid-template-columns: 1fr 1fr;">
+        <div>
+            <strong>Stock:</strong> {{ stock.stockName }}<br>
+        </div>
+        <div>
+            <strong>Date:</strong> {{ stock.tdate | replace("T", " ") }}<br>
+        </div>
+        <div>
+            <strong>From Wallet:</strong> {{ stock.fromWallet }}<br>
+        </div>
+        <div>
+            <strong>To Wallet:</strong> {{ stock.toWallet }}<br>
+        </div>
+        <div>
+            <strong>Quantity:</strong> {{ stock.quantity }}<br>
+        </div>
+        <div>
+            <strong>Price:</strong> {{ stock.price }}<br>
+        </div>
+        <div>
+            <strong>Currency:</strong> {{ stock.currency }}<br>
+        </div>
+        <div>
+            <strong>Fee:</strong> {{ stock.fee }}<br>
+        </div>
+        <div>
+            <strong>Note:</strong> {{ stock.note }}<br>
+        </div>
+        <div>
+        <button onclick="editStock('{{ stock.stockId }}','{{ stock.userId }}','{{ stock.stockName }}','{{ stock.tdate }}','{{ stock.fromWallet }}',
+        '{{ stock.toWallet }}','{{ stock.quantity }}','{{ stock.price }}','{{ stock.currency }}','{{ stock.fee }}','{{ stock.note }}')">Edit</button>
+        </div>
+    </div>
+    </li>
+    {% endfor %}
+</ul>
+
+</div>
+
+{% else %}
+<p>No stocks found.</p>
+{% endif %}
+
+<div id="updateStockDiv" style="display: none;">
+    <h2>Update stock Transaction</h2>
+<div style="display: flex;
+flex-direction: column;
+align-items: center;">
+<form id="updateForm" action="/updateStock" method="POST" style="display: grid;
+grid-template-columns: 1fr 1fr;
+align-items: end;
+row-gap: 20px;
+justify-items: end;
+margin-bottom: 1rem;">
+    <input type="hidden" id="updateStockId" name="stockId">
+    <input type="hidden" id="updateUserId" name="userId">
+    <div>
+    <label>stock:</label>
+    <input type="text" id="updateStockName" name="stockName"><br>
+    </div>
+    <div>
+    <label>Date:</label>
+    <input type="datetime-local" id="updateTdate" name="tdate"><br>
+    </div>
+    <div>
+    <label>From Wallet:</label>
+    <input type="text" id="updateFromWallet" name="fromWallet"><br>
+    </div>
+    <div>
+    <label>To Wallet:</label>
+    <input type="text" id="updateToWallet" name="toWallet"><br>
+    </div>
+    <div>
+    <label>quantity:</label>
+    <!-- <input type="number" step="0.00000001" id="updateQuantity" name="quantity"> -->
+    <input type="text" id="updateQuantity" name="quantity"><br>
+    </div>
+    <div>
+    <label>Price:</label>
+    <!-- <input type="number" step="0.00000001" id="updatePrice" name="price" required> -->
+    <input type="text" id="updatePrice" name="price"><br>
+    </div>
+    <div>
+    <label>Currency:</label>
+    <input type="text" id="updateCurrency" name="currency"><br>
+    </div>
+    <div>
+    <label>Fee:</label>
+    <!-- <input type="number" step="0.00000001" id="updateFee" name="fee"> -->
+    <input type="text" id="updateFee" name="fee"><br>
+    </div>
+    <div>
+    <label>Note:</label>
+    <input type="text" id="updateNote" name="note"><br>
+    </div>
+    <div>
+    <button type="submit">Save</button>
+    <button type="submit" form="deleteForm" onclick="return confirm('Are you sure?')">Delete</button>
+    <button type="button" onclick="location.reload();">Cancel</button>
+    </div>
+</form>
+</div>
+
+
+<form id="deleteForm" method="POST"></form>
+</div>
 
 {% endblock %}

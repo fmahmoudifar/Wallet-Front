@@ -38,9 +38,23 @@ def users():
         to_wallet_totals_t = defaultdict(float)
 
         for transaction in transactions:
-            quantity = float(transaction["quantity"])
-            transaction_totals[transaction["cryptoName"]] += quantity
-            to_wallet_totals_t[transactions["toWallet"]] += quantity           
+            amount = float(transaction["amount"])
+            transaction_totals[transaction["mainCat"]] += amount
+            to_wallet_totals_t[transactions["toWallet"]] += amount    
+            
+        try:
+            response = requests.get(f"{API_URL}/transactions")  
+            transactions = response.json().get("transactions", []) if response.status_code == 200 else []
+        except Exception:
+            transactions = []
+
+        transaction_totals = defaultdict(float)
+        to_wallet_totals_t = defaultdict(float)
+
+        for transaction in transactions:
+            amount = float(transaction["amount"])
+            transaction_totals[transaction["mainCat"]] += amount
+            to_wallet_totals_t[transactions["toWallet"]] += amount           
         
 
         return render_template("home.html", cryptos=cryptos, crypto_totals=crypto_totals, to_wallet_totals=to_wallet_totals,
