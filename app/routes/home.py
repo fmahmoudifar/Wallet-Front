@@ -27,8 +27,24 @@ def users():
             quantity = float(crypto["quantity"])
             crypto_totals[crypto["cryptoName"]] += quantity
             to_wallet_totals[crypto["toWallet"]] += quantity
+ 
+        try:
+            response = requests.get(f"{API_URL}/transactions")  
+            transactions = response.json().get("transactions", []) if response.status_code == 200 else []
+        except Exception:
+            transactions = []
 
-        return render_template("home.html", cryptos=cryptos, crypto_totals=crypto_totals, to_wallet_totals=to_wallet_totals, user = user)
+        transaction_totals = defaultdict(float)
+        to_wallet_totals_t = defaultdict(float)
+
+        for transaction in transactions:
+            quantity = float(transaction["quantity"])
+            transaction_totals[transaction["cryptoName"]] += quantity
+            to_wallet_totals_t[transactions["toWallet"]] += quantity           
+        
+
+        return render_template("home.html", cryptos=cryptos, crypto_totals=crypto_totals, to_wallet_totals=to_wallet_totals,
+                               user = user, transactions=transactions, transaction_totals=transaction_totals, to_wallet_totals_t=to_wallet_totals_t )
  
     else:
         # return redirect(url_for('auth.login'))
