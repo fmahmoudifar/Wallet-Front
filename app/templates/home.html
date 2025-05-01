@@ -22,23 +22,7 @@
     {% endfor %}
 </ul>
 
-<h2>Transactions Totals</h2>
-<ul>
-    {% for mainCat, total_quantity in transaction_totals.items() %}
-    <li style="list-style-type: none;">
-        <strong>{{ mainCat }}:</strong> {{ total_quantity }}
-    </li>
-    {% endfor %}
-</ul>
 
-<h2>Total Per ToWallet</h2>
-<ul>
-    {% for wallet, total_quantity in to_wallet_totals.items() %}
-    <li style="list-style-type: none;">
-        <strong>{{ wallet }}:</strong> {{ total_quantity }}
-    </li>
-    {% endfor %}
-</ul>
 {% else %}
 
 <h2>Please Login to continue...</h2>

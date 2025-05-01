@@ -15,7 +15,7 @@ def users():
     # else:
         # return redirect(url_for('auth.login'))
         try:
-            response = requests.get(f"{API_URL}/cryptos")  
+            response = requests.get(f"{API_URL}/cryptos", auth=aws_auth) 
             cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
         except Exception:
             cryptos = []
@@ -28,37 +28,40 @@ def users():
             crypto_totals[crypto["cryptoName"]] += quantity
             to_wallet_totals[crypto["toWallet"]] += quantity
  
-        try:
-            response = requests.get(f"{API_URL}/transactions")  
-            transactions = response.json().get("transactions", []) if response.status_code == 200 else []
-        except Exception:
-            transactions = []
+        # try:
+        #     response = requests.get(f"{API_URL}/stocks", auth=aws_auth)  
+        #     stocks = response.json().get("stocks", []) if response.status_code == 200 else []
+        # except Exception:
+        #     stocks = []
 
-        transaction_totals = defaultdict(float)
-        to_wallet_totals_t = defaultdict(float)
+        # stock_totals = defaultdict(float)
+        # to_wallet_totals_s = defaultdict(float)
 
-        for transaction in transactions:
-            amount = float(transaction["amount"])
-            transaction_totals[transaction["mainCat"]] += amount
-            to_wallet_totals_t[transactions["toWallet"]] += amount    
+        # for stock in stocks:
+        #     quantity = float(stock["quantity"])
+        #     stock_totals[stock["stockName"]] += quantity
+        #     to_wallet_totals_s[stock["toWallet"]] += quantity    
             
-        try:
-            response = requests.get(f"{API_URL}/transactions")  
-            transactions = response.json().get("transactions", []) if response.status_code == 200 else []
-        except Exception:
-            transactions = []
+        # try:
+        #     response = requests.get(f"{API_URL}/transactions", auth=aws_auth)  
+        #     transactions = response.json().get("transactions", []) if response.status_code == 200 else []
+        # except Exception:
+        #     transactions = []
 
-        transaction_totals = defaultdict(float)
-        to_wallet_totals_t = defaultdict(float)
+        # transaction_totals = defaultdict(float)
+        # to_wallet_totals_t = defaultdict(float)
 
-        for transaction in transactions:
-            amount = float(transaction["amount"])
-            transaction_totals[transaction["mainCat"]] += amount
-            to_wallet_totals_t[transactions["toWallet"]] += amount           
+        # for transaction in transactions:
+        #     amount = float(transaction["amount"])
+        #     transaction_totals[transaction["mainCat"]] += amount
+        #     to_wallet_totals_t[transactions["toWallet"]] += amount           
         
 
         return render_template("home.html", cryptos=cryptos, crypto_totals=crypto_totals, to_wallet_totals=to_wallet_totals,
-                               user = user, transactions=transactions, transaction_totals=transaction_totals, to_wallet_totals_t=to_wallet_totals_t )
+                               user = user
+                            #    , transactions=transactions, transaction_totals=transaction_totals, to_wallet_totals_t=to_wallet_totals_t,
+                            #    stocks=stocks, stock_totals=stock_totals, to_wallet_totals_s=to_wallet_totals_s 
+                               )
  
     else:
         # return redirect(url_for('auth.login'))
