@@ -24,7 +24,7 @@ def stock_page():
         stocks = response.json().get("stocks", []) if response.status_code == 200 else []
     except Exception:
         stocks = []
-    return render_template("stock.html", stocks=stocks)
+    return render_template('stock.html', stocks=stocks)
 
 
 @stock_bp.route('/stock', methods=['POST'])
