@@ -15,7 +15,7 @@
         document.getElementById("updateCurrency").value = currency;
         document.getElementById("updateFee").value = fee;
         document.getElementById("updateNote").value = note;
-        document.getElementById("updatestockDiv").style.display = "block";
+        document.getElementById("updateStockDiv").style.display = "block";
         document.getElementById("stockListDiv").style.display = "none";
         document.getElementById("newStockB").style.display = "none"; 
         document.getElementById("deleteForm").action = `/deleteStock/${stockId}/${userId}`;
@@ -116,7 +116,7 @@ function newStockDiv() {
     
 
 <div style="text-align: left;" id="stockListDiv" >
-    <h2 style="text-align: center;">stocks Transactions History</h2>
+    <h2 style="text-align: center;">Stocks Transactions History</h2>
 {% if stocks %}
 <ul id="stockList" style="display: flex;
     flex-wrap: wrap;

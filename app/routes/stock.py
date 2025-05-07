@@ -20,6 +20,7 @@ stock_bp = Blueprint('stock', __name__)
 def stock_page():
     try:
         response = requests.get(f"{API_URL}/stocks", auth=aws_auth)
+        print(API_URL)
         stocks = response.json().get("stocks", []) if response.status_code == 200 else []
     except Exception:
         stocks = []
@@ -54,7 +55,7 @@ def create_stock():
         print(f"❌ [ERROR] Failed to create stock: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
-@stock_bp.route('/updatestock', methods=['POST'])
+@stock_bp.route('/updateStock', methods=['POST'])
 def update_stock():
     data = {
         "stockId": request.form["stockId"],
