@@ -47,7 +47,9 @@ def create_transaction():
             return jsonify({"error": "Internal Server Error"}), 500
     else:
         print('failed')
-        return redirect(url_for("transaction.transaction_page"))
+        fd = 'Please login and try again'
+        # return redirect(url_for("transaction.transaction_page"))
+        return render_template("transaction.html", fd=fd)
         
 
 @transaction_bp.route('/updateTrans', methods=['POST'])
