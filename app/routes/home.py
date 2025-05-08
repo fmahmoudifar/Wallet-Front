@@ -11,6 +11,7 @@ home_bp = Blueprint("home", __name__, url_prefix="/")
 def users():
     user = session.get('user')
     if user:
+        username = user.get('username')
     #    return render_template('home.html', user=user)
     # else:
         # return redirect(url_for('auth.login'))
@@ -58,7 +59,7 @@ def users():
         
 
         return render_template("home.html", cryptos=cryptos, crypto_totals=crypto_totals, to_wallet_totals=to_wallet_totals,
-                               user = user
+                               user = user, username = username
                             #    , transactions=transactions, transaction_totals=transaction_totals, to_wallet_totals_t=to_wallet_totals_t,
                             #    stocks=stocks, stock_totals=stock_totals, to_wallet_totals_s=to_wallet_totals_s 
                                )

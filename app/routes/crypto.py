@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify
+from flask import Blueprint, render_template, session, request, redirect, url_for, jsonify
 import requests
 import uuid
 from config import API_URL, aws_auth
@@ -44,7 +44,8 @@ def crypto_page():
 @crypto_bp.route('/crypto', methods=['POST'])
 def create_crypto():
     crypto_id = str(uuid.uuid4())
-    user_id = "123"
+    user = session.get('user')
+    user_id = user.get('username')
     data = {
         "cryptoId": crypto_id,
         "userId": user_id,

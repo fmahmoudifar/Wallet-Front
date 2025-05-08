@@ -6,7 +6,7 @@
 # def users():
 #     return render_template("stock.html")
 
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify
+from flask import Blueprint, render_template,session, request, redirect, url_for, jsonify
 import requests
 import uuid
 from config import API_URL, aws_auth
@@ -20,17 +20,16 @@ stock_bp = Blueprint('stock', __name__)
 def stock_page():
     try:
         response = requests.get(f"{API_URL}/stocks", auth=aws_auth)
-        print(API_URL)
         stocks = response.json().get("stocks", []) if response.status_code == 200 else []
     except Exception:
         stocks = []
-    return render_template('stock.html', stocks=stocks)
-
+    return render_template("stock.html", stocks=stocks)
 
 @stock_bp.route('/stock', methods=['POST'])
 def create_stock():
     stock_id = str(uuid.uuid4())
-    user_id = "123"
+    user = session.get('user')
+    user_id = user.get('username')
     data = {
         "stockId": stock_id,
         "userId": user_id,

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify
+from flask import Blueprint, render_template, session, request, redirect, url_for, jsonify
 import requests
 import uuid
 from config import API_URL, aws_auth
@@ -19,31 +19,36 @@ def transaction_page():
 @transaction_bp.route('/transaction', methods=['POST'])
 def create_transaction():
     trans_id = str(uuid.uuid4())
-    user_id = "123"
-    data = {
-        "transId": trans_id,
-        "userId": user_id,
-        "transType": request.form["transType"],
-        "tdate": request.form["tdate"],        
-        "fromWallet": request.form["fromWallet"],
-        "amount": request.form["amount"], 
-        "toWallet": request.form["toWallet"],
-        "mainCat": request.form["mainCat"], 
-        "price": request.form["price"],  
-        "currency": request.form["currency"],
-        "fee": request.form["fee"],
-        "note": request.form["note"]
-    }
+    user = session.get('user')
+    if user:
+        user_id = user.get('username')
+        data = {
+            "transId": trans_id,
+            "userId": user_id,
+            "transType": request.form["transType"],
+            "tdate": request.form["tdate"],        
+            "fromWallet": request.form["fromWallet"],
+            "amount": request.form["amount"], 
+            "toWallet": request.form["toWallet"],
+            "mainCat": request.form["mainCat"], 
+            "price": request.form["price"],  
+            "currency": request.form["currency"],
+            "fee": request.form["fee"],
+            "note": request.form["note"]
+        }
+        print(data)
+        try:
+            response = requests.post(f"{API_URL}/transaction", json=data, auth=aws_auth)
+            print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {response.json()}")
 
-    print(data)
-    try:
-        response = requests.post(f"{API_URL}/transaction", json=data, auth=aws_auth)
-        print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {response.json()}")
-
+            return redirect(url_for("transaction.transaction_page"))
+        except Exception as e:
+            print(f"❌ [ERROR] Failed to create transaction: {str(e)}")
+            return jsonify({"error": "Internal Server Error"}), 500
+    else:
+        print('failed')
         return redirect(url_for("transaction.transaction_page"))
-    except Exception as e:
-        print(f"❌ [ERROR] Failed to create transaction: {str(e)}")
-        return jsonify({"error": "Internal Server Error"}), 500
+        
 
 @transaction_bp.route('/updateTrans', methods=['POST'])
 def update_transaction():
