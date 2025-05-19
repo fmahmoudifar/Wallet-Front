@@ -51,7 +51,7 @@ def create_transaction():
         # return redirect(url_for("transaction.transaction_page"))
         return render_template("transaction.html", fd=fd)
         
-
+ 
 @transaction_bp.route('/updateTrans', methods=['POST'])
 def update_transaction():
     data = {
