@@ -13,11 +13,8 @@
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
         document.getElementById("updatePrice").value = price;
-        // document.getElementById("updateAmount").value = parseFloat(amount);
-        // document.getElementById("updatePrice").value = parseFloat(price);
         document.getElementById("updateCurrency").value = currency;
         document.getElementById("updateFee").value = fee;
-        // document.getElementById("updateFee").value = parseFloat(fee);
         document.getElementById("updateNote").value = note;
         document.getElementById("updateTransDiv").style.display = "block";
         document.getElementById("transListDiv").style.display = "none";
@@ -149,9 +146,9 @@ function newTransDiv() {
         <!-- <div>
             <strong>Transaction ID:</strong> {{ transaction.transId }}<br>
         </div> -->
-        <div>
+        <!-- <div>
             <strong>User ID:</strong> {{ transaction.userId }}<br>
-        </div> 
+        </div>  -->
         <div>
             <strong>Transaction Type:</strong> {{ transaction.transType }}<br>
         </div>
@@ -162,7 +159,7 @@ function newTransDiv() {
             <strong>Sub Category:</strong> {{ transaction.subCat }}<br>
         </div> -->
         <div>
-            <strong>Date:</strong> {{ transaction.tdate }}<br>
+            <strong>Date:</strong> {{ transaction.tdate | replace("T", " ") }}<br>
         </div>
         <div>
             <strong>Amount:</strong> {{ transaction.amount }}<br>
