@@ -25,23 +25,25 @@ def users():
         to_wallet_totals = defaultdict(float)
 
         for crypto in cryptos:
-            quantity = float(crypto["quantity"])
+            quantity = float(crypto.get("quantity") or 0)
             crypto_totals[crypto["cryptoName"]] += quantity
             to_wallet_totals[crypto["toWallet"]] += quantity
  
-        # try:
-        #     response = requests.get(f"{API_URL}/stocks", auth=aws_auth)  
-        #     stocks = response.json().get("stocks", []) if response.status_code == 200 else []
-        # except Exception:
-        #     stocks = []
+        try:
+            response = requests.get(f"{API_URL}/stocks", auth=aws_auth)  
+            stocks = response.json().get("stocks", []) if response.status_code == 200 else []
+        except Exception:
+            stocks = []
 
-        # stock_totals = defaultdict(float)
-        # to_wallet_totals_s = defaultdict(float)
+        stock_totals = defaultdict(float)
+        to_wallet_totals_s = defaultdict(float)
 
-        # for stock in stocks:
-        #     quantity = float(stock["quantity"])
-        #     stock_totals[stock["stockName"]] += quantity
-        #     to_wallet_totals_s[stock["toWallet"]] += quantity    
+        for stock in stocks:
+            print("Print this:")
+            print(stock["quantity"])
+            quantity = float(stock.get("quantity") or 0)
+            stock_totals[stock["stockName"]] += quantity
+            to_wallet_totals_s[stock["toWallet"]] += quantity    
             
         # try:
         #     response = requests.get(f"{API_URL}/transactions", auth=aws_auth)  

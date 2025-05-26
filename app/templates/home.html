@@ -23,6 +23,25 @@
     {% endfor %}
 </ul>
 
+<h2>Stock Totals</h2>
+<ul>
+    {% for stock_name, total_quantity in stock_totals.items() %}
+    <li style="list-style-type: none;">
+        <strong>{{ stock_name }}:</strong> {{ total_quantity }}
+    </li>
+    {% endfor %}
+</ul>
+
+<h2>Total Per ToWallet</h2>
+<ul>
+    {% for wallet, total_quantity in to_wallet_totals.items() %}
+    <li style="list-style-type: none;">
+        <strong>{{ wallet }}:</strong> {{ total_quantity }}
+    </li>
+    {% endfor %}
+</ul>
+
+
 
 {% else %}
 
