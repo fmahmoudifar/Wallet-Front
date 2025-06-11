@@ -10,19 +10,35 @@ crypto_bp = Blueprint('crypto', __name__)
 
 @crypto_bp.route('/crypto', methods=['GET'])
 def crypto_page():
-    user = session.get('user')
-    if user:
-        userId = user.get('username')
-        try:
-            # Assuming your API accepts a username filter as a query parameter
-            response = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
-            cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
-        except Exception as e:
-            print(f"Error fetching cryptos: {e}")
-            cryptos = []
-        return render_template("crypto.html", cryptos=cryptos, userId=userId)
-    else:
-        return render_template("home.html")
+            try:
+                response = requests.get(f"{API_URL}/cryptos", auth=aws_auth)
+                cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
+            except Exception:
+                cryptos = []
+            return render_template("crypto.html", cryptos=cryptos)
+
+
+# @crypto_bp.route('/crypto', methods=['GET'])
+# def crypto_page():
+#     try:
+#         response = requests.get(f"{API_URL}/cryptos", auth=aws_auth)
+#         cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
+        
+#         # Convert 'tdate' to datetime for sorting
+#         for crypto in cryptos:
+#             crypto['tdate'] = datetime.strptime(crypto['tdate'], "%Y-%m-%dT%H:%M")
+
+#         # Sort by 'tdate' (latest first)
+#         cryptos.sort(key=lambda x: x['tdate'], reverse=True)
+
+#         # Convert back to string format
+#         for crypto in cryptos:
+#             crypto['tdate'] = crypto['tdate'].strftime("%Y-%m-%d %H:%M")
+
+#     except Exception:
+#         cryptos = []
+
+#     return render_template("crypto.html", cryptos=cryptos)
 
 
 @crypto_bp.route('/crypto', methods=['POST'])
