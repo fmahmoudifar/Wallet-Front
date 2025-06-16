@@ -17,13 +17,29 @@ from datetime import datetime
 stock_bp = Blueprint('stock', __name__)
 
 @stock_bp.route('/stock', methods=['GET'])
-def stock_page():
-    try:
-        response = requests.get(f"{API_URL}/stocks", auth=aws_auth)
-        stocks = response.json().get("stocks", []) if response.status_code == 200 else []
-    except Exception:
-        stocks = []
-    return render_template("stock.html", stocks=stocks)
+def crypto_page():
+    user = session.get('user')
+    if user:
+        userId = user.get('username')
+        try:
+            # Assuming your API accepts a username filter as a query parameter
+            response = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
+            stocks = response.json().get("stocks", []) if response.status_code == 200 else []
+        except Exception as e:
+            print(f"Error fetching stocks: {e}")
+            stocks = []
+        return render_template("stock.html", stocks=stocks, userId=userId)
+    else:
+        return render_template("home.html")
+    
+# @stock_bp.route('/stock', methods=['GET'])
+# def stock_page():
+#     try:
+#         response = requests.get(f"{API_URL}/stocks", auth=aws_auth)
+#         stocks = response.json().get("stocks", []) if response.status_code == 200 else []
+#     except Exception:
+#         stocks = []
+#     return render_template("stock.html", stocks=stocks)
 
 @stock_bp.route('/stock', methods=['POST'])
 def create_stock():

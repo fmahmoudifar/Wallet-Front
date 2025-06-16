@@ -28,10 +28,9 @@ document.addEventListener("DOMContentLoaded", function() {
     items.sort((a, b) => {
         let dateA = new Date(a.getAttribute("data-tdate"));
         let dateB = new Date(b.getAttribute("data-tdate"));
-        return dateB - dateA;  // Sort descending
+        return dateB - dateA;  
     });
 
-    // Append sorted items back to the list
     items.forEach(item => list.appendChild(item));
 });
 
@@ -40,11 +39,11 @@ function newCryptoDiv() {
     let button = document.getElementById("newCryptoB");
 
     if (div.style.display === "none" || div.style.display === "") {
-        div.style.display = "block";  // Show the div
+        div.style.display = "block";  
         document.getElementById("cryptoListDiv").style.display = "none";
         button.innerText = "Cancel" ;
     } else {
-        div.style.display = "none";   // Hide the div
+        div.style.display = "none"; 
         document.getElementById("cryptoListDiv").style.display = "block";
         button.innerText = "Add New Crypto" ;
     }
@@ -56,8 +55,8 @@ function newCryptoDiv() {
 
 <button id="newCryptoB" onclick="newCryptoDiv()">Add New Crypto</button>
 
-<div id="newCrypto" style="display: none">
-<h2>Add New Crypto Transaction</h2>
+<div id="newCrypto" style="display: none;">
+<h2>New Crypto Transaction</h2>
 <div style="display: flex;
     flex-direction: column;
     align-items: center;">
@@ -70,42 +69,42 @@ function newCryptoDiv() {
     margin-bottom: 1rem;">
         <div>
         <label for="cryptoName">Crypto:</label>
-        <input type="text" name="cryptoName" placeholder="cryptoName" required><br>
+        <input type="text" name="cryptoName" required><br>
         </div>
         <div>
         <label for="tdate">Date:</label>
-        <input type="datetime-local" name="tdate" placeholder="date" required><br>
+        <input type="datetime-local" name="tdate"  required><br>
         </div>
         <div>
         <label for="fromWallet">From Wallet:</label>
-        <input type="text" name="fromWallet" placeholder="fromWallet" required><br>
+        <input type="text" name="fromWallet"  required><br>
         </div>
         <div>
         <label for="toWallet">To Wallet:</label>
-        <input type="text" name="toWallet" placeholder="toWallet" required><br>
+        <input type="text" name="toWallet"  required><br>
         </div>
         <div>
         <label for="quantity">Quantity:</label>
-        <input type="text" name="quantity" placeholder="quantity" required><br>
+        <input type="text" name="quantity"  required><br>
         </div>
         <div>
         <label for="price">Price:</label>
-        <input type="text" name="price" placeholder="price" required><br>
+        <input type="text" name="price" required><br>
         <!-- <input type="number" step="0.00000001" name="quantity" placeholder="quantity"><br>
         <input type="number" step="0.00000001" name="price" placeholder="price" required><br> -->
         </div>
         <div>
         <label for="currency">Currency:</label>
-        <input type="text" name="currency" placeholder="Currency" required><br>
+        <input type="text" name="currency" required><br>
         </div>
         <div>
         <label for="fee">Fee:</label>
-        <input type="text" name="fee" placeholder="fee"><br>
+        <input type="text" name="fee"><br>
         </div>
         <!-- <input type="number" step="0.00000001" name="fee" placeholder="fee"><br> -->
         <div>
         <label for="note">Note:</label>
-        <input type="text" name="note" placeholder="Note"><br>
+        <input type="text" name="note"><br>
         </div>
         <div>
         <button type="submit">Insert</button>
@@ -135,7 +134,7 @@ function newCryptoDiv() {
     margin: 10px;
     list-style-type: none;">
         <!-- <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br> -->
-        <strong>User ID:</strong> {{ crypto.userId }}<br>
+        <!-- <strong>User ID:</strong> {{ crypto.userId }}<br> -->
         <div style="display: grid;  grid-template-columns: 1fr 1fr;">
         <div>
             <strong>Crypto:</strong> {{ crypto.cryptoName }}<br>

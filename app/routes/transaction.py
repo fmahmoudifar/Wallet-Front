@@ -9,12 +9,18 @@ transaction_bp = Blueprint('transaction', __name__)
 
 @transaction_bp.route('/transaction', methods=['GET'])
 def transaction_page():
-    try:
-        response = requests.get(f"{API_URL}/transactions", auth=aws_auth)
-        transactions = response.json().get("transactions", []) if response.status_code == 200 else []
-    except Exception:
-        transactions = []
-    return render_template("transaction.html", transactions=transactions)
+    user = session.get('user')
+    if user:
+        userId = user.get('username')
+        try:
+            response = requests.get(f"{API_URL}/transactions", auth=aws_auth)
+            transactions = response.json().get("transactions", []) if response.status_code == 200 else []
+        except Exception as e:
+            print(f"Error fetching transactions: {e}")
+            transactions = []
+        return render_template("transaction.html", transactions=transactions, userId=userId)
+    else:
+        return render_template("home.html")
 
 @transaction_bp.route('/transaction', methods=['POST'])
 def create_transaction():
