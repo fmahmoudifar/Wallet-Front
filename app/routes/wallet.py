@@ -1,21 +1,25 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify
+from flask import Blueprint, render_template, session, request, redirect, url_for, jsonify
 import requests
 import uuid
 from config import API_URL, aws_auth
 
 wallet_bp = Blueprint('wallet', __name__)
 
-# @wallet_bp.route('/')
-# def index():
 @wallet_bp.route('/wallet', methods=['GET'])
-def wallet_page():
-    try:
-        response = requests.get(f"{API_URL}/wallets", auth=aws_auth)
-        wallets = response.json().get("wallets", []) if response.status_code == 200 else []
-    except Exception:
-        wallets = []
-    return render_template("wallet.html", wallets=wallets)
-
+def crypto_page():
+    user = session.get('user')
+    if user:
+        userId = user.get('username')
+        try:
+            response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
+            wallets = response.json().get("wallets", []) if response.status_code == 200 else []
+        except Exception as e:
+            print(f"Error fetching wallets: {e}")
+            wallets = []
+        return render_template("wallet.html", wallets=wallets, userId=userId)
+    else:
+        return render_template("home.html")
+    
 @wallet_bp.route('/wallet', methods=['POST'])
 def create_wallet():
     wallet_id = str(uuid.uuid4())

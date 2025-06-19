@@ -5,7 +5,6 @@ from config import API_URL, aws_auth
 from decimal import Decimal
 from datetime import datetime
 
-
 crypto_bp = Blueprint('crypto', __name__)
 
 @crypto_bp.route('/crypto', methods=['GET'])
@@ -14,7 +13,6 @@ def crypto_page():
     if user:
         userId = user.get('username')
         try:
-            # Assuming your API accepts a username filter as a query parameter
             response = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
             cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
         except Exception as e:
@@ -23,7 +21,6 @@ def crypto_page():
         return render_template("crypto.html", cryptos=cryptos, userId=userId)
     else:
         return render_template("home.html")
-
 
 @crypto_bp.route('/crypto', methods=['POST'])
 def create_crypto():
