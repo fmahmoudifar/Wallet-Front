@@ -1,11 +1,3 @@
-# from flask import Blueprint, render_template
-
-# stock_bp = Blueprint("stock", __name__, url_prefix="/stock")
-
-# @stock_bp.route("/")
-# def users():
-#     return render_template("stock.html")
-
 from flask import Blueprint, render_template,session, request, redirect, url_for, jsonify
 import requests
 import uuid
@@ -13,17 +5,16 @@ from config import API_URL, aws_auth
 from decimal import Decimal
 from datetime import datetime
 
-
 stock_bp = Blueprint('stock', __name__)
 
 @stock_bp.route('/stock', methods=['GET'])
-def crypto_page():
+def stock_page():
     user = session.get('user')
     if user:
         userId = user.get('username')
         try:
             # Assuming your API accepts a username filter as a query parameter
-            response = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
+            response = requests.get(f"{API_URL}/stocks", params={"userId": userId}, auth=aws_auth)
             stocks = response.json().get("stocks", []) if response.status_code == 200 else []
         except Exception as e:
             print(f"Error fetching stocks: {e}")

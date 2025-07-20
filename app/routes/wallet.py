@@ -6,7 +6,7 @@ from config import API_URL, aws_auth
 wallet_bp = Blueprint('wallet', __name__)
 
 @wallet_bp.route('/wallet', methods=['GET'])
-def crypto_page():
+def wallet_page():
     user = session.get('user')
     if user:
         userId = user.get('username')
@@ -23,7 +23,8 @@ def crypto_page():
 @wallet_bp.route('/wallet', methods=['POST'])
 def create_wallet():
     wallet_id = str(uuid.uuid4())
-    user_id = "123"
+    user = session.get('user')
+    user_id = user.get('username')
     data = {
         "walletId": wallet_id,
         "userId": user_id,

@@ -43,7 +43,8 @@ function newTransDiv() {
     if (div.style.display === "none" || div.style.display === "") {
         div.style.display = "block";  // Show the div
         document.getElementById("transListDiv").style.display = "none";
-        button.innerText = "Cancel" ;
+        button.style.display = "none" ;
+        // button.innerText = "Cancel" ;
     } else {
         div.style.display = "none";   // Hide the div
         document.getElementById("transListDiv").style.display = "block";
@@ -52,7 +53,7 @@ function newTransDiv() {
 }
 </script>
 
-<h1>Transactions Manager</h1>
+<h1 style="text-align: left;">Transactions Manager</h1>
 
 <button id="newTransB" onclick="newTransDiv()">Add New Transaction</button>
 
