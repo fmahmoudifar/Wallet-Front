@@ -61,62 +61,60 @@ function newCryptoDiv() {
 <div style="display: flex;
     flex-direction: column;
     align-items: center;">
-
-    <form action="/crypto" method="POST" style="display: grid;
+<form action="/crypto" method="POST" style="display: grid;
     grid-template-columns: 1fr 1fr;
     align-items: end;
     row-gap: 20px;
     justify-items: end;
     margin-bottom: 1rem;">
         <div>
-        <label for="cryptoName">Crypto:</label>
-        <input type="text" name="cryptoName" required><br>
+            <label for="cryptoName">Crypto:</label>
+            <input type="text" name="cryptoName" required><br>
         </div>
         <div>
-        <label for="tdate">Date:</label>
-        <input type="datetime-local" name="tdate"  required><br>
+            <label for="tdate">Date:</label>
+            <input type="datetime-local" name="tdate"  required><br>
         </div>
         <div>
-        <label for="fromWallet">From Wallet:</label>
-        <input type="text" name="fromWallet"  required><br>
+            <label for="fromWallet">From Wallet:</label>
+            <input type="text" name="fromWallet"  required><br>
         </div>
         <div>
-        <label for="toWallet">To Wallet:</label>
-        <input type="text" name="toWallet"  required><br>
+            <label for="toWallet">To Wallet:</label>
+            <input type="text" name="toWallet"  required><br>
         </div>
         <div>
-        <label for="quantity">Quantity:</label>
-        <input type="text" name="quantity"  required><br>
+            <label for="quantity">Quantity:</label>
+            <input type="text" name="quantity"  required><br>
         </div>
         <div>
-        <label for="price">Price:</label>
-        <input type="text" name="price" required><br>
+            <label for="price">Price:</label>
+            <input type="text" name="price" required><br>
         <!-- <input type="number" step="0.00000001" name="quantity" placeholder="quantity"><br>
         <input type="number" step="0.00000001" name="price" placeholder="price" required><br> -->
         </div>
         <div>
-        <label for="currency">Currency:</label>
-        <input type="text" name="currency" required><br>
+            <label for="currency">Currency:</label>
+            <input type="text" name="currency" required><br>
         </div>
         <div>
-        <label for="fee">Fee:</label>
-        <input type="text" name="fee"><br>
+            <label for="fee">Fee:</label>
+            <input type="text" name="fee"><br>
         </div>
         <!-- <input type="number" step="0.00000001" name="fee" placeholder="fee"><br> -->
         <div>
-        <label for="note">Note:</label>
-        <input type="text" name="note"><br>
+            <label for="note">Note:</label>
+            <input type="text" name="note"><br>
         </div>
         <div>
-        <button type="submit">Insert</button>
-        <button type="reset">Clear</button>
-        <button type="button" onclick="location.reload();">Cancel</button>
+            <button type="submit">Insert</button>
+            <button type="reset">Clear</button>
+            <button type="button" onclick="location.reload();">Cancel</button>
         </div>
     </form>
 
 </div>
 </div>
-    
 
 <div style="text-align: left;" id="cryptoListDiv" >
     <h2 style="text-align: center;">Cryptos Transactions History</h2>

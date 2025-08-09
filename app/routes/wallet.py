@@ -2,6 +2,8 @@ from flask import Blueprint, render_template, session, request, redirect, url_fo
 import requests
 import uuid
 from config import API_URL, aws_auth
+from decimal import Decimal
+from datetime import datetime
 
 wallet_bp = Blueprint('wallet', __name__)
 
@@ -47,7 +49,7 @@ def create_wallet():
         print(f"❌ [ERROR] Failed to create wallet: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
-@wallet_bp.route('/update', methods=['POST'])
+@wallet_bp.route('/updateWallet', methods=['POST'])
 def update_wallet():
     data = {
         "walletId": request.form["walletId"],

@@ -12,10 +12,14 @@
         document.getElementById("updateBalance").value = balance;
         document.getElementById("updateNote").value = note;
         document.getElementById("updateWalletId").value = walletId;
-        document.getElementById("updateForm").style.display = "block";
-        document.getElementById("walletListDive").style.display = "none";
-        document.getElementById("newWalletB").style.display = "none";
-        document.getElementById("deleteForm").action = `/delete/${walletId}/${userId}`;
+        // document.getElementById("updateForm").style.display = "block";
+        // document.getElementById("walletListDive").style.display = "none";
+        // document.getElementById("newWalletB").style.display = "none";
+        // document.getElementById("deleteForm").action = `/delete/${walletId}/${userId}`;
+        document.getElementById("updateWalletDiv").style.display = "block";
+        document.getElementById("walletListDiv").style.display = "none";
+        document.getElementById("newWalletB").style.display = "none"; 
+        document.getElementById("deleteForm").action = `/deleteWallet/${walletId}/${userId}`;
     }    
     
 document.addEventListener("DOMContentLoaded", function() {
@@ -184,9 +188,9 @@ function newWalletDive(){
         <label>Note:</label>
         <input type="text" id="updateNote" name="note">
     </div>
-    <div>
+    <!-- <div>
         <button type="submit">Save Changes</button>
-    </div>
+    </div> -->
     <!-- Delete Wallet Button -->
     <div>
         <button type="submit">Save</button>
