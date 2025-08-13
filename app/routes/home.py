@@ -10,12 +10,18 @@ home_bp = Blueprint("home", __name__, url_prefix="/")
 @home_bp.route("/", methods=['GET'])
 def users():
     user = session.get('user')
+    print(user)
     if user:
         userId = user.get('username')
         try:
-            response = requests.get(f"{API_URL}/cryptos", auth=aws_auth) 
+        #     response = requests.get(f"{API_URL}/cryptos", auth=aws_auth) 
+        #     cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
+        # except Exception:
+        #     cryptos = []
+            response = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
             cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
-        except Exception:
+        except Exception as e:
+            print(f"Error fetching cryptos: {e}")
             cryptos = []
 
         crypto_totals = defaultdict(float)
@@ -27,7 +33,7 @@ def users():
             to_wallet_totals[crypto["toWallet"]] += quantity
 
         return render_template("home.html", cryptos=cryptos, crypto_totals=crypto_totals, to_wallet_totals=to_wallet_totals,
-                               user=user, userId=userId)
+                               userId=userId)
  
     else:
         return render_template("home.html")

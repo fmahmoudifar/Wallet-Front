@@ -3,7 +3,7 @@
 {% block content %}
 <h1>Home</h1>
 {% if session.get('user') %}
-<h6>Username : {{ username }}</h6>
+<h6>Username : {{ userId }}</h6>
 <h2>Crypto Totals</h2>
 <ul>
     {% for crypto_name, total_quantity in crypto_totals.items() %}

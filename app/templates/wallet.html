@@ -12,24 +12,33 @@
         document.getElementById("updateBalance").value = balance;
         document.getElementById("updateNote").value = note;
         document.getElementById("updateWalletId").value = walletId;
-        // document.getElementById("updateForm").style.display = "block";
-        // document.getElementById("walletListDive").style.display = "none";
-        // document.getElementById("newWalletB").style.display = "none";
-        // document.getElementById("deleteForm").action = `/delete/${walletId}/${userId}`;
         document.getElementById("updateWalletDiv").style.display = "block";
         document.getElementById("walletListDiv").style.display = "none";
         document.getElementById("newWalletB").style.display = "none"; 
         document.getElementById("deleteForm").action = `/deleteWallet/${walletId}/${userId}`;
     }    
     
+// document.addEventListener("DOMContentLoaded", function() {
+//     let list = document.getElementById("walletList");
+//     let items = Array.from(list.children);
+
+//     items.sort((a, b) => {
+//         let dateA = new a.getAttribute("data-walletName");
+//         let dateB = new b.getAttribute("data-walletName");
+//         return dateB - dateA;  
+//     });
+
+//     items.forEach(item => list.appendChild(item));
+// });
+
 document.addEventListener("DOMContentLoaded", function() {
     let list = document.getElementById("walletList");
     let items = Array.from(list.children);
 
     items.sort((a, b) => {
-        let dateA = new a.getAttribute("data-walletName");
-        let dateB = new b.getAttribute("data-walletName");
-        return dateB - dateA;  
+        let nameA = a.getAttribute("data-walletName");
+        let nameB = b.getAttribute("data-walletName");
+        return nameA.localeCompare(nameB); // descending text sort
     });
 
     items.forEach(item => list.appendChild(item));
@@ -112,15 +121,16 @@ function newWalletDive(){
     align-items: baseline;
     flex-direction: column;">
     {% for wallet in wallets %}
-    <li style="background-color: lightgray; 
+    <li data-walletName="{{ wallet.walletName }}" 
+        style="background-color: lightgray; 
         border: 1px black;
         padding: 20px;
         border-radius: 10px;
         margin: 10px;
         list-style-type: none;">
         <!-- <strong>UUID:</strong> {{ wallet.walletId }}<br> -->
-        <strong>User:</strong> {{ wallet.userId }}<br>
-        <strong>WalletID:</strong> {{ wallet.walletID }}<br>
+        <!-- <strong>User:</strong> {{ wallet.userId }}<br>
+        <strong>WalletID:</strong> {{ wallet.walletID }}<br> -->
         <div style="display: grid; grid-template-columns: 1fr 1fr;">
         <div>
             <strong>Wallet:</strong> {{ wallet.walletName }}<br>
