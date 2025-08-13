@@ -13,9 +13,9 @@
     {% endfor %} -->
 <canvas id="myChart"></canvas>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <script>
+<script>
     const labels = {{ labels | tojson }};
     const data = {{ values | tojson }};
 
