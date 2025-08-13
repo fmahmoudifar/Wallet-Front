@@ -32,7 +32,10 @@ def users():
             crypto_totals[crypto["cryptoName"]] += quantity
             to_wallet_totals[crypto["toWallet"]] += quantity
 
-        return render_template("home.html", cryptos=cryptos, crypto_totals=crypto_totals, to_wallet_totals=to_wallet_totals,
+        cryptoLabels = list(crypto_totals.keys())    
+        CryptoValues = list(crypto_totals.values()) 
+
+        return render_template("home.html", cryptoLabels=cryptoLabels, CryptoValues=CryptoValues, to_wallet_totals=to_wallet_totals,
                                userId=userId)
  
     else:

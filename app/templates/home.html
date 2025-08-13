@@ -5,22 +5,63 @@
 {% if session.get('user') %}
 <h6>Username : {{ userId }}</h6>
 <h2>Crypto Totals</h2>
-<ul>
-    {% for crypto_name, total_quantity in crypto_totals.items() %}
+<!-- <ul> -->
+    <!-- {% for crypto_name, total_quantity in crypto_totals.items() %}
     <li style="list-style-type: none;">
         <strong>{{ crypto_name }}:</strong> {{ total_quantity }}
     </li>
-    {% endfor %}
-</ul>
+    {% endfor %} -->
+<canvas id="myChart"></canvas>
 
-<h2>Total Per ToWallet</h2>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+    const labels = {{ labels | tojson }};
+    const data = {{ values | tojson }};
+
+    new Chart(document.getElementById('myChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Crypto Totals',
+                data: data,
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.5)',
+                    'rgba(54, 162, 235, 0.5)',
+                    'rgba(255, 206, 86, 0.5)',
+                    'rgba(75, 192, 192, 0.5)',
+                    'rgba(153, 102, 255, 0.5)'
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(153, 102, 255, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+</script>
+
+<!-- </ul> -->
+
+<!-- <h2>Total Per ToWallet</h2>
 <ul>
     {% for wallet, total_quantity in to_wallet_totals.items() %}
     <li style="list-style-type: none;">
         <strong>{{ wallet }}:</strong> {{ total_quantity }}
     </li>
     {% endfor %}
-</ul>
+</ul> -->
 
 {% else %}
 
