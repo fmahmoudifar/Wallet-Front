@@ -14,10 +14,6 @@ def users():
     if user:
         userId = user.get('username')
         try:
-        #     response = requests.get(f"{API_URL}/cryptos", auth=aws_auth) 
-        #     cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
-        # except Exception:
-        #     cryptos = []
             response = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
             cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
         except Exception as e:
@@ -33,9 +29,9 @@ def users():
             to_wallet_totals[crypto["toWallet"]] += quantity
 
         cryptoLabels = list(crypto_totals.keys())    
-        CryptoValues = list(crypto_totals.values()) 
+        cryptoValues = list(crypto_totals.values()) 
 
-        return render_template("home.html", cryptoLabels=cryptoLabels, CryptoValues=CryptoValues, to_wallet_totals=to_wallet_totals,
+        return render_template("home.html", cryptoLabels=cryptoLabels, cryptoValues=cryptoValues, to_wallet_totals=to_wallet_totals,
                                userId=userId)
  
     else:

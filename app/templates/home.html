@@ -5,26 +5,61 @@
 {% if session.get('user') %}
 <h6>Username : {{ userId }}</h6>
 <h2>Crypto Totals</h2>
-<!-- <ul> -->
-    <!-- {% for crypto_name, total_quantity in crypto_totals.items() %}
-    <li style="list-style-type: none;">
-        <strong>{{ crypto_name }}:</strong> {{ total_quantity }}
-    </li>
-    {% endfor %} -->
-<canvas id="myChart"></canvas>
+
+<style>
+    .grid-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* two columns */
+        grid-template-rows: 1fr 1fr;    /* two rows */
+        gap: 20px; /* spacing between sections */
+        height: 80vh; /* adjust total height */
+    }
+    .grid-item {
+        border: 1px solid #ccc;
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #myChart {
+        max-width: 100%;
+        max-height: 100%;
+    }
+</style>
+
+<div class="grid-container">
+    <!-- Section 1 (Chart) -->
+    <div class="grid-item">
+        <canvas id="myChart"></canvas>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="grid-item">
+        <p>Section 2 content here</p>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="grid-item">
+        <p>Section 3 content here</p>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="grid-item">
+        <p>Section 4 content here</p>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-    const labels = {{ labels | tojson }};
-    const data = {{ values | tojson }};
+    const labels = {{ cryptoLabels | tojson }};
+    const data = {{ cryptoValues | tojson }};
 
     new Chart(document.getElementById('myChart'), {
         type: 'bar',
         data: {
             labels: labels,
             datasets: [{
-                label: 'Crypto Totals',
+                label: 'crypto_totals',
                 data: data,
                 backgroundColor: [
                     'rgba(255, 99, 132, 0.5)',
@@ -45,6 +80,7 @@
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             scales: {
                 y: { beginAtZero: true }
             }
@@ -52,19 +88,7 @@
     });
 </script>
 
-<!-- </ul> -->
-
-<!-- <h2>Total Per ToWallet</h2>
-<ul>
-    {% for wallet, total_quantity in to_wallet_totals.items() %}
-    <li style="list-style-type: none;">
-        <strong>{{ wallet }}:</strong> {{ total_quantity }}
-    </li>
-    {% endfor %}
-</ul> -->
-
 {% else %}
-
 <h2>Please Login to continue...</h2>
 {% endif %}
 {% endblock %}
