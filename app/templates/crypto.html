@@ -76,8 +76,14 @@ function newCryptoDiv() {
             <input type="datetime-local" name="tdate"  required><br>
         </div>
         <div>
-            <label for="fromWallet">From Wallet:</label>
-            <input type="text" name="fromWallet"  required><br>
+            <select id="fromWallet" name="fromWallet">
+            <option value="" disabled selected>-- Choose a wallet --</option>
+            {% for wallet in wallets %}
+            <option value="{{ wallet.id }}">{{ wallet.name }}</option>
+            {% endfor %}
+            </select>
+            <!-- <label for="fromWallet">From Wallet:</label> -->
+            <!-- <input type="text" name="fromWallet"  required><br> -->
         </div>
         <div>
             <label for="toWallet">To Wallet:</label>

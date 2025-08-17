@@ -31,6 +31,15 @@ def users():
         cryptoLabels = list(crypto_totals.keys())    
         cryptoValues = list(crypto_totals.values()) 
 
+        try:
+            response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
+            cryptos = response.json().get("wallets", []) if response.status_code == 200 else []
+        except Exception as e:
+            print(f"Error fetching wallets: {e}")
+            wallets = []   
+
+             
+
         return render_template("home.html", cryptoLabels=cryptoLabels, cryptoValues=cryptoValues, to_wallet_totals=to_wallet_totals,
                                userId=userId)
  

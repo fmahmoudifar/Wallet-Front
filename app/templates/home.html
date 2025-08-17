@@ -1,18 +1,17 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<h1>Home</h1>
+<!-- <h1>Home</h1> -->
 {% if session.get('user') %}
 <h6>Username : {{ userId }}</h6>
-<h2>Crypto Totals</h2>
+
 
 <style>
     .grid-container {
         display: grid;
-        grid-template-columns: 1fr 1fr; /* two columns */
-        grid-template-rows: 1fr 1fr;    /* two rows */
-        gap: 20px; /* spacing between sections */
-        height: 80vh; /* adjust total height */
+        grid-template-columns: 1fr 1fr; /* default: 2 columns */
+        gap: 20px;
+        height: auto;
     }
     .grid-item {
         border: 1px solid #ccc;
@@ -20,10 +19,18 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        min-height: 250px; /* makes sections visible */
     }
     #myChart {
-        max-width: 100%;
-        max-height: 100%;
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    /* Mobile view: one item per row */
+    @media (max-width: 768px) {
+        .grid-container {
+            grid-template-columns: 1fr; /* stack items */
+        }
     }
 </style>
 
@@ -59,7 +66,7 @@
         data: {
             labels: labels,
             datasets: [{
-                label: 'crypto_totals',
+                label: 'Total Cryptos',
                 data: data,
                 backgroundColor: [
                     'rgba(255, 99, 132, 0.5)',

@@ -12,15 +12,55 @@ def crypto_page():
     user = session.get('user')
     if user:
         userId = user.get('username')
+
+        # --- Fetch Cryptos ---
         try:
             response = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
             cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
         except Exception as e:
             print(f"Error fetching cryptos: {e}")
             cryptos = []
-        return render_template("crypto.html", cryptos=cryptos, userId=userId)
+
+        # --- Fetch Wallets ---
+        try:
+            response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
+            wallets = response.json().get("wallets", []) if response.status_code == 200 else []
+        except Exception as e:
+            print(f"Error fetching wallets: {e}")
+            wallets = []
+
+        # Send both to template
+        return render_template(
+            "crypto.html",
+            cryptos=cryptos,
+            wallets=wallets,
+            userId=userId
+        )
     else:
         return render_template("home.html")
+
+# @crypto_bp.route('/crypto', methods=['GET'])
+# def crypto_page():
+#     user = session.get('user')
+#     if user:
+#         userId = user.get('username')
+#         try:
+#             response = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
+#             cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
+#         except Exception as e:
+#             print(f"Error fetching cryptos: {e}")
+#             cryptos = []
+
+#         try:
+#             response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
+#             cryptos = response.json().get("wallets", []) if response.status_code == 200 else []
+#         except Exception as e:
+#             print(f"Error fetching wallets: {e}")
+#             wallets = []
+
+#         return render_template("crypto.html", cryptos=cryptos, wallets=wallets, userId=userId)
+#     else:
+#         return render_template("home.html")
 
 @crypto_bp.route('/crypto', methods=['POST'])
 def create_crypto():
