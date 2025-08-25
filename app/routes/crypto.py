@@ -30,12 +30,7 @@ def crypto_page():
             wallets = []
 
         # Send both to template
-        return render_template(
-            "crypto.html",
-            cryptos=cryptos,
-            wallets=wallets,
-            userId=userId
-        )
+        return render_template("crypto.html", cryptos=cryptos, wallets=wallets, userId=userId)
     else:
         return render_template("home.html")
 
