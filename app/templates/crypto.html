@@ -2,6 +2,90 @@
 
 {% block content %}
 
+<style>
+    /* Common form styles */
+    form {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: end;
+        row-gap: 20px;
+        justify-items: end;
+        margin-bottom: 1rem;
+    }
+
+    /* Standard size for inputs and selects */
+    input[type="text"],
+    input[type="datetime-local"],
+    select {
+        width: 220px;
+        padding: 6px 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 14px;
+    }
+
+    select {
+        height: 36px; /* make dropdown same height as input */
+    }
+
+    /* Labels aligned nicely */
+    label {
+        margin-right: 10px;
+        font-weight: bold;
+    }
+
+    /* Buttons styling */
+    button {
+        padding: 6px 12px;
+        margin: 2px;
+        border: none;
+        border-radius: 5px;
+        background-color: #0077cc;
+        color: white;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    button:hover {
+        background-color: #005fa3;
+    }
+
+    /* Container for forms */
+    .form-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    /* Crypto list styling */
+    #cryptoList {
+        display: flex;
+        flex-wrap: wrap;
+        align-content: center;
+        justify-content: center;
+        align-items: baseline;
+        flex-direction: column;
+        padding: 0;
+    }
+
+    #cryptoList li {
+        background-color: lightgrey;
+        border: 1px solid #333;
+        padding: 20px;
+        border-radius: 10px;
+        margin: 10px;
+        list-style-type: none;
+    }
+
+    /* Responsive tweak */
+    @media (max-width: 768px) {
+        form {
+            grid-template-columns: 1fr;
+            justify-items: start;
+        }
+    }
+</style>
+
 <script>
     function editCrypto(cryptoId, userId, cryptoName, tdate, fromWallet, toWallet, quantity, price, currency, fee, note) {
         document.getElementById("updateCryptoId").value = cryptoId;
@@ -21,34 +105,33 @@
         document.getElementById("deleteForm").action = `/deleteCrypto/${cryptoId}/${userId}`;
     }  
 
-document.addEventListener("DOMContentLoaded", function() {
-    let list = document.getElementById("cryptoList");
-    let items = Array.from(list.children);
+    document.addEventListener("DOMContentLoaded", function() {
+        let list = document.getElementById("cryptoList");
+        let items = Array.from(list.children);
 
-    items.sort((a, b) => {
-        let dateA = new Date(a.getAttribute("data-tdate"));
-        let dateB = new Date(b.getAttribute("data-tdate"));
-        return dateB - dateA;  
+        items.sort((a, b) => {
+            let dateA = new Date(a.getAttribute("data-tdate"));
+            let dateB = new Date(b.getAttribute("data-tdate"));
+            return dateB - dateA;  
+        });
+
+        items.forEach(item => list.appendChild(item));
     });
 
-    items.forEach(item => list.appendChild(item));
-});
+    function newCryptoDiv() {
+        let div = document.getElementById("newCrypto");
+        let button = document.getElementById("newCryptoB");
 
-function newCryptoDiv() {
-    let div = document.getElementById("newCrypto");
-    let button = document.getElementById("newCryptoB");
-
-    if (div.style.display === "none" || div.style.display === "") {
-        div.style.display = "block";  
-        document.getElementById("cryptoListDiv").style.display = "none";
-        button.style.display = "none" ;
-        // button.innerText = "Cancel" ;
-    } else {
-        div.style.display = "none"; 
-        document.getElementById("cryptoListDiv").style.display = "block";
-        button.innerText = "Add New Crypto" ;
+        if (div.style.display === "none" || div.style.display === "") {
+            div.style.display = "block";  
+            document.getElementById("cryptoListDiv").style.display = "none";
+            button.style.display = "none";
+        } else {
+            div.style.display = "none"; 
+            document.getElementById("cryptoListDiv").style.display = "block";
+            button.innerText = "Add New Crypto";
+        }
     }
-}
 </script>
 
 
@@ -57,198 +140,57 @@ function newCryptoDiv() {
 <button id="newCryptoB" onclick="newCryptoDiv()">Add New Crypto</button>
 
 <div id="newCrypto" style="display: none;">
-<h2>New Crypto Transaction</h2>
-<div style="display: flex;
-    flex-direction: column;
-    align-items: center;">
-<form action="/crypto" method="POST" style="display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: end;
-    row-gap: 20px;
-    justify-items: end;
-    margin-bottom: 1rem;">
-        <div>
-            <label for="cryptoName">Crypto:</label>
-            <input type="text" name="cryptoName" required><br>
-        </div>
-        <div>
-            <label for="tdate">Date:</label>
-            <input type="datetime-local" name="tdate"  required><br>
-        </div>
-        <div>
-
-            
-            <label for="fromWallet">From Wallet:</label>
-            <select name="fromWallet" id="fromWallet" style="width: 200px;" required>
-            <option value="">-- Select Wallet --</option> 
-            {% for wallet in wallets %}
-            <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
-            {% endfor %}
-            </select></br>
-
-            <!-- <label for="fromWallet">From Wallet:</label> -->
-            <!-- <input type="text" name="fromWallet"  required><br> -->
-        </div>
-        <div>
-            <label for="toWallet">To Wallet:</label>
-            <input type="text" name="toWallet"  required><br>
-        </div>
-        <div>
-            <label for="quantity">Quantity:</label>
-            <input type="text" name="quantity"  required><br>
-        </div>
-        <div>
-            <label for="price">Price:</label>
-            <input type="text" name="price" required><br>
-        <!-- <input type="number" step="0.00000001" name="quantity" placeholder="quantity"><br>
-        <input type="number" step="0.00000001" name="price" placeholder="price" required><br> -->
-        </div>
-        <div>
-            <label for="currency">Currency:</label>
-            <input type="text" name="currency" required><br>
-        </div>
-        <div>
-            <label for="fee">Fee:</label>
-            <input type="text" name="fee"><br>
-        </div>
-        <!-- <input type="number" step="0.00000001" name="fee" placeholder="fee"><br> -->
-        <div>
-            <label for="note">Note:</label>
-            <input type="text" name="note"><br>
-        </div>
-        <div>
-            <button type="submit">Insert</button>
-            <button type="reset">Clear</button>
-            <button type="button" onclick="location.reload();">Cancel</button>
-        </div>
-    </form>
-
-</div>
-</div>
-
-<div style="text-align: left;" id="cryptoListDiv" >
-    <h2 style="text-align: center;">Cryptos Transactions History</h2>
-{% if cryptos %}
-<ul id="cryptoList" style="display: flex;
-    flex-wrap: wrap;
-    align-content: center;
-    justify-content: center;
-    align-items: baseline;
-    flex-direction: column;">
-    {% for crypto in cryptos %}
-    <li data-tdate="{{ crypto.tdate }}" 
-        style="background-color: lightgrey;
-        border: 1px black;
-        padding: 20px;
-        border-radius: 10px;
-        margin: 10px;
-        list-style-type: none;">
-        <!-- <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br> -->
-        <!-- <strong>User ID:</strong> {{ crypto.userId }}<br> -->
-        <div style="display: grid;  grid-template-columns: 1fr 1fr;">
-        <div>
-            <strong>Crypto:</strong> {{ crypto.cryptoName }}<br>
-        </div>
-        <div>
-            <strong>Date:</strong> {{ crypto.tdate | replace("T", " ") }}<br>
-        </div>
-        <div>
-            <strong>From Wallet:</strong> {{ crypto.fromWallet }}<br>
-        </div>
-        <div>
-            <strong>To Wallet:</strong> {{ crypto.toWallet }}<br>
-        </div>
-        <div>
-            <strong>Quantity:</strong> {{ crypto.quantity }}<br>
-        </div>
-        <div>
-            <strong>Price:</strong> {{ crypto.price }}<br>
-        </div>
-        <div>
-            <strong>Currency:</strong> {{ crypto.currency }}<br>
-        </div>
-        <div>
-            <strong>Fee:</strong> {{ crypto.fee }}<br>
-        </div>
-        <div>
-            <strong>Note:</strong> {{ crypto.note }}<br>
-        </div>
-        <div>
-        <button onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.cryptoName }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}',
-        '{{ crypto.toWallet }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
-        </div>
+    <h2>New Crypto Transaction</h2>
+    <div class="form-container">
+        <form action="/crypto" method="POST">
+            <div>
+                <label for="cryptoName">Crypto:</label>
+                <input type="text" name="cryptoName" required>
+            </div>
+            <div>
+                <label for="tdate">Date:</label>
+                <input type="datetime-local" name="tdate" required>
+            </div>
+            <div>
+                <label for="fromWallet">From Wallet:</label>
+                <select name="fromWallet" id="fromWallet" required>
+                    <option value="">-- Select Wallet --</option> 
+                    {% for wallet in wallets %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="toWallet">To Wallet:</label>
+                <input type="text" name="toWallet" required>
+            </div>
+            <div>
+                <label for="quantity">Quantity:</label>
+                <input type="text" name="quantity" required>
+            </div>
+            <div>
+                <label for="price">Price:</label>
+                <input type="text" name="price" required>
+            </div>
+            <div>
+                <label for="currency">Currency:</label>
+                <input type="text" name="currency" required>
+            </div>
+            <div>
+                <label for="fee">Fee:</label>
+                <input type="text" name="fee">
+            </div>
+            <div>
+                <label for="note">Note:</label>
+                <input type="text" name="note">
+            </div>
+            <div>
+                <button type="submit">Insert</button>
+                <button type="reset">Clear</button>
+                <button type="button" onclick="location.reload();">Cancel</button>
+            </div>
+        </form>
     </div>
-    </li>
-    {% endfor %}
-</ul>
-
-</div>
-
-{% else %}
-<p>No Cryptos found.</p>
-{% endif %}
-
-<div id="updateCryptoDiv" style="display: none;">
-    <h2>Update Crypto Transaction</h2>
-<div style="display: flex;
-    flex-direction: column;
-    align-items: center;">
-    <form id="updateForm" action="/updateCrypto" method="POST" style="display: grid;
-        grid-template-columns: 1fr 1fr;
-        align-items: end;
-        row-gap: 20px;
-        justify-items: end;
-        margin-bottom: 1rem;">
-        <input type="hidden" id="updateCryptoId" name="cryptoId">
-        <input type="hidden" id="updateUserId" name="userId">
-        <div>
-            <label>Crypto:</label>
-            <input type="text" id="updateCryptoName" name="cryptoName"><br>
-        </div>
-        <div>
-            <label>Date:</label>
-            <input type="datetime-local" id="updateTdate" name="tdate"><br>
-        </div>
-        <div>
-            <label>From Wallet:</label>
-            <input type="text" id="updateFromWallet" name="fromWallet"><br>
-        </div>
-        <div>
-            <label>To Wallet:</label>
-            <input type="text" id="updateToWallet" name="toWallet"><br>
-        </div>
-        <div>
-            <label>quantity:</label>
-            <!-- <input type="number" step="0.00000001" id="updateQuantity" name="quantity"> -->
-            <input type="text" id="updateQuantity" name="quantity"><br>
-        </div>
-        <div>
-            <label>Price:</label>
-            <!-- <input type="number" step="0.00000001" id="updatePrice" name="price" required> -->
-            <input type="text" id="updatePrice" name="price"><br>
-        </div>
-        <div>
-            <label>Currency:</label>
-            <input type="text" id="updateCurrency" name="currency"><br>
-        </div>
-        <div>
-            <label>Fee:</label>
-            <!-- <input type="number" step="0.00000001" id="updateFee" name="fee"> -->
-            <input type="text" id="updateFee" name="fee"><br>
-        </div>
-        <div>
-            <label>Note:</label>
-            <input type="text" id="updateNote" name="note"><br>
-        </div>
-        <div>
-            <button type="submit">Save</button>
-            <button type="submit" form="deleteForm" onclick="return confirm('Are you sure?')">Delete</button>
-            <button type="button" onclick="location.reload();">Cancel</button>
-        </div>
-</form>
-</div>
-
-<form id="deleteForm" method="POST"></form>
 </div>
 
 {% endblock %}
