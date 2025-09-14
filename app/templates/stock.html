@@ -39,11 +39,11 @@ function newStockDiv() {
     let button = document.getElementById("newStockB");
 
     if (div.style.display === "none" || div.style.display === "") {
-        div.style.display = "block";  // Show the div
+        div.style.display = "block";
         document.getElementById("stockListDiv").style.display = "none";
         button.style.display = "none" ;
     } else {
-        div.style.display = "none";   // Hide the div
+        div.style.display = "none";
         document.getElementById("stockListDiv").style.display = "block";
         button.innerText = "Add New stock" ;
     }

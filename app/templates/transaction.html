@@ -32,7 +32,6 @@
         return dateB - dateA;  // Sort descending
     });
 
-    // Append sorted items back to the list
     items.forEach(item => list.appendChild(item));
 });
 
@@ -41,12 +40,12 @@ function newTransDiv() {
     let button = document.getElementById("newTransB");
 
     if (div.style.display === "none" || div.style.display === "") {
-        div.style.display = "block";  // Show the div
+        div.style.display = "block";
         document.getElementById("transListDiv").style.display = "none";
         button.style.display = "none" ;
         // button.innerText = "Cancel" ;
     } else {
-        div.style.display = "none";   // Hide the div
+        div.style.display = "none"; 
         document.getElementById("transListDiv").style.display = "block";
         button.innerText = "Add New Transaction" ;
     }
