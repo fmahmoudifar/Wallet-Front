@@ -9,7 +9,7 @@
 <style>
     .grid-container {
         display: grid;
-        grid-template-columns: 1fr 1fr; /* default: 2 columns */
+        grid-template-columns: 1fr 1fr; 
         gap: 20px;
         height: auto;
     }
@@ -19,38 +19,34 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        min-height: 250px; /* makes sections visible */
+        min-height: 250px; 
     }
     #myChart {
         width: 100% !important;
         height: 100% !important;
     }
 
-    /* Mobile view: one item per row */
     @media (max-width: 768px) {
         .grid-container {
-            grid-template-columns: 1fr; /* stack items */
+            grid-template-columns: 1fr; 
         }
     }
 </style>
 
 <div class="grid-container">
-    <!-- Section 1 (Chart) -->
     <div class="grid-item">
         <canvas id="myChart"></canvas>
     </div>
 
-    <!-- Section 2 -->
     <div class="grid-item">
         <p>Section 2 content here</p>
     </div>
 
-    <!-- Section 3 -->
     <div class="grid-item">
         <p>Section 3 content here</p>
     </div>
 
-    <!-- Section 4 -->
+
     <div class="grid-item">
         <p>Section 4 content here</p>
     </div>
