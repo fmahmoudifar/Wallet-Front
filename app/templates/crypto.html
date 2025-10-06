@@ -213,7 +213,8 @@
             <strong>Date:</strong> {{ crypto.tdate | replace("T", " ") }}<br>
         </div>
         <div>
-            <strong>From Wallet:</strong> {{ crypto.fromWallet }}<br>
+            <!-- <strong>From Wallet:</strong> {{ crypto.fromWallet }}<br> -->
+            <strong>From Wallet:</strong> {{ wallet['walletName'] }}<br> 
         </div>
         <div>
             <strong>To Wallet:</strong> {{ crypto.toWallet }}<br>
@@ -270,8 +271,15 @@
             <input type="datetime-local" id="updateTdate" name="tdate"><br>
         </div>
         <div>
-            <label>From Wallet:</label>
-            <input type="text" id="updateFromWallet" name="fromWallet"><br>
+            <!-- <label>From Wallet:</label>
+            <input type="text" id="updateFromWallet" name="fromWallet"><br> -->
+            <label for="fromWallet">From Wallet:</label>
+            <select name="fromWallet" id="updateFromWallet" required>
+                <option value="">-- Select Wallet --</option> 
+                    {% for wallet in wallets %}
+                <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+            </select>
         </div>
         <div>
             <label>To Wallet:</label>
