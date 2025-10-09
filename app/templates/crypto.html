@@ -154,8 +154,15 @@
                 </select>
             </div>
             <div>
-                <label for="toWallet">To Wallet:</label>
-                <input type="text" name="toWallet" required>
+                <!-- <label for="toWallet">To Wallet:</label>
+                <input type="text" name="toWallet" required> -->
+                <label for="toWallet">From Wallet:</label>
+                <select name="toWallet" id="toWallet" required>
+                    <option value="">-- Select Wallet --</option> 
+                    {% for wallet in wallets %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div>
                 <label for="quantity">Quantity:</label>
@@ -214,10 +221,24 @@
         </div>
         <div>
             <!-- <strong>From Wallet:</strong> {{ crypto.fromWallet }}<br> -->
-            <strong>From Wallet:</strong> {{ wallet['walletName'] }}<br> 
+            <strong>From Wallet:</strong>
+            {% for w in wallets %}
+                {% if w['walletId']|string == crypto.fromWallet|string %}
+                    {{ w['walletName'] }}
+                {% endif %}
+            {% endfor %}
+            <br>
         </div>
         <div>
-            <strong>To Wallet:</strong> {{ crypto.toWallet }}<br>
+            <!-- <strong>To Wallet:</strong> {{ crypto.toWallet }}<br> -->
+            <strong>From Wallet:</strong>
+            {% for w in wallets %}
+                {% if w['walletId']|string == crypto.toWallet|string %}
+                    {{ w['walletName'] }}
+                {% endif %}
+            {% endfor %}
+            <br>
+        
         </div>
         <div>
             <strong>Quantity:</strong> {{ crypto.quantity }}<br>
@@ -282,8 +303,15 @@
             </select>
         </div>
         <div>
-            <label>To Wallet:</label>
-            <input type="text" id="updateToWallet" name="toWallet"><br>
+            <!-- <label>To Wallet:</label>
+            <input type="text" id="updateToWallet" name="toWallet"><br> -->
+            <label for="toWallet">From Wallet:</label>
+            <select name="toWallet" id="updateToWallet" required>
+                <option value="">-- Select Wallet --</option> 
+                    {% for wallet in wallets %}
+                <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+            </select>
         </div>
         <div>
             <label>quantity:</label>
