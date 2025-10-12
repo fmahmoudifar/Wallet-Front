@@ -1,9 +1,25 @@
-/.env
-/.venv
-__pycache__/
-/__pycache__
-*.pyo
-*.pyc
-*.pyd
-__pycache__
+# Environment files
+.env
+.env.*         # optional: ignore variants like .env.local, .env.development
+.venv/
+venv/
+ENV/
+.envrc
 
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtualenv / IDE
+/.venv
+/.env
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+
+# Others you may want
+instance/
+.DS_Store
