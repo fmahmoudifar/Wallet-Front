@@ -1,0 +1,156 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<script>
+    function editTransaction(settingId, userId, currency, theme) {
+        document.getElementById("updatesettingId").value = settingId;
+        document.getElementById("updateUserId").value = userId;
+        document.getElementById("updateCurrency").value = currency;
+        document.getElementById("updateTheme").value = theme;
+        document.getElementById("updateSetDiv").style.display = "block";
+        document.getElementById("setListDiv").style.display = "none";
+        document.getElementById("newSetB").style.display = "none";
+        // document.getElementById("deleteForm").action = `/deleteSet/${settingId}/${userId}`;
+    }  
+
+    // document.addEventListener("DOMContentLoaded", function() {
+    // let list = document.getElementById("transList");
+    // let items = Array.from(list.children);
+
+    // items.sort((a, b) => {
+    //     let dateA = new Date(a.getAttribute("data-theme"));
+    //     let dateB = new Date(b.getAttribute("data-theme"));
+    //     return dateB - dateA;  // Sort descending
+    // });
+
+    // items.forEach(item => list.appendChild(item));
+// });
+
+function newSetDiv() {
+    let div = document.getElementById("newSet");
+    let button = document.getElementById("newSetB");
+
+    if (div.style.display === "none" || div.style.display === "") {
+        div.style.display = "block";
+        document.getElementById("setListDiv").style.display = "none";
+        button.style.display = "none" ;
+        // button.innerText = "Cancel" ;
+    } else {
+        div.style.display = "none"; 
+        document.getElementById("setListDiv").style.display = "block";
+        button.innerText = "Add New Settings" ;
+    }
+}
+</script>
+
+<h1 style="text-align: left;">Settings Manager</h1>
+
+<button id="newSetB" onclick="newSetDiv()">Add New Settings</button>
+
+<div id="newSet" style="display: none">
+<h2>Add New Settings</h2>
+<div style="display: flex;
+    flex-direction: column;
+    align-items: center;">
+
+    <form action="/setting" method="POST" style="display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    row-gap: 20px;
+    justify-items: end;
+    margin-bottom: 1rem;">
+    <div>
+    <label for="currency">Currency:</label>
+    <input type="text" name="currency" placeholder="Currency" required><br>
+    </div>
+    <div>
+    <label for="theme">Theme:</label>
+    <input type="text" name="theme" placeholder="theme" required><br>
+    </div>
+    <button type="submit">Insert</button>
+    <button type="button" onclick="location.reload();">Cancel</button>
+    </div>
+</form>
+</div>
+</div>
+
+<h6>{{ fd }}</h6>
+
+<div style="text-align: left;" id="setListDiv" >
+    <h2 style="text-align: center;">Settings History</h2>
+{% if settings %}
+<ul id="transList" style="display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    justify-content: center;
+    align-items: baseline;
+    flex-direction: column;">
+    {% for setting in settings %}
+    <li style="background-color: lightgrey;
+    border: 1px black;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 10px;
+    list-style-type: none;">
+        <div style="display: grid;  grid-template-columns: 1fr 1fr;">
+
+        <!-- <div>
+            <strong>Setting ID:</strong> {{ setting.settingId }}<br>
+        </div> -->
+        <!-- <div>
+            <strong>User ID:</strong> {{ setting.userId }}<br>
+        </div>  -->
+        <div>
+            <strong>Currency:</strong> {{ setting.currency }}<br>
+        </div>
+        <div>
+            <strong>Date:</strong> {{ setting.theme }}<br>
+        </div>
+        <div>
+        <button onclick="editTransaction('{{ setting.settingId }}','{{ setting.userId }}','{{ setting.currency }}','{{ setting.theme }}')">Edit</button>
+        </div>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+</div>
+
+{% else %}
+<p>No Settings found.</p>
+{% endif %}
+
+
+<div id="updateSetDiv" style="display: none;">
+        <h2>Update Settings</h2>
+<div style="display: flex;
+    flex-direction: column;
+    align-items: center;">
+    <form id="updateForm" action="/updateSetting" method="POST" style="display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    row-gap: 20px;
+    justify-items: end;
+    margin-bottom: 1rem;">
+    <input type="hidden" id="updateSettingId" name="settingId">
+    <input type="hidden" id="updateUserId" name="userId">
+    <div>
+        <label>Currency:</label>
+        <input type="text" id="updateCurrency" name="currency" required><br>
+    </div>
+    <div>
+        <label>Theme:</label>
+        <input type="text" id="updateTheme" name="theme" required><br>
+    </div>
+    <div>
+    <button type="submit">Save</button>
+    <button type="button" onclick="location.reload();">Cancel</button>
+    </div>
+
+</form>
+</div>
+
+<form id="deleteForm" method="POST"></form>
+</div>
+
+{% endblock %}
