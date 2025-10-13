@@ -2,6 +2,9 @@
 
 {% block content %}
 
+<!-- coins data provided to JS via data attribute to avoid inline template tags in scripts -->
+<div id="coins-data" style="display:none" data-coins='{{ coins|tojson | safe }}'></div>
+
 <style>
     form {
         display: grid;
@@ -316,11 +319,52 @@
     }
 </style>
 
+<!-- Autocomplete styling (kept outside main style for clarity) -->
+<style>
+    /* container that holds suggestion items - position:relative is set inline on the element */
+    .autocomplete-list { width: 100%; }
+    .autocomplete-items { background:#fff; border:1px solid #ccc; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.12); overflow:auto; }
+    .autocomplete-items div { padding:8px 10px; cursor:pointer; }
+    .autocomplete-items div:hover, .autocomplete-items div.autocomplete-active { background:#f1f1f1; }
+
+    /* Mobile friendly: make the suggestion list full width, capped height and scrollable */
+    @media (max-width: 480px) {
+        .autocomplete-items { max-height: 240px; font-size: 15px; }
+        .autocomplete-items div { padding: 12px 14px; }
+    }
+    .field-error { color: #c82333; font-size: 13px; margin-top:6px; display:block; }
+</style>
+</style>
+
 <script>
     function editCrypto(cryptoId, userId, cryptoName, tdate, fromWallet, toWallet, quantity, price, currency, fee, note) {
         document.getElementById("updateCryptoId").value = cryptoId;
         document.getElementById("updateUserId").value = userId;
-        document.getElementById("updateCryptoName").value = cryptoName;
+        // set update visible input and hidden value; prefer uppercase symbol when available
+        const updateHidden = document.getElementById('updateCryptoName');
+        const updateVisible = document.getElementById('updateCryptoSearch');
+        try {
+            const coinsDataElem = document.getElementById('coins-data');
+            let coins = [];
+            if (coinsDataElem && coinsDataElem.dataset.coins) {
+                coins = JSON.parse(coinsDataElem.dataset.coins);
+            }
+            let matched = null;
+            if (cryptoName) {
+                const cLower = (cryptoName||'').toLowerCase();
+                matched = coins.find(c => (c.id||'').toLowerCase() === cLower || (c.symbol||'').toLowerCase() === cLower || (c.name||'').toLowerCase() === cLower);
+            }
+            if (matched) {
+                if (updateVisible) updateVisible.value = `${(matched.symbol||'').toUpperCase()} - ${matched.name}`;
+                if (updateHidden) updateHidden.value = (matched.symbol||'').toUpperCase() || matched.id || matched.name;
+            } else {
+                if (updateVisible) updateVisible.value = cryptoName || '';
+                if (updateHidden) updateHidden.value = (cryptoName||'').toUpperCase();
+            }
+        } catch (e) {
+            if (updateVisible) updateVisible.value = cryptoName || '';
+            if (updateHidden) updateHidden.value = (cryptoName||'').toUpperCase();
+        }
         document.getElementById("updateTdate").value = tdate;
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
@@ -346,7 +390,206 @@
         });
 
         items.forEach(item => list.appendChild(item));
+        // initialize autocomplete with coins data passed from server (via data attribute)
+        let coinsDataElem = document.getElementById('coins-data');
+        let coinsList = [];
+        if (coinsDataElem && coinsDataElem.dataset.coins) {
+            try { coinsList = JSON.parse(coinsDataElem.dataset.coins); } catch(e) { coinsList = []; }
+        }
+        initAutocomplete('cryptoSearch','cryptoSearchList','cryptoName', coinsList);
+        initAutocomplete('updateCryptoSearch','updateCryptoSearchList','updateCryptoName', coinsList);
+
+        // enforce selection-only behaviour: on blur clear free text, on submit block if not selected
+        const createInput = document.getElementById('cryptoSearch');
+        const updateInput = document.getElementById('updateCryptoSearch');
+        const createHidden = document.getElementById('cryptoName');
+        const updateHidden = document.getElementById('updateCryptoName');
+
+        function matchCoinByText(text) {
+            if (!text) return null;
+            const t = text.trim().toLowerCase();
+            // try patterns: exact symbol, exact name, 'SYMBOL - name'
+            for (let c of coinsList) {
+                if ((c.symbol||'').toLowerCase() === t) return c;
+                if ((c.name||'').toLowerCase() === t) return c;
+                const combo = `${(c.symbol||'').toLowerCase()} - ${(c.name||'').toLowerCase()}`;
+                if (combo === t) return c;
+            }
+            return null;
+        }
+
+        function tryMatchAndSet(inputElem, hiddenElem) {
+            const val = (inputElem && inputElem.value) ? inputElem.value.trim() : '';
+            const found = matchCoinByText(val);
+            if (found) {
+                const symbol = (found.symbol||'').toUpperCase();
+                if (hiddenElem) hiddenElem.value = symbol || found.id || found.name;
+                if (inputElem) inputElem.value = `${symbol} - ${found.name}`;
+                clearError(inputElem);
+                return true;
+            }
+            return false;
+        }
+
+        function showError(inputElem, msg) {
+            clearError(inputElem);
+            const span = document.createElement('span');
+            span.className = 'field-error';
+            span.innerText = msg || 'Please select a coin from the list.';
+            if (inputElem && inputElem.parentNode) inputElem.parentNode.appendChild(span);
+        }
+
+        function clearError(inputElem) {
+            if (!inputElem || !inputElem.parentNode) return;
+            const existing = inputElem.parentNode.querySelector('.field-error');
+            if (existing) existing.parentNode.removeChild(existing);
+        }
+
+        if (createInput) {
+            createInput.addEventListener('blur', function(){
+                // small timeout to allow click selection to trigger first
+                setTimeout(() => {
+                    if (!tryMatchAndSet(createInput, createHidden)) {
+                        // clear free text and hidden value
+                        if (createInput) createInput.value = '';
+                        if (createHidden) createHidden.value = '';
+                        showError(createInput, 'Please select a coin from the list.');
+                    }
+                }, 150);
+            });
+        }
+
+        if (updateInput) {
+            updateInput.addEventListener('blur', function(){
+                setTimeout(() => {
+                    if (!tryMatchAndSet(updateInput, updateHidden)) {
+                        if (updateInput) updateInput.value = '';
+                        if (updateHidden) updateHidden.value = '';
+                        showError(updateInput, 'Please select a coin from the list.');
+                    }
+                }, 150);
+            });
+        }
+
+        // form submit guards
+        const createForm = document.querySelector('form[action="/crypto"]');
+        if (createForm) {
+            createForm.addEventListener('submit', function(e){
+                if (!tryMatchAndSet(createInput, createHidden)) {
+                    e.preventDefault();
+                    showError(createInput, 'You must choose a coin from the list before submitting.');
+                    createInput.focus();
+                    return false;
+                }
+            });
+        }
+
+        const updateForm = document.getElementById('updateForm');
+        if (updateForm) {
+            updateForm.addEventListener('submit', function(e){
+                if (!tryMatchAndSet(updateInput, updateHidden)) {
+                    e.preventDefault();
+                    showError(updateInput, 'You must choose a coin from the list before submitting.');
+                    updateInput.focus();
+                    return false;
+                }
+            });
+        }
     });
+
+    // Minimal vanilla JS autocomplete
+    function initAutocomplete(inputId, listId, hiddenId, coins) {
+        const input = document.getElementById(inputId);
+        const listWrap = document.getElementById(listId);
+        const hidden = document.getElementById(hiddenId);
+        if (!input || !listWrap) return;
+
+        let currentFocus = -1;
+
+        input.addEventListener('input', function(e) {
+            const val = this.value.trim().toLowerCase();
+            closeAllLists();
+            if (!val) { if (hidden) hidden.value = ''; return false; }
+
+                const matches = coins.filter(c => (c.name || '').toLowerCase().includes(val) || (c.symbol || '').toLowerCase().includes(val)).slice(0, 20);
+            if (!matches.length) return false;
+
+            const list = document.createElement('div');
+            list.setAttribute('class','autocomplete-items');
+                list.style.position = 'absolute';
+                list.style.zIndex = 1000;
+                // size the dropdown to match the input width and anchor it to left edge
+                const rect = input.getBoundingClientRect();
+                list.style.minWidth = (rect.width) + 'px';
+                list.style.left = '0px';
+                list.style.top = (input.offsetHeight + 4) + 'px';
+                list.style.maxHeight = '260px';
+                list.style.overflowY = 'auto';
+                listWrap.appendChild(list);
+
+            matches.forEach(c => {
+                const item = document.createElement('div');
+                item.innerHTML = `<strong>${(c.symbol||'').toUpperCase()}</strong> - ${c.name}`;
+                item.style.padding = '6px 8px';
+                item.style.cursor = 'pointer';
+                item.addEventListener('click', function(e){
+                    input.value = `${(c.symbol||'').toUpperCase()} - ${c.name}`;
+                    if (hidden) {
+                        if (c.symbol) hidden.value = (c.symbol||'').toUpperCase();
+                        else if (c.id) hidden.value = c.id;
+                        else hidden.value = c.name;
+                    }
+                    closeAllLists();
+                });
+                // touch support for mobile devices
+                item.addEventListener('touchstart', function(e){
+                    // prevent duplicate click/touch events
+                    e.preventDefault();
+                    input.value = `${(c.symbol||'').toUpperCase()} - ${c.name}`;
+                    if (hidden) {
+                        if (c.symbol) hidden.value = (c.symbol||'').toUpperCase();
+                        else if (c.id) hidden.value = c.id;
+                        else hidden.value = c.name;
+                    }
+                    closeAllLists();
+                });
+                list.appendChild(item);
+            });
+        });
+
+        input.addEventListener('keydown', function(e) {
+            const items = listWrap.querySelectorAll('.autocomplete-items div');
+            if (!items || items.length === 0) return;
+            if (e.keyCode == 40) { // down
+                currentFocus++; addActive(items);
+            } else if (e.keyCode == 38) { // up
+                currentFocus--; addActive(items);
+            } else if (e.keyCode == 13) { // enter
+                e.preventDefault();
+                if (currentFocus > -1 && items[currentFocus]) items[currentFocus].click();
+            }
+        });
+
+        function addActive(items) {
+            if (!items) return false;
+            removeActive(items);
+            if (currentFocus >= items.length) currentFocus = 0;
+            if (currentFocus < 0) currentFocus = items.length - 1;
+            items[currentFocus].classList.add('autocomplete-active');
+            items[currentFocus].style.background = '#e9e9e9';
+        }
+        function removeActive(items) {
+            items.forEach(i => { i.classList.remove('autocomplete-active'); i.style.background=''; });
+        }
+
+        function closeAllLists(elmnt) {
+            const lists = document.querySelectorAll('.autocomplete-items');
+            lists.forEach(l => { if (elmnt != l && elmnt != input) l.parentNode.removeChild(l); });
+            currentFocus = -1;
+        }
+
+        document.addEventListener('click', function (e) { closeAllLists(e.target); });
+    }
 
     function newCryptoDiv() {
         let div = document.getElementById("newCrypto");
@@ -375,7 +618,9 @@
         <form action="/crypto" method="POST">
             <div>
                 <label for="cryptoName">Crypto:</label>
-                <input type="text" name="cryptoName" required>
+                <input type="text" id="cryptoSearch" placeholder="Type to search coins..." autocomplete="off" required />
+                <input type="hidden" name="cryptoName" id="cryptoName" />
+                <div id="cryptoSearchList" class="autocomplete-list" style="position:relative"></div>
             </div>
             <div>
                 <label for="tdate">Date:</label>
@@ -504,7 +749,9 @@
             <input type="hidden" id="updateUserId" name="userId">
             <div>
                 <label for="updateCryptoName">Crypto:</label>
-                <input type="text" id="updateCryptoName" name="cryptoName">
+                <input type="text" id="updateCryptoSearch" placeholder="Type to search coins..." autocomplete="off" required/>
+                <input type="hidden" id="updateCryptoName" name="cryptoName" />
+                <div id="updateCryptoSearchList" class="autocomplete-list" style="position:relative"></div>
             </div>
             <div>
                 <label for="updateTdate">Date:</label>

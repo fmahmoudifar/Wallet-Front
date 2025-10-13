@@ -29,8 +29,21 @@ def crypto_page():
             print(f"Error fetching wallets: {e}")
             wallets = []
 
-        # Send both to template
-        return render_template("crypto.html", cryptos=cryptos, wallets=wallets, userId=userId)
+        # --- Fetch top coins from CoinGecko (markets) to populate dropdown ---
+        coins = []
+        try:
+            cg_url = "https://api.coingecko.com/api/v3/coins/markets"
+            cg_params = {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 500, "page": 1}
+            cg_resp = requests.get(cg_url, params=cg_params, timeout=10)
+            if cg_resp.status_code == 200:
+                coins = cg_resp.json()
+            else:
+                print(f"CoinGecko returned status {cg_resp.status_code}")
+        except Exception as e:
+            print(f"Error fetching CoinGecko coins: {e}")
+
+        # Send both to template (include coin list)
+        return render_template("crypto.html", cryptos=cryptos, wallets=wallets, coins=coins, userId=userId)
     else:
         return render_template("home.html")
 
