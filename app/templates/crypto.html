@@ -283,6 +283,64 @@
         justify-content: space-between;
     }
 
+    /* ---------- Make Update Crypto block match New Crypto block ---------- */
+    #updateCryptoDiv { margin-top: 30px; }
+
+    #updateCryptoDiv .form-container form {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        row-gap: 8px;
+        justify-items: end;
+        width: 100%;
+        max-width: 760px;
+        margin: 0 auto;
+        column-gap: 30px;
+    }
+
+    #updateCryptoDiv .form-container form > div {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    #updateCryptoDiv .form-container form > div label {
+        width: 100%;
+        text-align: left;
+        margin: 0;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    #updateCryptoDiv .form-container form input[type="text"],
+    #updateCryptoDiv .form-container form input[type="datetime-local"],
+    #updateCryptoDiv .form-container form select {
+        width: 100%;
+        padding: 8px 10px;
+        font-size: 14px;
+        box-sizing: border-box;
+        max-width: 100vw;
+    }
+
+    #updateCryptoDiv h2 { font-size: 1.1rem; margin-bottom: 6px; }
+
+    #updateCryptoDiv .form-container form > div:last-child {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-start;
+        margin-top: 30px;
+    }
+
+    /* Ensure update block has the same button spacing/layout as new block */
+    #updateCryptoDiv .form-container form > div:last-child {
+        margin-top: 30px;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+    }
+
     @media (max-width: 768px) {
             /* Center the New Crypto block */
             #newCrypto {
@@ -327,6 +385,48 @@
                 gap: 8px;
             }
             #newCrypto .form-container form > div:last-child button {
+                width: auto;
+            }
+            
+            /* Center and constrain the Update Crypto form on small screens to match New Crypto */
+            #updateCryptoDiv {
+                text-align: center;
+            }
+            #updateCryptoDiv .form-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 0 16px;
+                margin: 0 auto;
+            }
+            #updateCryptoDiv .form-container form {
+                justify-content: center;
+                grid-template-columns: 1fr;
+                padding: 0;
+                width: 100%;
+                max-width: 320px;
+                margin: 0 auto;
+            }
+            #updateCryptoDiv .form-container form > div label {
+                width: auto;
+                text-align: left;
+                font-size: 13px;
+            }
+            #updateCryptoDiv .form-container form input[type="text"],
+            #updateCryptoDiv .form-container form input[type="datetime-local"],
+            #updateCryptoDiv .form-container form select {
+                width: 100%;
+                max-width: none;
+            }
+            #updateCryptoDiv h2 {
+                font-size: 1rem;
+            }
+            #updateCryptoDiv .form-container form > div:last-child {
+                flex-direction: row;
+                justify-content: center;
+                gap: 8px;
+            }
+            #updateCryptoDiv .form-container form > div:last-child button {
                 width: auto;
             }
         }
@@ -381,12 +481,12 @@
 </script>
 
 
-<h1 style="text-align: left;">Cryptos Manager</h1>
+<h1 class="page-title">Cryptos Manager</h1>
 
-<button id="newCryptoB" onclick="newCryptoDiv()">Add New Crypto</button>
+<button id="newCryptoB" class="btn-insert" onclick="newCryptoDiv()">Add New Crypto</button>
 
 <div id="newCrypto" style="display: none;">
-    <h2 style="margin-bottom: 8px;">New Crypto Transaction</h2>
+    <h2 class="center-text">New Crypto Transaction</h2>
     <div class="form-container">
         <form action="/crypto" method="POST">
             <div>
@@ -446,23 +546,12 @@
     </div>
 </div>
 
-<div style="text-align: left; display: flex; align-items: center; flex-direction: column;" id="cryptoListDiv" >
-    <h2 style="text-align: center;">Cryptos Transactions History</h2>
+<div id="cryptoListDiv" class="form-container">
+    <h2 class="center-text">Cryptos Transactions History</h2>
 {% if cryptos %}
-<ul id="cryptoList" style="display: flex;
-    flex-wrap: wrap;
-    align-content: center;
-    justify-content: center;
-    align-items: baseline;
-    flex-direction: column;">
+<ul id="cryptoList">
     {% for crypto in cryptos %}
-    <li data-tdate="{{ crypto.tdate }}" 
-        style="background-color: lightgrey;
-        border: 1px black;
-        padding: 20px;
-        border-radius: 10px;
-        margin: 10px;
-        list-style-type: none;">
+    <li data-tdate="{{ crypto.tdate }}">
         <!-- <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br> -->
         <!-- <strong>User ID:</strong> {{ crypto.userId }}<br> -->
         <div class="crypto-grid">
@@ -508,10 +597,10 @@
         <div>
             <strong>Note:</strong> {{ crypto.note }}<br>
         </div>
-        <div>
-        <button onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.cryptoName }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}',
-        '{{ crypto.toWallet }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
-        </div>
+    <div>
+    <button class="btn-insert" onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.cryptoName }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}',
+    '{{ crypto.toWallet }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
+    </div>
     </div>
     </li>
     {% endfor %}
@@ -524,77 +613,66 @@
 {% endif %}
 
 <div id="updateCryptoDiv" style="display: none;">
-    <h2>Update Crypto Transaction</h2>
-<div style="display: flex;
-    flex-direction: column;
-    align-items: center;">
-    <form id="updateForm" action="/updateCrypto" method="POST" style="display: grid;
-        grid-template-columns: 1fr 1fr;
-        align-items: end;
-        row-gap: 20px;
-        justify-items: end;
-        margin-bottom: 1rem;">
-        <input type="hidden" id="updateCryptoId" name="cryptoId">
-        <input type="hidden" id="updateUserId" name="userId">
-        <div>
-            <label>Crypto:</label>
-            <input type="text" id="updateCryptoName" name="cryptoName"><br>
-        </div>
-        <div>
-            <label>Date:</label>
-            <input type="datetime-local" id="updateTdate" name="tdate"><br>
-        </div>
-        <div>
-            <!-- <label>From Wallet:</label>
-            <input type="text" id="updateFromWallet" name="fromWallet"><br> -->
-            <label for="fromWallet">From Wallet:</label>
-            <select name="fromWallet" id="updateFromWallet" required>
-                <option value="">-- Select Wallet --</option> 
+    <h2 class="center-text">Update Crypto Transaction</h2>
+    <div class="form-container">
+        <form id="updateForm" action="/updateCrypto" method="POST">
+            <input type="hidden" id="updateCryptoId" name="cryptoId">
+            <input type="hidden" id="updateUserId" name="userId">
+            <div>
+                <label for="updateCryptoName">Crypto:</label>
+                <input type="text" id="updateCryptoName" name="cryptoName">
+            </div>
+            <div>
+                <label for="updateTdate">Date:</label>
+                <input type="datetime-local" id="updateTdate" name="tdate">
+            </div>
+            <div>
+                <label for="updateFromWallet">From Wallet:</label>
+                <select name="fromWallet" id="updateFromWallet" required>
+                    <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets %}
-                <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
                     {% endfor %}
-            </select>
-        </div>
-        <div>
-            <!-- <label>To Wallet:</label>
-            <input type="text" id="updateToWallet" name="toWallet"><br> -->
-            <label for="toWallet">From Wallet:</label>
-            <select name="toWallet" id="updateToWallet" required>
-                <option value="">-- Select Wallet --</option> 
+                </select>
+            </div>
+            <div>
+                <label for="updateToWallet">To Wallet:</label>
+                <select name="toWallet" id="updateToWallet" required>
+                    <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets %}
-                <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
                     {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label>quantity:</label>
-            <input type="text" id="updateQuantity" name="quantity"><br>
-        </div>
-        <div>
-            <label>Price:</label>
-            <input type="text" id="updatePrice" name="price"><br>
-        </div>
-        <div>
-            <label>Currency:</label>
-            <input type="text" id="updateCurrency" name="currency"><br>
-        </div>
-        <div>
-            <label>Fee:</label>
-            <input type="text" id="updateFee" name="fee"><br>
-        </div>
-        <div>
-            <label>Note:</label>
-            <input type="text" id="updateNote" name="note"><br>
-        </div>
-        <div>
-            <button type="submit" class="btn-insert">Save</button>
-            <button type="submit" form="deleteForm" class="btn-clear" onclick="return confirm('Are you sure?')">Delete</button>
-            <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
-        </div>
-</form>
-</div>
+                </select>
+            </div>
+            <div>
+                <label for="updateQuantity">Quantity:</label>
+                <input type="text" id="updateQuantity" name="quantity">
+            </div>
+            <div>
+                <label for="updatePrice">Price:</label>
+                <input type="text" id="updatePrice" name="price">
+            </div>
+            <div>
+                <label for="updateCurrency">Currency:</label>
+                <input type="text" id="updateCurrency" name="currency">
+            </div>
+            <div>
+                <label for="updateFee">Fee:</label>
+                <input type="text" id="updateFee" name="fee">
+            </div>
+            <div>
+                <label for="updateNote">Note:</label>
+                <input type="text" id="updateNote" name="note">
+            </div>
+            <div>
+                <button type="submit" class="btn-insert">Save</button>
+                <button type="submit" form="deleteForm" class="btn-clear" onclick="return confirm('Are you sure?')">Delete</button>
+                <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
+            </div>
+        </form>
+    </div>
 
-<form id="deleteForm" method="POST"></form>
+    <form id="deleteForm" method="POST"></form>
 </div>
 
 {% endblock %}
