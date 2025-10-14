@@ -4,28 +4,14 @@
 
 <script>
     function editTransaction(settingId, userId, currency, theme) {
-        document.getElementById("updatesettingId").value = settingId;
+        document.getElementById("updateSettingId").value = settingId;
         document.getElementById("updateUserId").value = userId;
         document.getElementById("updateCurrency").value = currency;
         document.getElementById("updateTheme").value = theme;
         document.getElementById("updateSetDiv").style.display = "block";
         document.getElementById("setListDiv").style.display = "none";
         document.getElementById("newSetB").style.display = "none";
-        // document.getElementById("deleteForm").action = `/deleteSet/${settingId}/${userId}`;
     }  
-
-    // document.addEventListener("DOMContentLoaded", function() {
-    // let list = document.getElementById("transList");
-    // let items = Array.from(list.children);
-
-    // items.sort((a, b) => {
-    //     let dateA = new Date(a.getAttribute("data-theme"));
-    //     let dateB = new Date(b.getAttribute("data-theme"));
-    //     return dateB - dateA;  // Sort descending
-    // });
-
-    // items.forEach(item => list.appendChild(item));
-// });
 
 function newSetDiv() {
     let div = document.getElementById("newSet");

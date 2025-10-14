@@ -8,7 +8,7 @@ from datetime import datetime
 settings_bp = Blueprint('settings', __name__)
 
 @settings_bp.route('/setting', methods=['GET'])
-def setting_page():
+def settings_page():
     user = session.get('user')
     if user:
         userId = user.get('username')
@@ -27,7 +27,7 @@ def setting_page():
         return render_template("home.html")
 
 @settings_bp.route('/setting', methods=['POST'])
-def create_setting():
+def create_settings():
     setting_id = str(uuid.uuid4())
     user = session.get('user')
     user_id = user.get('username')
@@ -43,28 +43,28 @@ def create_setting():
         response = requests.post(f"{API_URL}/setting", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {response.json()}")
 
-        return redirect(url_for("settings.setting_page"))
+        return redirect(url_for("settings.settings_page"))
     except Exception as e:
-        print(f"❌ [ERROR] Failed to create setting: {str(e)}")
+        print(f"❌ [ERROR] Failed to create settings: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
-@settings_bp.route('/updateSetting', methods=['POST'])
-def update_setting():
+@settings_bp.route('/updateSettings', methods=['POST'])
+def update_settings():
     data = {
         "settingId": request.form["settingId"],
         "userId": request.form["userId"],
         "currency": request.form["currency"],
         "theme": request.form["theme"]
     }
-    print(f"🔄 [DEBUG] Updating setting: {data}")
+    print(f"🔄 [DEBUG] Updating settings: {data}")
     
     try:
         response = requests.patch(f"{API_URL}/setting", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {response.json()}")
 
-        return redirect(url_for("settings.setting_page"))
+        return redirect(url_for("settings.settings_page"))
     except Exception as e:
-        print(f"❌ [ERROR] Failed to update setting: {str(e)}")
+        print(f"❌ [ERROR] Failed to update settings: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
 # @settings_bp.route('/deletesetting/<setting_id>/<user_id>', methods=['POST'])
