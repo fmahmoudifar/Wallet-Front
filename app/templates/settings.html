@@ -3,7 +3,7 @@
 {% block content %}
 
 <script>
-    function editTransaction(userId, currency, theme) {
+    function editSettings(userId, currency, theme) {
         document.getElementById("updateUserId").value = userId;
         document.getElementById("updateCurrency").value = currency;
         document.getElementById("updateTheme").value = theme;
@@ -31,14 +31,14 @@ function newSetDiv() {
 
 <h1 style="text-align: left;">Settings</h1>
 <div style="text-align: left;" id="setListDiv" >
-{% if settings %}
+{% set setting = settings | first %}
+{% if setting %}
 <ul id="transList" style="display: flex;
     flex-wrap: wrap;
     align-content: center;
     justify-content: center;
     align-items: baseline;
     flex-direction: column;">
-    {% for setting in settings %}
     <li style="background-color: lightgrey;
     border: 1px black;
     padding: 20px;
@@ -56,16 +56,46 @@ function newSetDiv() {
             <strong>Theme:</strong> {{ setting.theme }}<br>
         </div>
         <div>
-        <button onclick="editTransaction('{{ setting.userId }}','{{ setting.currency }}','{{ setting.theme }}')">Edit</button>
+        <button onclick="editSettings('{{ setting.userId }}','{{ setting.currency }}','{{ setting.theme }}')">Edit</button>
         </div>
         </div>
     </li>
-    {% endfor %}
 </ul>
 </div>
 
 {% else %}
-<p>No Settings found.</p>
+<div id="newSet">
+
+<div style="display: flex;
+    flex-direction: column;
+    align-items: center;">
+
+    <form action="/updateSettings" method="POST" style="display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    row-gap: 20px;
+    justify-items: end;
+    margin-bottom: 1rem;">
+    <div>
+        <label>Currency:</label>
+        <select id="updateCurrency" name="currency" required>
+            <option value="EUR" selected>EUR</option>
+            <option value="USD">USD</option>
+        </select>
+    </div>
+    <div>
+    <label for="theme">Theme:</label>
+    <select id="updateTheme" name="theme" required>
+        <option value="Light" selected>Light</option>
+        <option value="Dark">Dark</option>
+    </select>
+    </div>
+    <button type="submit">Save</button>
+    <button type="button" onclick="location.reload();">Cancel</button>
+    </div>
+</form>
+</div>
+</div>
 {% endif %}
 
 
@@ -74,7 +104,7 @@ function newSetDiv() {
 <div style="display: flex;
     flex-direction: column;
     align-items: center;">
-    <form id="updateForm" action="/updateSetting" method="POST" style="display: grid;
+    <form id="updateForm" action="/updateSettings" method="POST" style="display: grid;
     grid-template-columns: 1fr 1fr;
     align-items: end;
     row-gap: 20px;
@@ -84,11 +114,17 @@ function newSetDiv() {
     <input type="hidden" id="updateUserId" name="userId">
     <div>
         <label>Currency:</label>
-        <input type="text" id="updateCurrency" name="currency" required><br>
+        <select id="updateCurrency" name="currency" required>
+            <option value="EUR" selected>EUR</option>
+            <option value="USD">USD</option>
+        </select>
     </div>
     <div>
         <label>Theme:</label>
-        <input type="text" id="updateTheme" name="theme" required><br>
+        <select id="updateTheme" name="theme" required>
+            <option value="Light" selected>Light</option>
+            <option value="Dark">Dark</option>
+        </select>
     </div>
     <div>
     <button type="submit">Save</button>

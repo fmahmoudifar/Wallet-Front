@@ -638,7 +638,7 @@
             <div>
                 <!-- <label for="toWallet">To Wallet:</label>
                 <input type="text" name="toWallet" required> -->
-                <label for="toWallet">From Wallet:</label>
+                <label for="toWallet">To Wallet:</label>
                 <select name="toWallet" id="toWallet" required>
                     <option value="">-- Select Wallet --</option> 
                     {% for wallet in wallets %}
@@ -702,7 +702,7 @@
     </div>
         <div>
             <!-- <strong>To Wallet:</strong> {{ crypto.toWallet }}<br> -->
-            <strong>From Wallet:</strong>
+            <strong>To Wallet:</strong>
             {% for w in wallets %}
                 {% if w['walletId']|string == crypto.toWallet|string %}
                     {{ w['walletName'] }}
