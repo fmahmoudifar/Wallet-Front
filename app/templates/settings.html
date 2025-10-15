@@ -3,8 +3,7 @@
 {% block content %}
 
 <script>
-    function editTransaction(settingId, userId, currency, theme) {
-        document.getElementById("updateSettingId").value = settingId;
+    function editTransaction(userId, currency, theme) {
         document.getElementById("updateUserId").value = userId;
         document.getElementById("updateCurrency").value = currency;
         document.getElementById("updateTheme").value = theme;
@@ -30,41 +29,8 @@ function newSetDiv() {
 }
 </script>
 
-<h1 style="text-align: left;">Settings Manager</h1>
-
-<button id="newSetB" onclick="newSetDiv()">Add New Settings</button>
-
-<div id="newSet" style="display: none">
-<h2>Add New Settings</h2>
-<div style="display: flex;
-    flex-direction: column;
-    align-items: center;">
-
-    <form action="/setting" method="POST" style="display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: end;
-    row-gap: 20px;
-    justify-items: end;
-    margin-bottom: 1rem;">
-    <div>
-    <label for="currency">Currency:</label>
-    <input type="text" name="currency" placeholder="Currency" required><br>
-    </div>
-    <div>
-    <label for="theme">Theme:</label>
-    <input type="text" name="theme" placeholder="theme" required><br>
-    </div>
-    <button type="submit">Insert</button>
-    <button type="button" onclick="location.reload();">Cancel</button>
-    </div>
-</form>
-</div>
-</div>
-
-<h6>{{ fd }}</h6>
-
+<h1 style="text-align: left;">Settings</h1>
 <div style="text-align: left;" id="setListDiv" >
-    <h2 style="text-align: center;">Settings History</h2>
 {% if settings %}
 <ul id="transList" style="display: flex;
     flex-wrap: wrap;
@@ -80,21 +46,17 @@ function newSetDiv() {
     margin: 10px;
     list-style-type: none;">
         <div style="display: grid;  grid-template-columns: 1fr 1fr;">
-
-        <!-- <div>
-            <strong>Setting ID:</strong> {{ setting.settingId }}<br>
-        </div> -->
         <!-- <div>
             <strong>User ID:</strong> {{ setting.userId }}<br>
-        </div>  -->
+        </div> -->
         <div>
             <strong>Currency:</strong> {{ setting.currency }}<br>
         </div>
         <div>
-            <strong>Date:</strong> {{ setting.theme }}<br>
+            <strong>Theme:</strong> {{ setting.theme }}<br>
         </div>
         <div>
-        <button onclick="editTransaction('{{ setting.settingId }}','{{ setting.userId }}','{{ setting.currency }}','{{ setting.theme }}')">Edit</button>
+        <button onclick="editTransaction('{{ setting.userId }}','{{ setting.currency }}','{{ setting.theme }}')">Edit</button>
         </div>
         </div>
     </li>
