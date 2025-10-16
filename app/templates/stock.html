@@ -1,4 +1,7 @@
 {% extends "layout.html" %}
+{% block head_extra %}
+    <link rel="stylesheet" href="/static/css/site_styles.css">
+{% endblock %}
 
 {% block content %}
 
@@ -51,120 +54,101 @@ function newStockDiv() {
 </script>
 
 
-<h1 style="text-align: left;">Stocks Manager</h1>
+<h1 class="page-title">Stocks Manager</h1>
 
-<button id="newStockB" onclick="newStockDiv()">Add New Stock</button>
+<button id="newStockB" class="btn-insert" onclick="newStockDiv()">Add New Stock</button>
 
-<div id="newStock" style="display: none">
-<h2>Add New Stock Transaction</h2>
-<div style="display: flex;
-    flex-direction: column;
-    align-items: center;">
+<div id="newStock" class="block-new" style="display: none;">
+    <h2 class="center-text">Add New Stock Transaction</h2>
+    <div class="form-container">
 
-    <form action="/stock" method="POST" style="display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: end;
-    row-gap: 20px;
-    justify-items: end;
-    margin-bottom: 1rem;">
+    <form action="/stock" method="POST">
         <div>
         <label for="stockName">stock:</label>
-        <input type="text" name="stockName" placeholder="stockName" required><br>
+        <input type="text" name="stockName" placeholder="stockName" required>
         </div>
         <div>
         <label for="tdate">Date:</label>
-        <input type="datetime-local" name="tdate" placeholder="date" required><br>
+        <input type="datetime-local" name="tdate" placeholder="date" required>
         </div>
         <div>
         <label for="fromWallet">From Wallet:</label>
-        <input type="text" name="fromWallet" placeholder="fromWallet" required><br>
+        <input type="text" name="fromWallet" placeholder="fromWallet" required>
         </div>
         <div>
         <label for="toWallet">To Wallet:</label>
-        <input type="text" name="toWallet" placeholder="toWallet" required><br>
+        <input type="text" name="toWallet" placeholder="toWallet" required>
         </div>
         <div>
         <label for="quantity">Quantity:</label>
-        <input type="text" name="quantity" placeholder="quantity" required><br>
+        <input type="text" name="quantity" placeholder="quantity" required>
         </div>
         <div>
         <label for="price">Price:</label>
-        <input type="text" name="price" placeholder="price" required><br>
+        <input type="text" name="price" placeholder="price" required>
         </div>
         <div>
         <label for="currency">Currency:</label>
-        <input type="text" name="currency" placeholder="Currency" required><br>
+        <input type="text" name="currency" placeholder="Currency" required>
         </div>
         <div>
         <label for="fee">Fee:</label>
-        <input type="text" name="fee" placeholder="fee"><br>
+        <input type="text" name="fee" placeholder="fee">
         </div>
         <div>
         <label for="note">Note:</label>
-        <input type="text" name="note" placeholder="Note"><br>
+        <input type="text" name="note" placeholder="Note">
         </div>
-        <div>
-        <button type="submit">Insert</button>
-        <button type="reset">Clear</button>
-        <button type="button" onclick="location.reload();">Cancel</button>
-        </div>
-    </form>
+                <div>
+                    <button type="submit" class="btn-insert">Insert</button>
+                    <button type="reset" class="btn-clear">Clear</button>
+                    <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
+                </div>
+            </form>
 
-</div>
+    </div>
 </div>
     
 
-<div style="text-align: left;" id="stockListDiv" >
-    <h2 style="text-align: center;">Stocks Transactions History</h2>
+<div id="stockListDiv" class="form-container">
+    <h2 class="center-text">Stocks Transactions History</h2>
 {% if stocks %}
-<ul id="stockList" style="display: flex;
-    flex-wrap: wrap;
-    align-content: center;
-    justify-content: center;
-    align-items: baseline;
-    flex-direction: column;">
+<ul id="stockList">
     {% for stock in stocks %}
-    <li data-tdate="{{ stock.tdate }}" style="background-color: lightgrey;
-    border: 1px black;
-    padding: 20px;
-    border-radius: 10px;
-    margin: 10px;
-    list-style-type: none;">
-        <!-- <strong>stock ID:</strong> {{ stock.stockId }}<br>
-        <strong>User ID:</strong> {{ stock.userId }}<br> -->
-        <div style="display: grid;  grid-template-columns: 1fr 1fr;">
-        <div>
-            <strong>Stock:</strong> {{ stock.stockName }}<br>
+    <li data-tdate="{{ stock.tdate }}">
+        <div class="record-grid">
+            <div>
+                <strong>Stock:</strong> {{ stock.stockName }}
+            </div>
+            <div>
+                <strong>Date:</strong> {{ stock.tdate | replace("T", " ") }}
+            </div>
+            <div>
+                <strong>From Wallet:</strong> {{ stock.fromWallet }}
+            </div>
+            <div>
+                <strong>To Wallet:</strong> {{ stock.toWallet }}
+            </div>
+            <div>
+                <strong>Quantity:</strong> {{ stock.quantity }}
+            </div>
+            <div>
+                <strong>Price:</strong> {{ stock.price }}
+            </div>
+            <div>
+                <strong>Currency:</strong> {{ stock.currency }}
+            </div>
+            <div>
+                <strong>Fee:</strong> {{ stock.fee }}
+            </div>
+            <div>
+                <strong>Note:</strong> {{ stock.note }}
+            </div>
+            <div>
+                <button class="btn-insert" onclick="editStock('{{ stock.stockId }}','{{ stock.userId }}','{{ stock.stockName }}','{{ stock.tdate }}','{{ stock.fromWallet }}',
+                '{{ stock.toWallet }}','{{ stock.quantity }}','{{ stock.price }}','{{ stock.currency }}','{{ stock.fee }}','{{ stock.note }}')">Edit</button>
+            </div>
         </div>
-        <div>
-            <strong>Date:</strong> {{ stock.tdate | replace("T", " ") }}<br>
-        </div>
-        <div>
-            <strong>From Wallet:</strong> {{ stock.fromWallet }}<br>
-        </div>
-        <div>
-            <strong>To Wallet:</strong> {{ stock.toWallet }}<br>
-        </div>
-        <div>
-            <strong>Quantity:</strong> {{ stock.quantity }}<br>
-        </div>
-        <div>
-            <strong>Price:</strong> {{ stock.price }}<br>
-        </div>
-        <div>
-            <strong>Currency:</strong> {{ stock.currency }}<br>
-        </div>
-        <div>
-            <strong>Fee:</strong> {{ stock.fee }}<br>
-        </div>
-        <div>
-            <strong>Note:</strong> {{ stock.note }}<br>
-        </div>
-        <div>
-        <button onclick="editStock('{{ stock.stockId }}','{{ stock.userId }}','{{ stock.stockName }}','{{ stock.tdate }}','{{ stock.fromWallet }}',
-        '{{ stock.toWallet }}','{{ stock.quantity }}','{{ stock.price }}','{{ stock.currency }}','{{ stock.fee }}','{{ stock.note }}')">Edit</button>
-        </div>
-    </div>
     </li>
     {% endfor %}
 </ul>
@@ -175,65 +159,57 @@ function newStockDiv() {
 <p>No stocks found.</p>
 {% endif %}
 
-<div id="updateStockDiv" style="display: none;">
-    <h2>Update stock Transaction</h2>
-<div style="display: flex;
-flex-direction: column;
-align-items: center;">
-<form id="updateForm" action="/updateStock" method="POST" style="display: grid;
-grid-template-columns: 1fr 1fr;
-align-items: end;
-row-gap: 20px;
-justify-items: end;
-margin-bottom: 1rem;">
-    <input type="hidden" id="updateStockId" name="stockId">
-    <input type="hidden" id="updateUserId" name="userId">
-    <div>
-    <label>stock:</label>
-    <input type="text" id="updateStockName" name="stockName"><br>
+<div id="updateStockDiv" class="block-update" style="display: none;">
+    <h2 class="center-text">Update Stock Transaction</h2>
+    <div class="form-container">
+        <form id="updateForm" action="/updateStock" method="POST">
+            <input type="hidden" id="updateStockId" name="stockId">
+            <input type="hidden" id="updateUserId" name="userId">
+            <div>
+                <label>Stock:</label>
+                <input type="text" id="updateStockName" name="stockName">
+            </div>
+            <div>
+                <label>Date:</label>
+                <input type="datetime-local" id="updateTdate" name="tdate">
+            </div>
+            <div>
+                <label>From Wallet:</label>
+                <input type="text" id="updateFromWallet" name="fromWallet">
+            </div>
+            <div>
+                <label>To Wallet:</label>
+                <input type="text" id="updateToWallet" name="toWallet">
+            </div>
+            <div>
+                <label>Quantity:</label>
+                <input type="text" id="updateQuantity" name="quantity">
+            </div>
+            <div>
+                <label>Price:</label>
+                <input type="text" id="updatePrice" name="price">
+            </div>
+            <div>
+                <label>Currency:</label>
+                <input type="text" id="updateCurrency" name="currency">
+            </div>
+            <div>
+                <label>Fee:</label>
+                <input type="text" id="updateFee" name="fee">
+            </div>
+            <div>
+                <label>Note:</label>
+                <input type="text" id="updateNote" name="note">
+            </div>
+            <div>
+                <button type="submit" class="btn-insert">Save</button>
+                <button type="submit" form="deleteForm" class="btn-clear" onclick="return confirm('Are you sure?')">Delete</button>
+                <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
+            </div>
+        </form>
     </div>
-    <div>
-    <label>Date:</label>
-    <input type="datetime-local" id="updateTdate" name="tdate"><br>
-    </div>
-    <div>
-    <label>From Wallet:</label>
-    <input type="text" id="updateFromWallet" name="fromWallet"><br>
-    </div>
-    <div>
-    <label>To Wallet:</label>
-    <input type="text" id="updateToWallet" name="toWallet"><br>
-    </div>
-    <div>
-    <label>quantity:</label>
-    <input type="text" id="updateQuantity" name="quantity"><br>
-    </div>
-    <div>
-    <label>Price:</label>
-    <input type="text" id="updatePrice" name="price"><br>
-    </div>
-    <div>
-    <label>Currency:</label>
-    <input type="text" id="updateCurrency" name="currency"><br>
-    </div>
-    <div>
-    <label>Fee:</label>
-    <input type="text" id="updateFee" name="fee"><br>
-    </div>
-    <div>
-    <label>Note:</label>
-    <input type="text" id="updateNote" name="note"><br>
-    </div>
-    <div>
-    <button type="submit">Save</button>
-    <button type="submit" form="deleteForm" onclick="return confirm('Are you sure?')">Delete</button>
-    <button type="button" onclick="location.reload();">Cancel</button>
-    </div>
-</form>
-</div>
 
-
-<form id="deleteForm" method="POST"></form>
+    <form id="deleteForm" method="POST"></form>
 </div>
 
 {% endblock %}

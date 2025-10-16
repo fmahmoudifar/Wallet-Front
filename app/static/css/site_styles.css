@@ -1,0 +1,141 @@
+/* Universal site styles (based on previous crypto styles)
+   Applies consistent form/list/button styles across pages (crypto, stock, transaction, wallet, settings)
+*/
+
+form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    row-gap: 12px;
+    justify-items: end;
+    margin-bottom: 1rem;
+    width: 100%;
+    max-width: 900px;
+}
+
+:root { --input-desktop-width: 360px; }
+
+input[type="text"], input[type="datetime-local"], select {
+    width: var(--input-desktop-width);
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+select { height: 36px; }
+
+form > div { display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; }
+form > div label { width: 120px; text-align: right; margin: 0; font-weight: bold; }
+form > div input, form > div select { flex: 1 1 auto; max-width: none; }
+
+label { margin-right: 10px; font-weight: bold; }
+
+button { padding: 6px 12px; margin: 2px; border: none; border-radius: 5px; background-color: #0077cc; color: white; cursor: pointer; font-size: 14px; }
+button:hover { background-color: #005fa3; }
+
+.btn-insert { background-color: #28a745; color: #fff; border: none; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
+.btn-insert:hover { background-color: #218838; }
+.btn-clear { background-color: #dc3545; color: #fff; border: none; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
+.btn-clear:hover { background-color: #c82333; }
+.btn-cancel { background-color: #007bff; color: #fff; border: none; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
+.btn-cancel:hover { background-color: #0069d9; }
+
+.form-container { display: flex; flex-direction: column; align-items: center; width: 100%; padding: 0; }
+
+/* Page title styling */
+.page-title {
+    font-size: 1.5rem;
+    margin: 20px 0 12px 0;
+    text-align: left;
+    font-weight: 700;
+    color: #222;
+}
+
+/* List containers: crypto, stock, transactions, wallets */
+#cryptoList, #stockList, #transList, #walletList, #settingsList { display: grid; grid-template-columns: 1fr 1fr; column-gap: 25px; padding: 0; }
+
+#cryptoList li, #stockList li, #transList li, #walletList li { background-color: #f0f0f0; padding: 25px; border: 1px solid #333; padding: 12px; border-radius: 10px; margin: 8px; list-style-type: none; width: 100%; max-width: 900px; box-sizing: border-box; box-shadow: 0 6px 12px #979797 }
+
+.crypto-grid, .record-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; justify-items: start; }
+
+/* New/update blocks for multiple sections: use shared selectors */
+.block-new { margin-top: 30px; }
+.block-update { margin-top: 30px; }
+.block-new .form-container form, .block-update .form-container form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    row-gap: 8px;
+    justify-items: end;
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    column-gap: 30px;
+}
+
+.block-new .form-container form > div, .block-update .form-container form > div {
+    display: flex; flex-direction: column; align-items: stretch; gap: 6px; width: 100%; box-sizing: border-box;
+}
+
+/* Labels inside the new/update blocks should be full-width and left-aligned (matches crypto styles) */
+.block-new .form-container form > div label, .block-update .form-container form > div label {
+    width: 100%;
+    text-align: left;
+    margin: 0;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.block-new h2, .block-update h2 { font-size: 1.1rem; margin-bottom: 6px; }
+
+.block-new .form-container form input[type="text"], .block-new .form-container form input[type="datetime-local"], .block-new .form-container form select,
+.block-update .form-container form input[type="text"], .block-update .form-container form input[type="datetime-local"], .block-update .form-container form select {
+    width: 100%; padding: 8px 10px; font-size: 14px; box-sizing: border-box; max-width: 100vw;
+}
+
+/* Crypto totals cards */
+.totals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:0;padding:0}
+.totals-card{background:linear-gradient(180deg,#fff,#fbfbfb);border-radius:10px;padding:12px;border:1px solid rgba(0,0,0,0.04);box-shadow:0 6px 18px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:8px}
+.totals-header{display:flex;justify-content:space-between;align-items:center}
+.pct-badge{font-weight:700;padding:4px 8px;border-radius:12px;color:#fff;font-size:0.85rem}
+.pct-positive{background:#28a745}
+.pct-negative{background:#dc3545}
+.pct-neutral{background:#6c757d}
+.pct-bar{background:#e9eef3;border-radius:8px;height:10px;overflow:hidden}
+.pct-fill{height:100%;width:0%}
+.pct-fill-positive{background:linear-gradient(90deg,#28a745,#19b86a)}
+.pct-fill-negative{background:linear-gradient(90deg,#dc3545,#ff6b6b)}
+.totals-meta{display:flex;flex-direction:column;gap:4px;font-size:0.95rem;text-align: left;}
+.small-muted{color:var(--muted);font-size:0.85rem}
+
+@media (max-width:480px){
+    .totals-grid{grid-template-columns:1fr}
+}
+
+.block-new .form-container form > div:last-child, .block-update .form-container form > div:last-child {
+    margin-top: 30px; display: flex; flex-direction: row; gap: 6px; justify-content: space-between;
+}
+
+@media (max-width: 768px) {
+    .block-new, .block-update { text-align: center; }
+    .block-new .form-container, .block-update .form-container { display: flex; flex-direction: column; align-items: center; padding: 0 16px; margin: 0 auto; }
+    .block-new .form-container form, .block-update .form-container form { justify-content: center; grid-template-columns: 1fr; padding: 0; width: 100%; max-width: 320px; margin: 0 auto; }
+    .block-new .form-container form > div label, .block-update .form-container form > div label { width: auto; text-align: left; font-size: 13px; }
+    .block-new .form-container form input[type="text"], .block-new .form-container form input[type="datetime-local"], .block-new .form-container form select, .block-update .form-container form input[type="text"], .block-update .form-container form input[type="datetime-local"], .block-update .form-container form select { width: 100%; max-width: none; }
+    /* keep list grid rule available on mobile as well */
+    #cryptoList, #stockList, #transList, #walletList, #settingsList { display: flex; flex-direction: column; align-items: center; padding: 0; }    
+}
+
+/* Autocomplete styles */
+.autocomplete-list { width: 100%; }
+.autocomplete-items { background:#fff; border:1px solid #ccc; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.12); overflow:auto; }
+.autocomplete-items div { padding:8px 10px; cursor:pointer; }
+.autocomplete-items div:hover, .autocomplete-items div.autocomplete-active { background:#f1f1f1; }
+
+@media (max-width: 480px) {
+    .autocomplete-items { max-height: 240px; font-size: 15px; }
+    .autocomplete-items div { padding: 12px 14px; }
+}
+
+.field-error { color: #c82333; font-size: 13px; margin-top:6px; display:block; }

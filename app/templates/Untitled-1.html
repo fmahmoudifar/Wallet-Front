@@ -1,4 +1,7 @@
 {% extends "layout.html" %}
+{% block head_extra %}
+    <link rel="stylesheet" href="/static/css/site_styles.css">
+{% endblock %}
 
 {% block content %}
 
@@ -69,40 +72,53 @@ function newCryptoDiv() {
     margin-bottom: 1rem;">
         <div>
             <label for="cryptoName">Crypto:</label>
-            <input type="text" name="cryptoName" required><br>
-        </div>
-        <div>
-            <label for="tdate">Date:</label>
-            <input type="datetime-local" name="tdate"  required><br>
-        </div>
-        <div>
-
-            
-            <label for="fromWallet">From Wallet:</label>
-            <select name="fromWallet" id="fromWallet" style="width: 200px;" required>
-            <option value="">-- Select Wallet --</option> 
-            {% for wallet in wallets %}
-            <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
-            {% endfor %}
-            </select></br>
-
-            <!-- <label for="fromWallet">From Wallet:</label> -->
-            <!-- <input type="text" name="fromWallet"  required><br> -->
-        </div>
-        <div>
-            <label for="toWallet">To Wallet:</label>
-            <input type="text" name="toWallet"  required><br>
-        </div>
-        <div>
-            <label for="quantity">Quantity:</label>
-            <input type="text" name="quantity"  required><br>
-        </div>
-        <div>
-            <label for="price">Price:</label>
-            <input type="text" name="price" required><br>
-        <!-- <input type="number" step="0.00000001" name="quantity" placeholder="quantity"><br>
-        <input type="number" step="0.00000001" name="price" placeholder="price" required><br> -->
-        </div>
+            <div>
+                <label>Crypto:</label>
+                <input type="text" id="updateCryptoName" name="cryptoName">
+            </div>
+            <div>
+                <label>Date:</label>
+                <input type="datetime-local" id="updateTdate" name="tdate">
+            </div>
+            <div>
+                <label>From Wallet:</label>
+                <input type="text" id="updateFromWallet" name="fromWallet">
+            </div>
+            <div>
+                <label>To Wallet:</label>
+                <input type="text" id="updateToWallet" name="toWallet">
+            </div>
+            <div>
+                <label>Quantity:</label>
+                <input type="text" id="updateQuantity" name="quantity">
+            </div>
+            <div>
+                <label>Price:</label>
+                <input type="text" id="updatePrice" name="price">
+            </div>
+            <div>
+                <label>Currency:</label>
+                <input type="text" id="updateCurrency" name="currency">
+            </div>
+            <div>
+                <label>Fee:</label>
+                <input type="text" id="updateFee" name="fee">
+            </div>
+            <div>
+                <label>Note:</label>
+                <input type="text" id="updateNote" name="note">
+            </div>
+            <div>
+                <button type="submit" class="btn-insert">Save</button>
+                <button type="submit" form="deleteForm" class="btn-clear" onclick="return confirm('Are you sure?')">Delete</button>
+                <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
+            </div>
+        </form>
+    </div>
+    
+    <form id="deleteForm" method="POST"></form>
+    
+</div>
         <div>
             <label for="currency">Currency:</label>
             <input type="text" name="currency" required><br>
@@ -188,7 +204,7 @@ function newCryptoDiv() {
 <p>No Cryptos found.</p>
 {% endif %}
 
-<div id="updateCryptoDiv" style="display: none;">
+<div id="updateCryptoDiv" class="block-update" style="display: none;">
     <h2>Update Crypto Transaction</h2>
 <div style="display: flex;
     flex-direction: column;

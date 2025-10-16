@@ -4,337 +4,9 @@
 
 <!-- coins data provided to JS via data attribute to avoid inline template tags in scripts -->
 <div id="coins-data" style="display:none" data-coins='{{ coins|tojson | safe }}'></div>
-
-<style>
-    form {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        align-items: end;
-        row-gap: 12px; /* tightened spacing between rows */
-        justify-items: end;
-        margin-bottom: 1rem;
-        width: 100%;
-        max-width: 900px;
-    }
-
-    /* Make inputs responsive: use a consistent desktop width, full-width on mobile */
-    :root {
-        --input-desktop-width: 360px; /* adjust to taste */
-    }
-
-    input[type="text"],
-    input[type="datetime-local"],
-    select {
-        width: var(--input-desktop-width);
-        padding: 6px 8px; /* slightly smaller inputs */
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        font-size: 14px;
-        box-sizing: border-box;
-    }
-
-    select {
-        height: 36px;
-    }
-
-    /* Place label next to input: each form field row uses flex */
-    form > div {
-        display: flex;
-        align-items: center;
-        gap: 8px; /* tighter gap between label and input */
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    /* Give labels a consistent width on larger screens so inputs align */
-    form > div label {
-        width: 120px; /* slightly smaller label width */
-        text-align: right;
-        margin: 0;
-        font-weight: bold;
-    }
-
-    /* Let inputs take remaining space in the row */
-    form > div input,
-    form > div select {
-        flex: 1 1 auto;
-        max-width: none;
-    }
-
-    label {
-        margin-right: 10px;
-        font-weight: bold;
-    }
-
-    button {
-        padding: 6px 12px;
-        margin: 2px;
-        border: none;
-        border-radius: 5px;
-        background-color: #0077cc;
-        color: white;
-        cursor: pointer;
-        font-size: 14px;
-    }
-
-    button:hover {
-        background-color: #005fa3;
-    }
-
-    /* Page-specific navbar tweaks removed so global layout controls navbar */
-
-    /* --- Functional button colors for the form --- */
-    .btn-insert {
-        background-color: #28a745; /* green */
-        color: #fff;
-        border: none;
-        min-width: 100px;
-        padding: 8px 14px;
-        border-radius: 6px;
-    }
-    .btn-insert:hover { background-color: #218838; }
-
-    .btn-clear {
-        background-color: #dc3545; /* red */
-        color: #fff;
-        border: none;
-        min-width: 100px;
-        padding: 8px 14px;
-        border-radius: 6px;
-    }
-    .btn-clear:hover { background-color: #c82333; }
-
-    .btn-cancel {
-        background-color: #007bff; /* blue */
-        color: #fff;
-        border: none;
-        min-width: 100px;
-        padding: 8px 14px;
-        border-radius: 6px;
-    }
-    .btn-cancel:hover { background-color: #0069d9; }
-
-    .form-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 100%;
-        padding: 0;
-    }
-
-    #cryptoList {
-        display: flex;
-        flex-wrap: wrap;
-        align-content: center;
-        justify-content: center;
-        align-items: baseline;
-        flex-direction: column;
-        padding: 0;
-    }
-
-    /* Make list items take available width and center them */
-    #cryptoList li {
-        background-color: lightgrey;
-        border: 1px solid #333;
-        padding: 12px; /* reduced padding for a more compact card */
-        border-radius: 10px;
-        margin: 8px;
-        list-style-type: none;
-        width: 100%;
-        max-width: 900px;
-        box-sizing: border-box;
-    }
-
-    /* Grid used inside each crypto list item */
-    .crypto-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px 12px; /* slightly tighter grid gaps */
-        align-items: start;
-    }
-    /* small-screen responsive rules appear later (consolidated) */
-
-    /* ---------- Scoped: New Crypto block only ---------- */
-    /* Use higher-specificity selectors so these rules only affect #newCrypto */
-    #newCrypto {
-        margin-top: 30px; /* space above the whole New Crypto block (3x) */
-    }
-
-    #newCrypto .form-container form {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        row-gap: 8px; /* tighter inside this block */
-        justify-items: end;
-        width: 100%;
-        max-width: 760px;
-        margin: 0 auto;
-        column-gap: 30px;
-    }
-
-    /* Stack label above inputs so everything lines up vertically */
-    #newCrypto .form-container form > div {
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 6px;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    #newCrypto .form-container form > div label {
-        width: 100%;
-        text-align: left;
-        margin: 0;
-        font-weight: 600;
-        font-size: 13px;
-    }
-
-    /* Make every control full width so they match (applies to both New and Update blocks) */
-    #newCrypto .form-container form input[type="text"],
-    #newCrypto .form-container form input[type="datetime-local"],
-    #newCrypto .form-container form select,
-    #updateCryptoDiv .form-container form input[type="text"],
-    #updateCryptoDiv .form-container form input[type="datetime-local"],
-    #updateCryptoDiv .form-container form select {
-        width: 100%;
-        padding: 8px 10px;
-        font-size: 14px;
-        box-sizing: border-box;
-        max-width: 100vw;
-    }
-
-    #newCrypto h2 {
-        font-size: 1.1rem;
-        margin-bottom: 6px;
-    }
-
-    /* Button row for New Crypto: single consolidated rule */
-    #newCrypto .form-container form > div:last-child {
-        margin-top: 30px;
-        display: flex;
-        flex-direction: row;
-        gap: 6px;
-        justify-content: space-between;
-    }
-
-    /* ---------- Make Update Crypto block match New Crypto block ---------- */
-    #updateCryptoDiv { margin-top: 30px; }
-
-    #updateCryptoDiv .form-container form {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        row-gap: 8px;
-        justify-items: end;
-        width: 100%;
-        max-width: 760px;
-        margin: 0 auto;
-        column-gap: 30px;
-    }
-
-    #updateCryptoDiv .form-container form > div {
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 6px;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    #updateCryptoDiv .form-container form > div label {
-        width: 100%;
-        text-align: left;
-        margin: 0;
-        font-weight: 600;
-        font-size: 13px;
-    }
-
-
-    #updateCryptoDiv h2 { font-size: 1.1rem; margin-bottom: 6px; }
-
-    /* Button row for Update Crypto: single consolidated rule */
-    #updateCryptoDiv .form-container form > div:last-child {
-        margin-top: 30px;
-        display: flex;
-        flex-direction: row;
-        gap: 6px;
-        justify-content: space-between;
-    }
-
-    @media (max-width: 768px) {
-        /* Small-screen: make new & update forms single-column and centered */
-        #newCrypto, #updateCryptoDiv { text-align: center; }
-
-        #newCrypto .form-container,
-        #updateCryptoDiv .form-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 0 16px;
-            margin: 0 auto;
-        }
-
-        #newCrypto .form-container form,
-        #updateCryptoDiv .form-container form {
-            justify-content: center;
-            grid-template-columns: 1fr;
-            padding: 0;
-            width: 100%;
-            max-width: 320px; /* Reduced max-width for better centering */
-            margin: 0 auto;
-        }
-
-        /* Adjust labels and inputs */
-        #newCrypto .form-container form > div label,
-        #updateCryptoDiv .form-container form > div label {
-            width: auto;
-            text-align: left;
-            font-size: 13px;
-        }
-
-        #newCrypto .form-container form input[type="text"],
-        #newCrypto .form-container form input[type="datetime-local"],
-        #newCrypto .form-container form select,
-        #updateCryptoDiv .form-container form input[type="text"],
-        #updateCryptoDiv .form-container form input[type="datetime-local"],
-        #updateCryptoDiv .form-container form select {
-            width: 100%;
-            max-width: none;
-        }
-
-        #newCrypto h2,
-        #updateCryptoDiv h2 { font-size: 1rem; }
-
-        /* Ensure button row is centered on small screens */
-        #newCrypto .form-container form > div:last-child,
-        #updateCryptoDiv .form-container form > div:last-child {
-            flex-direction: row;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        #newCrypto .form-container form > div:last-child button,
-        #updateCryptoDiv .form-container form > div:last-child button {
-            width: auto;
-        }
-    }
-</style>
-
-<!-- Autocomplete styling (kept outside main style for clarity) -->
-<style>
-    /* container that holds suggestion items - position:relative is set inline on the element */
-    .autocomplete-list { width: 100%; }
-    .autocomplete-items { background:#fff; border:1px solid #ccc; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.12); overflow:auto; }
-    .autocomplete-items div { padding:8px 10px; cursor:pointer; }
-    .autocomplete-items div:hover, .autocomplete-items div.autocomplete-active { background:#f1f1f1; }
-
-    /* Mobile friendly: make the suggestion list full width, capped height and scrollable */
-    @media (max-width: 480px) {
-        .autocomplete-items { max-height: 240px; font-size: 15px; }
-        .autocomplete-items div { padding: 12px 14px; }
-    }
-    .field-error { color: #c82333; font-size: 13px; margin-top:6px; display:block; }
-</style>
-</style>
+{% block head_extra %}
+    <link rel="stylesheet" href="/static/css/site_styles.css">
+{% endblock %}
 
 <script>
     function editCrypto(cryptoId, userId, cryptoName, tdate, fromWallet, toWallet, quantity, price, currency, fee, note) {
@@ -376,28 +48,46 @@
         document.getElementById("updateCryptoDiv").style.display = "block";
         document.getElementById("cryptoListDiv").style.display = "none";
         document.getElementById("newCryptoB").style.display = "none"; 
+        document.getElementById("CryptoTransB").style.display = "none"; 
+        document.getElementById("panel").style.display = "none";
+        document.getElementById("back").style.display = "none"; 
         document.getElementById("deleteForm").action = `/deleteCrypto/${cryptoId}/${userId}`;
     }  
 
     document.addEventListener("DOMContentLoaded", function() {
+        // Safely handle the optional crypto list: if it's missing, continue without failing.
         let list = document.getElementById("cryptoList");
-        let items = Array.from(list.children);
+        let items = [];
+        if (list && list.children && list.children.length) {
+            items = Array.from(list.children);
+            if (items.length > 1) {
+                items.sort((a, b) => {
+                    let dateA = new Date(a.getAttribute("data-tdate") || 0);
+                    let dateB = new Date(b.getAttribute("data-tdate") || 0);
+                    return dateB - dateA;
+                });
+                items.forEach(item => list.appendChild(item));
+            }
+        }
 
-        items.sort((a, b) => {
-            let dateA = new Date(a.getAttribute("data-tdate"));
-            let dateB = new Date(b.getAttribute("data-tdate"));
-            return dateB - dateA;  
-        });
-
-        items.forEach(item => list.appendChild(item));
         // initialize autocomplete with coins data passed from server (via data attribute)
         let coinsDataElem = document.getElementById('coins-data');
         let coinsList = [];
-        if (coinsDataElem && coinsDataElem.dataset.coins) {
+        if (coinsDataElem && coinsDataElem.dataset && coinsDataElem.dataset.coins) {
             try { coinsList = JSON.parse(coinsDataElem.dataset.coins); } catch(e) { coinsList = []; }
         }
         initAutocomplete('cryptoSearch','cryptoSearchList','cryptoName', coinsList);
         initAutocomplete('updateCryptoSearch','updateCryptoSearchList','updateCryptoName', coinsList);
+
+        // apply percent-fill widths for visual bars (using data attributes to avoid inline css parsing issues)
+        const fills = document.querySelectorAll('.pct-fill');
+        fills.forEach(f => {
+            const v = f.getAttribute('data-fill');
+            if (v !== null && v !== undefined) {
+                const num = parseFloat(v) || 0;
+                f.style.width = (Math.max(0, Math.min(100, num))) + '%';
+            }
+        });
 
         // enforce selection-only behaviour: on blur clear free text, on submit block if not selected
         const createInput = document.getElementById('cryptoSearch');
@@ -598,11 +288,31 @@
         if (div.style.display === "none" || div.style.display === "") {
             div.style.display = "block";  
             document.getElementById("cryptoListDiv").style.display = "none";
+            document.getElementById("panel").style.display = "none";
+            document.getElementById("CryptoTransB").style.display = "none";
             button.style.display = "none";
         } else {
             div.style.display = "none"; 
             document.getElementById("cryptoListDiv").style.display = "block";
+            document.getElementById("panel").style.display = "block";
             button.innerText = "Add New Crypto";
+        }
+    }
+
+        function cryptoHistoryDiv() {
+        let div = document.getElementById("cryptoListDiv");
+        let button = document.getElementById("CryptoTransB");
+
+        if (div.style.display === "none" || div.style.display === "") {
+            div.style.display = "block";  
+            document.getElementById("panel").style.display = "none";
+            document.getElementById("back").style.display = "";
+            button.style.display = "none";
+        } else {
+            div.style.display = "none"; 
+            document.getElementById("newCrypto").style.display = "block";
+            document.getElementById("panel").style.display = "block";
+            button.innerText = "Cryptos Transactions History";
         }
     }
 </script>
@@ -611,8 +321,63 @@
 <h1 class="page-title">Cryptos Manager</h1>
 
 <button id="newCryptoB" class="btn-insert" onclick="newCryptoDiv()">Add New Crypto</button>
+<button id="CryptoTransB" class="btn-insert" onclick="cryptoHistoryDiv()">Cryptos Transactions History</button>
+<button id="back" type="button" class="btn-insert" style="display: none;" onclick="location.reload();">Back</button>
 
-<div id="newCrypto" style="display: none;">
+
+
+<div id="panel" class="panel" style="padding:12px;margin-bottom:12px;">
+    <!-- <h2 class="page-title">Totals by Crypto</h2> -->
+    {% if totals and totals|length > 0 %}
+        <div class="totals-grid">
+            {% for t in totals %}
+            <div class="totals-card">
+                <div class="totals-header">
+                    <div>
+                        <div style="font-size:1rem;font-weight:700">{{ t.cryptoName }}</div>
+                    </div>
+                    {% set badge_class = 'pct-neutral' %}
+                    {% if t.price_pct is defined and t.price_pct > 0 %}
+                        {% set badge_class = 'pct-positive' %}
+                    {% elif t.price_pct is defined and t.price_pct < 0 %}
+                        {% set badge_class = 'pct-negative' %}
+                    {% endif %}
+                    <div class="pct-badge {{ badge_class }}">{{ t.price_pct_display }}</div>
+                </div>
+
+                <div class="totals-meta">
+                    <div><span class="small-muted">Avg Buy Price:</span> {{ '%.6f' % (t.avg_buy_price) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>
+                    <div><span class="small-muted">Unit price now:</span> {{ '%.6f' % (t.latest_price) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>
+                    <div><span class="small-muted">Total Value Paid:</span> {{ '%.2f' % (t.total_value_buy) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>
+                    <div><span class="small-muted">Total Value Now:</span> {{ '%.2f' % (t.total_value_live) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>
+                    <div><span class="small-muted">Fees paid:</span> {{ '%.2f' % (t.total_fee) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>
+                    <div><span class="small-muted">Gain / Loss:</span>
+                        {% if t.value_change_amount >= 0 %}
+                            <span class="pct-positive">+{{ '%.2f' % (t.value_change_amount) }}</span>
+                        {% else %}
+                            <span class="pct-negative">{{ '%.2f' % (t.value_change_amount) }}</span>
+                        {% endif %}
+                        {% if t.currency %} {{ t.currency }}{% endif %}
+                    </div>
+                    <!-- <div><span class="small-muted">Gain / Loss (%%):</span> {{ t.value_pct_display }}</div> -->
+                </div>
+
+                <div style="margin-top:6px">
+                    <div class="pct-bar" aria-hidden="true">
+                        {% set fill_class = 'pct-fill-positive' if (t.price_pct is defined and t.price_pct >= 0) else 'pct-fill-negative' %}
+                            <div class="pct-fill {{ fill_class }}" data-fill="{{ t.pct_fill_str }}"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No crypto transactions to summarize.</p>
+    {% endif %}
+</div>
+
+
+<div id="newCrypto" class="block-new" style="display: none;">
     <h2 class="center-text">New Crypto Transaction</h2>
     <div class="form-container">
         <form action="/crypto" method="POST">
@@ -628,7 +393,7 @@
             </div>
             <div>
                 <label for="fromWallet">From Wallet:</label>
-                <select name="fromWallet" id="fromWallet" required>
+                <select name="fromWallet" id="fromWallet">
                     <option value="">-- Select Wallet --</option> 
                     {% for wallet in wallets %}
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
@@ -675,7 +440,7 @@
     </div>
 </div>
 
-<div id="cryptoListDiv" class="form-container">
+<div id="cryptoListDiv" class="form-container" style="display: none;" >
     <h2 class="center-text">Cryptos Transactions History</h2>
 {% if cryptos %}
 <ul id="cryptoList">
@@ -741,7 +506,7 @@
 <p>No Cryptos found.</p>
 {% endif %}
 
-<div id="updateCryptoDiv" style="display: none;">
+<div id="updateCryptoDiv" class="block-update" style="display: none;">
     <h2 class="center-text">Update Crypto Transaction</h2>
     <div class="form-container">
         <form id="updateForm" action="/updateCrypto" method="POST">
@@ -759,7 +524,7 @@
             </div>
             <div>
                 <label for="updateFromWallet">From Wallet:</label>
-                <select name="fromWallet" id="updateFromWallet" required>
+                <select name="fromWallet" id="updateFromWallet">
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets %}
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>

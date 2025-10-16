@@ -1,4 +1,7 @@
 {% extends "layout.html" %}
+{% block head_extra %}
+    <link rel="stylesheet" href="/static/css/site_styles.css">
+{% endblock %}
 
 {% block content %}
 
@@ -29,112 +32,85 @@ function newSetDiv() {
 }
 </script>
 
-<h1 style="text-align: left;">Settings</h1>
-<div style="text-align: left;" id="setListDiv" >
+<h1 class="page-title">Settings</h1>
+<div id="setListDiv" class="form-container">
 {% set setting = settings | first %}
 {% if setting %}
-<ul id="transList" style="display: flex;
-    flex-wrap: wrap;
-    align-content: center;
-    justify-content: center;
-    align-items: baseline;
-    flex-direction: column;">
-    <li style="background-color: lightgrey;
-    border: 1px black;
-    padding: 20px;
-    border-radius: 10px;
-    margin: 10px;
-    list-style-type: none;">
-        <div style="display: grid;  grid-template-columns: 1fr 1fr;">
-        <!-- <div>
-            <strong>User ID:</strong> {{ setting.userId }}<br>
-        </div> -->
-        <div>
-            <strong>Currency:</strong> {{ setting.currency }}<br>
-        </div>
-        <div>
-            <strong>Theme:</strong> {{ setting.theme }}<br>
-        </div>
-        <div>
-        <button onclick="editSettings('{{ setting.userId }}','{{ setting.currency }}','{{ setting.theme }}')">Edit</button>
-        </div>
-        </div>
-    </li>
-</ul>
+    <ul id="transList">
+        <li>
+            <div class="record-grid">
+                <div>
+                    <strong>Currency:</strong> {{ setting.currency }}<br>
+                </div>
+                <div>
+                    <strong>Theme:</strong> {{ setting.theme }}<br>
+                </div>
+                <div></div>
+                <div>
+                    <button class="btn-insert" onclick="editSettings('{{ setting.userId }}','{{ setting.currency }}','{{ setting.theme }}')">Edit</button>
+                </div>
+            </div>
+        </li>
+    </ul>
 </div>
 
 {% else %}
-<div id="newSet">
-
-<div style="display: flex;
-    flex-direction: column;
-    align-items: center;">
-
-    <form action="/updateSettings" method="POST" style="display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: end;
-    row-gap: 20px;
-    justify-items: end;
-    margin-bottom: 1rem;">
-    <div>
-        <label>Currency:</label>
-        <select id="updateCurrency" name="currency" required>
-            <option value="EUR" selected>EUR</option>
-            <option value="USD">USD</option>
-        </select>
+<div id="newSet" class="block-new">
+    <h2 class="center-text">New Settings</h2>
+    <div class="form-container">
+        <form action="/updateSettings" method="POST">
+            <div>
+                <label>Currency:</label>
+                <select id="newCurrency" name="currency" required>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                </select>
+            </div>
+            <div>
+                <label for="theme">Theme:</label>
+                <select id="newTheme" name="theme" required>
+                    <option value="Light">Light</option>
+                    <option value="Dark">Dark</option>
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="btn-insert">Save</button>
+                <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
+            </div>
+        </form>
     </div>
-    <div>
-    <label for="theme">Theme:</label>
-    <select id="updateTheme" name="theme" required>
-        <option value="Light" selected>Light</option>
-        <option value="Dark">Dark</option>
-    </select>
-    </div>
-    <button type="submit">Save</button>
-    <button type="button" onclick="location.reload();">Cancel</button>
-    </div>
-</form>
-</div>
 </div>
 {% endif %}
 
 
-<div id="updateSetDiv" style="display: none;">
-        <h2>Update Settings</h2>
-<div style="display: flex;
-    flex-direction: column;
-    align-items: center;">
-    <form id="updateForm" action="/updateSettings" method="POST" style="display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: end;
-    row-gap: 20px;
-    justify-items: end;
-    margin-bottom: 1rem;">
-    <input type="hidden" id="updateSettingId" name="settingId">
-    <input type="hidden" id="updateUserId" name="userId">
-    <div>
-        <label>Currency:</label>
-        <select id="updateCurrency" name="currency" required>
-            <option value="EUR" selected>EUR</option>
-            <option value="USD">USD</option>
-        </select>
-    </div>
-    <div>
-        <label>Theme:</label>
-        <select id="updateTheme" name="theme" required>
-            <option value="Light" selected>Light</option>
-            <option value="Dark">Dark</option>
-        </select>
-    </div>
-    <div>
-    <button type="submit">Save</button>
-    <button type="button" onclick="location.reload();">Cancel</button>
+<div id="updateSetDiv" class="block-update" style="display: none;">
+    <h2 class="center-text">Update Settings</h2>
+    <div class="form-container">
+        <form id="updateForm" action="/updateSettings" method="POST">
+            <input type="hidden" id="updateSettingId" name="settingId">
+            <input type="hidden" id="updateUserId" name="userId">
+            <div>
+                <label>Currency:</label>
+                <select id="updateCurrency" name="currency" required>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                </select>
+            </div>
+            <div>
+                <label>Theme:</label>
+                <select id="updateTheme" name="theme" required>
+                    <option value="Light">Light</option>
+                    <option value="Dark">Dark</option>
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="btn-insert">Save</button>
+                <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
+            </div>
+        </form>
     </div>
 
-</form>
-</div>
-
-<form id="deleteForm" method="POST"></form>
+    <form id="deleteForm" method="POST"></form>
 </div>
 
 {% endblock %}
