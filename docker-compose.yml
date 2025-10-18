@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  web:
+    build: .
+    volumes:
+      - .:/app:delegated
+    ports:
+      - "8000:8000"
+    environment:
+      - FLASK_ENV=development
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt && gunicorn -w 2 -b 0.0.0.0:8000 --reload run:app"
