@@ -9,7 +9,7 @@
 {% endblock %}
 
 <script>
-    function editCrypto(cryptoId, userId, cryptoName, tdate, fromWallet, toWallet, quantity, price, currency, fee, note) {
+    function editCrypto(cryptoId, userId, cryptoName, tdate, fromWallet, toWallet, side, quantity, price, currency, fee, note) {
         document.getElementById("updateCryptoId").value = cryptoId;
         document.getElementById("updateUserId").value = userId;
         // set update visible input and hidden value; prefer uppercase symbol when available
@@ -40,6 +40,7 @@
         document.getElementById("updateTdate").value = tdate;
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
+        document.getElementById("updateSide").value = side;
         document.getElementById("updateQuantity").value = quantity;
         document.getElementById("updatePrice").value = price;
         document.getElementById("updateCurrency").value = currency;
@@ -412,6 +413,14 @@
                 </select>
             </div>
             <div>
+                <label for="side">Side:</label>
+                <select name="side" id="side">
+                    <option value="">-- Select Side --</option> 
+                    <option value="buy">Buy</option>
+                    <option value="sell">Sell</option>
+                </select>
+            </div>
+            <div>
                 <label for="quantity">Quantity:</label>
                 <input type="text" name="quantity" required>
             </div>
@@ -477,6 +486,9 @@
         
         </div>
         <div>
+            <strong>Side:</strong> {{ crypto.side }}<br>
+        </div>
+        <div>
             <strong>Quantity:</strong> {{ crypto.quantity }}<br>
         </div>
         <div>
@@ -493,7 +505,7 @@
         </div>
     <div>
     <button class="btn-insert" onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.cryptoName }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}',
-    '{{ crypto.toWallet }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
+    '{{ crypto.toWallet }}','{{ crypto.side }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
     </div>
     </div>
     </li>
@@ -538,6 +550,14 @@
                     {% for wallet in wallets %}
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
                     {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="updateSide">Side:</label>
+                <select name="side" id="updateSide">
+                    <option value="">-- Select Side --</option> 
+                    <option value="buy">Buy</option>
+                    <option value="sell">Sell</option>
                 </select>
             </div>
             <div>
