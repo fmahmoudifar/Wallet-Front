@@ -42,7 +42,23 @@
     </div>
 
     <div class="grid-item">
-        <p>Section 2 content here</p>
+        <div style="width: 100%; padding: 10px;">
+            <h3 style="margin: 0 0 20px 0; text-align: center; color: #333;">💰 Wallet Balances</h3>
+            {% if wallets and wallets|length > 0 %}
+                <div style="display: flex; flex-direction: column; gap: 12px; max-height: 200px; overflow-y: auto;">
+                    {% for wallet in wallets %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="font-weight: 600; color: #495057;">{{ wallet.walletName or wallet.walletId }}</div>
+                        <div style="font-size: 1.1rem; font-weight: 700; {% if wallet.balance >= 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %}">
+                            {% if wallet.balance >= 0 %}+{% endif %}€{{ '%.2f'|format(wallet.balance) }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p style="text-align: center; color: #6c757d; font-style: italic;">No wallets found</p>
+            {% endif %}
+        </div>
     </div>
 
     <div class="grid-item">
