@@ -43,49 +43,90 @@ def crypto_page():
         except Exception as e:
             print(f"Error fetching CoinGecko coins: {e}")
 
-        # --- Compute totals per crypto (quantity sum and value sum) server-side ---
+        # --- Compute totals per crypto using weighted average price method ---
         totals_map = {}
         try:
+            # Group transactions by crypto and sort by date to process chronologically
+            crypto_transactions = {}
             for c in cryptos:
                 name = c.get('cryptoName') or 'Unknown'
-                try:
-                    qty = Decimal(str(c.get('quantity', 0)))
-                except Exception:
-                    qty = Decimal(0)
-                try:
-                    price = Decimal(str(c.get('price', 0)))
-                except Exception:
-                    price = Decimal(0)
-                # fee is stored per transaction (assumed in the same fiat currency as price)
-                try:
-                    fee = Decimal(str(c.get('fee', 0)))
-                except Exception:
-                    fee = Decimal(0)
-
-                # value is the fiat cost of the purchased crypto (qty * unit_price) + fee
-                value = (qty * price) + fee
-
-                entry = totals_map.get(name)
-                if not entry:
-                    # track total quantity, aggregate fiat cost (including fees), and total fees
-                    entry = {
-                        'cryptoName': name,
-                        'total_qty': Decimal(0),
-                        'total_value': Decimal(0),
-                        'total_fee': Decimal(0),
-                        'currency': ''
-                    }
-                    totals_map[name] = entry
-
-                entry['total_qty'] += qty
-                # add both the transaction fiat value and the fee (fee already included in `value` above,
-                # but keep a separate running total_fee for clarity)
-                entry['total_value'] += value
-                entry['total_fee'] += fee
-                if not entry['currency'] and c.get('currency'):
-                    entry['currency'] = c.get('currency')
+                if name not in crypto_transactions:
+                    crypto_transactions[name] = []
+                crypto_transactions[name].append(c)
+            
+            # Sort each crypto's transactions by date
+            for name in crypto_transactions:
+                crypto_transactions[name].sort(key=lambda x: x.get('tdate', ''))
+            
+            # Process each crypto's transactions chronologically
+            for name, transactions in crypto_transactions.items():
+                entry = {
+                    'cryptoName': name,
+                    'total_qty': Decimal(0),           # Current holding quantity
+                    'total_cost': Decimal(0),          # Current total cost basis
+                    'total_fee': Decimal(0),           # Total fees paid
+                    'total_value_buy': Decimal(0),     # Total spent on purchases
+                    'total_value_sell': Decimal(0),    # Total received from sales
+                    'currency': ''
+                }
+                
+                for tx in transactions:
+                    try:
+                        qty = Decimal(str(tx.get('quantity', 0)))
+                        price = Decimal(str(tx.get('price', 0)))
+                        fee = Decimal(str(tx.get('fee', 0)))
+                        side = str(tx.get('side', 'buy')).lower()
+                        
+                        # Transaction value (qty * price + fee)
+                        tx_value = (qty * price) + fee
+                        
+                        if side == 'buy':
+                            # BUY: Add to holdings and cost basis
+                            entry['total_qty'] += qty
+                            entry['total_cost'] += tx_value
+                            entry['total_value_buy'] += tx_value
+                            entry['total_fee'] += fee
+                            
+                        elif side == 'sell':
+                            # SELL: Use weighted average to calculate cost of sold portion
+                            if entry['total_qty'] > 0:
+                                # Calculate current weighted average cost per unit
+                                avg_cost_per_unit = entry['total_cost'] / entry['total_qty']
+                                
+                                # Cost basis of the sold quantity
+                                sold_cost = qty * avg_cost_per_unit
+                                
+                                # Update holdings
+                                entry['total_qty'] -= qty
+                                entry['total_cost'] -= sold_cost
+                                entry['total_value_sell'] += (qty * price)  # Revenue from sale (excluding fee)
+                                entry['total_fee'] += fee
+                                
+                                # Ensure we don't go negative
+                                if entry['total_qty'] < 0:
+                                    entry['total_qty'] = Decimal(0)
+                                if entry['total_cost'] < 0:
+                                    entry['total_cost'] = Decimal(0)
+                            else:
+                                # Selling without holdings (short sell) - track as negative
+                                entry['total_qty'] -= qty
+                                entry['total_value_sell'] += (qty * price)
+                                entry['total_fee'] += fee
+                        
+                        # Set currency from first transaction
+                        if not entry['currency'] and tx.get('currency'):
+                            entry['currency'] = tx.get('currency')
+                            
+                    except Exception as e:
+                        print(f"Error processing transaction for {name}: {e}")
+                        continue
+                
+                # Set total_value as current cost basis for compatibility
+                entry['total_value'] = entry['total_cost']
+                totals_map[name] = entry
+                
         except Exception as e:
-            print(f"Error computing totals: {e}")
+            print(f"Error computing crypto totals: {e}")
 
         # --- Compute live prices from CoinGecko coins list and attach live totals ---
         try:
@@ -145,11 +186,11 @@ def crypto_page():
                     # compute live total value based on latest price
                     v['total_value_live'] = v['total_qty'] * (v['latest_price'] or Decimal(0))
 
-                    # compute weighted average buy price from stored totals (if total_qty > 0)
+                    # compute weighted average buy price from current cost basis
                     try:
-                        if v['total_qty'] and v['total_qty'] != 0:
-                            # note: total_value already includes fees, so avg_buy_price accounts for them
-                            v['avg_buy_price'] = (v['total_value'] / v['total_qty'])
+                        if v['total_qty'] and v['total_qty'] > 0:
+                            # Use current cost basis divided by current quantity
+                            v['avg_buy_price'] = (v['total_cost'] / v['total_qty'])
                         else:
                             v['avg_buy_price'] = Decimal(0)
                     except Exception:

@@ -414,7 +414,7 @@
             </div>
             <div>
                 <label for="side">Side:</label>
-                <select name="side" id="side">
+                <select name="side" id="side" required>
                     <option value="">-- Select Side --</option> 
                     <option value="buy">Buy</option>
                     <option value="sell">Sell</option>
@@ -429,8 +429,13 @@
                 <input type="text" name="price" required>
             </div>
             <div>
-                <label for="currency">Currency:</label>
-                <input type="text" name="currency" required>
+                <label>Currency:</label>
+                <select id="currency" name="currency" required>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                </select>
+                <!-- <label for="currency">Currency:</label>
+                <input type="text" name="currency" required> -->
             </div>
             <div>
                 <label for="fee">Fee:</label>
@@ -554,7 +559,7 @@
             </div>
             <div>
                 <label for="updateSide">Side:</label>
-                <select name="side" id="updateSide">
+                <select name="side" id="updateSide" required>
                     <option value="">-- Select Side --</option> 
                     <option value="buy">Buy</option>
                     <option value="sell">Sell</option>
@@ -569,8 +574,13 @@
                 <input type="text" id="updatePrice" name="price">
             </div>
             <div>
-                <label for="updateCurrency">Currency:</label>
-                <input type="text" id="updateCurrency" name="currency">
+                <label>Currency:</label>
+                <select id="updateCurrency" name="currency" required>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                </select>
+                <!-- <label for="updateCurrency">Currency:</label>
+                <input type="text" id="updateCurrency" name="currency"> -->
             </div>
             <div>
                 <label for="updateFee">Fee:</label>
