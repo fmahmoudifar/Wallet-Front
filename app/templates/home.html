@@ -81,7 +81,7 @@
         data: {
             labels: labels,
             datasets: [{
-                label: 'Total Cryptos',
+                label: 'Portfolio Value (€)',
                 data: data,
                 backgroundColor: [
                     'rgba(255, 99, 132, 0.5)',
@@ -104,7 +104,23 @@
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true }
+                y: { 
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value, index, values) {
+                            return '€' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': €' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
             }
         }
     });
