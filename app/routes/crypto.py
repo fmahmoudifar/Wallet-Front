@@ -93,20 +93,25 @@ def crypto_page():
                                 # Calculate current weighted average cost per unit
                                 avg_cost_per_unit = entry['total_cost'] / entry['total_qty']
                                 
+                                # Determine how much we can actually sell from current holdings
+                                qty_to_sell = min(qty, entry['total_qty'])
+                                
                                 # Cost basis of the sold quantity
-                                sold_cost = qty * avg_cost_per_unit
+                                sold_cost = qty_to_sell * avg_cost_per_unit
                                 
                                 # Update holdings
-                                entry['total_qty'] -= qty
+                                entry['total_qty'] -= qty_to_sell
                                 entry['total_cost'] -= sold_cost
                                 entry['total_value_sell'] += (qty * price)  # Revenue from sale (excluding fee)
                                 entry['total_fee'] += fee
                                 
-                                # Ensure we don't go negative
-                                if entry['total_qty'] < 0:
-                                    entry['total_qty'] = Decimal(0)
-                                if entry['total_cost'] < 0:
-                                    entry['total_cost'] = Decimal(0)
+                                # If selling more than we have, handle the excess as short position
+                                excess_qty = qty - qty_to_sell
+                                if excess_qty > 0:
+                                    # Track the excess as negative position
+                                    entry['total_qty'] -= excess_qty
+                                    # No additional cost basis change for short position
+                                
                             else:
                                 # Selling without holdings (short sell) - track as negative
                                 entry['total_qty'] -= qty
@@ -199,9 +204,18 @@ def crypto_page():
                     # We no longer compute a combined average; downstream template will show:
                     # - 'latest_price' as the unit price now
                     # - 'total_value_live' as the total value now (qty * latest_price)
-                    # Also compute absolute gain/loss amount based on stored total (includes fees)
+                    # Compute gain/loss: (Current Value + Revenue from Sales) - Total Investment
+                    # For accurate P&L calculation across all scenarios (holding, sold, oversold)
                     try:
-                        v['value_change_amount'] = v['total_value_live'] - v['total_value']
+                        total_revenue = v.get('total_value_sell', Decimal(0))
+                        total_investment = v.get('total_value_buy', Decimal(0))
+                        current_market_value = v['total_value_live']
+                        
+                        # Total current worth = market value of holdings + cash received from sales
+                        total_current_worth = current_market_value + total_revenue
+                        
+                        # Gain/Loss = What we have now - What we invested
+                        v['value_change_amount'] = total_current_worth - total_investment
                     except Exception:
                         v['value_change_amount'] = Decimal(0)
         except Exception as e:

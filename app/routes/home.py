@@ -82,20 +82,25 @@ def users():
                                 # Calculate current weighted average cost per unit
                                 avg_cost_per_unit = entry['total_cost'] / entry['total_qty']
                                 
+                                # Determine how much we can actually sell from current holdings
+                                qty_to_sell = min(qty, entry['total_qty'])
+                                
                                 # Cost basis of the sold quantity
-                                sold_cost = qty * avg_cost_per_unit
+                                sold_cost = qty_to_sell * avg_cost_per_unit
                                 
                                 # Update holdings
-                                entry['total_qty'] -= qty
+                                entry['total_qty'] -= qty_to_sell
                                 entry['total_cost'] -= sold_cost
                                 entry['total_value_sell'] += (qty * price)  # Revenue from sale (excluding fee)
                                 entry['total_fee'] += fee
                                 
-                                # Ensure we don't go negative
-                                if entry['total_qty'] < 0:
-                                    entry['total_qty'] = Decimal(0)
-                                if entry['total_cost'] < 0:
-                                    entry['total_cost'] = Decimal(0)
+                                # If selling more than we have, handle the excess as short position
+                                excess_qty = qty - qty_to_sell
+                                if excess_qty > 0:
+                                    # Track the excess as negative position
+                                    entry['total_qty'] -= excess_qty
+                                    # No additional cost basis change for short position
+                                
                             else:
                                 # Selling without holdings (short sell) - track as negative
                                 entry['total_qty'] -= qty
@@ -236,37 +241,37 @@ def users():
                 
                 # Calculate total values with live prices (exact same logic as crypto.py)
                 for name, entry in crypto_totals_map.items():
-                    if entry['total_qty'] > 0:  # Only show cryptos with positive holdings
-                        # Try to find latest price for this crypto name (same as crypto.py)
-                        coin = find_coin_for_name(entry['cryptoName'])
-                        if coin and coin.get('current_price') is not None:
-                            try:
-                                latest_price = Decimal(str(coin.get('current_price', 0)))
-                            except Exception:
-                                latest_price = Decimal(0)
-                        else:
-                            # fallback: use 0 for latest price if not found (same as crypto.py)
+                    # Show ALL cryptos (including zero/negative holdings) to match crypto page
+                    # Try to find latest price for this crypto name (same as crypto.py)
+                    coin = find_coin_for_name(entry['cryptoName'])
+                    if coin and coin.get('current_price') is not None:
+                        try:
+                            latest_price = Decimal(str(coin.get('current_price', 0)))
+                        except Exception:
                             latest_price = Decimal(0)
-                        
-                        # Compute live total value based on latest price (exact same formula as crypto.py)
-                        total_value_live = entry['total_qty'] * (latest_price or Decimal(0))
-                        crypto_chart_data[name] = float(total_value_live)
+                    else:
+                        # fallback: use 0 for latest price if not found (same as crypto.py)
+                        latest_price = Decimal(0)
+                    
+                    # Compute live total value based on latest price (exact same formula as crypto.py)
+                    total_value_live = entry['total_qty'] * (latest_price or Decimal(0))
+                    crypto_chart_data[name] = float(total_value_live)
                             
             else:
                 print(f"CoinGecko returned status {cg_resp.status_code}")
                 # Fallback: use 0 for live values if no price available (same as crypto.py)
                 for name, entry in crypto_totals_map.items():
-                    if entry['total_qty'] > 0:
-                        total_value_live = entry['total_qty'] * Decimal(0)  # No price = 0 value
-                        crypto_chart_data[name] = float(total_value_live)
+                    # Show ALL cryptos (including zero/negative holdings) to match crypto page
+                    total_value_live = entry['total_qty'] * Decimal(0)  # No price = 0 value
+                    crypto_chart_data[name] = float(total_value_live)
                         
         except Exception as e:
             print(f"Error fetching CoinGecko prices: {e}")
             # Fallback: use 0 for live values if no price available (same as crypto.py)
             for name, entry in crypto_totals_map.items():
-                if entry['total_qty'] > 0:
-                    total_value_live = entry['total_qty'] * Decimal(0)  # No price = 0 value
-                    crypto_chart_data[name] = float(total_value_live)
+                # Show ALL cryptos (including zero/negative holdings) to match crypto page
+                total_value_live = entry['total_qty'] * Decimal(0)  # No price = 0 value
+                crypto_chart_data[name] = float(total_value_live)
 
         cryptoLabels = list(crypto_chart_data.keys())    
         cryptoValues = list(crypto_chart_data.values()) 
