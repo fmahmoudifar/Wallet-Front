@@ -347,6 +347,7 @@
                 </div>
 
                 <div class="totals-meta">
+                    <div><span class="small-muted">Total Quantity:</span> {{ '%.8f' % (t.total_qty) }}</div>
                     <div><span class="small-muted">Avg Buy Price:</span> {{ '%.6f' % (t.avg_buy_price) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>
                     <div><span class="small-muted">Unit price now:</span> {{ '%.6f' % (t.latest_price) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>
                     <div><span class="small-muted">Total Value Paid:</span> {{ '%.2f' % (t.total_value_buy) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>

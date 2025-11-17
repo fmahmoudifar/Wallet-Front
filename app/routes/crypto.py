@@ -54,6 +54,18 @@ def crypto_page():
                     crypto_transactions[name] = []
                 crypto_transactions[name].append(c)
             
+            def to_decimal(val):
+                """Safely convert API value to Decimal; treat blanks/None as 0."""
+                try:
+                    if val is None:
+                        return Decimal(0)
+                    s = str(val).strip()
+                    if s == '':
+                        return Decimal(0)
+                    return Decimal(s)
+                except Exception:
+                    return Decimal(0)
+            
             # Sort each crypto's transactions by date
             for name in crypto_transactions:
                 crypto_transactions[name].sort(key=lambda x: x.get('tdate', ''))
@@ -72,9 +84,9 @@ def crypto_page():
                 
                 for tx in transactions:
                     try:
-                        qty = Decimal(str(tx.get('quantity', 0)))
-                        price = Decimal(str(tx.get('price', 0)))
-                        fee = Decimal(str(tx.get('fee', 0)))
+                        qty = to_decimal(tx.get('quantity', 0))
+                        price = to_decimal(tx.get('price', 0))
+                        fee = to_decimal(tx.get('fee', 0))
                         side = str(tx.get('side', 'buy')).lower()
                         
                         # Transaction value (qty * price + fee)
@@ -123,7 +135,7 @@ def crypto_page():
                             entry['currency'] = tx.get('currency')
                             
                     except Exception as e:
-                        print(f"Error processing transaction for {name}: {e}")
+                        print(f"Error processing transaction for {name}: {e} | Raw tx: {tx}")
                         continue
                 
                 # Set total_value as current cost basis for compatibility
@@ -232,6 +244,11 @@ def crypto_page():
                 tv = float(v['total_value'])
             except Exception:
                 tv = 0.0
+            # Correctly retrieve total amount paid on buy transactions (includes buy fees)
+            try:
+                tv_buy = float(v.get('total_value_buy', 0) or 0)
+            except Exception:
+                tv_buy = 0.0
             try:
                 lp = float(v.get('latest_price', 0) or 0)
             except Exception:
@@ -325,8 +342,8 @@ def crypto_page():
                 'total_qty': tq,
                 # total_value: kept for backwards-compatibility (raw stored aggregate)
                 'total_value': tv,
-                # total_value_buy: the amount the user actually paid (includes fees)
-                'total_value_buy': tv,
+                # total_value_buy: the total amount user spent on buy transactions (includes buy fees)
+                'total_value_buy': tv_buy,
                 'latest_price': lp,
                 'total_value_live': tv_live,
                 'currency': v.get('currency',''),
