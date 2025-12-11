@@ -23,5 +23,4 @@ __pycache__/
 
 # Others you may want
 instance/
-.DS_Store.devcontainer/
-.docker/
+.DS_Store
