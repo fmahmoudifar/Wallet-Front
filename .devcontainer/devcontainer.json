@@ -1,7 +1,7 @@
 {
-  "name": "Wallet-frontend",
+  "name": "Wallet-Frontend-DevContainer",
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
-  "features": { "ghcr.io/devcontainers/features/aws-cli:1": {} },
-  "postCreateCommand": "pip install -r requirements.txt",
-  "forwardPorts": [5000]
+  "forwardPorts": [5000],
+  "postCreateCommand": "pip install -r requirements.txt || true",
+  "remoteUser": "vscode"
 }

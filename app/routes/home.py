@@ -20,28 +20,306 @@ def users():
             print(f"Error fetching cryptos: {e}")
             cryptos = []
 
-        crypto_totals = defaultdict(float)
-        to_wallet_totals = defaultdict(float)
+        # Real-time wallet balance calculation (legacy cash-flow style kept for reference)
+        wallet_balances = defaultdict(lambda: Decimal('0'))
+        # Track per-wallet crypto quantities for live valuation
+        wallet_crypto_qty = defaultdict(lambda: defaultdict(lambda: Decimal(0)))
+        
+        # Calculate crypto totals using exact same method as crypto.py
+        crypto_totals_map = {}
+        try:
+            # Safe Decimal conversion matching crypto.py behavior
+            def to_decimal(val):
+                try:
+                    if val is None:
+                        return Decimal(0)
+                    s = str(val).strip()
+                    if s == '':
+                        return Decimal(0)
+                    return Decimal(s)
+                except Exception:
+                    return Decimal(0)
 
-        for crypto in cryptos:
-            quantity = float(crypto.get("quantity") or 0)
-            crypto_totals[crypto["cryptoName"]] += quantity
-            to_wallet_totals[crypto["toWallet"]] += quantity
+            # Group transactions by crypto and sort by date to process chronologically
+            crypto_transactions = {}
+            for c in cryptos:
+                name = c.get('cryptoName') or 'Unknown'
+                if name not in crypto_transactions:
+                    crypto_transactions[name] = []
+                crypto_transactions[name].append(c)
+            
+            # Sort each crypto's transactions by date
+            for name in crypto_transactions:
+                crypto_transactions[name].sort(key=lambda x: x.get('tdate', ''))
+            
+            # Process each crypto's transactions chronologically (exact same logic as crypto.py)
+            for name, transactions in crypto_transactions.items():
+                entry = {
+                    'cryptoName': name,
+                    'total_qty': Decimal(0),           # Current holding quantity
+                    'total_cost': Decimal(0),          # Current total cost basis
+                    'total_fee': Decimal(0),           # Total fees paid
+                    'total_value_buy': Decimal(0),     # Total spent on purchases
+                    'total_value_sell': Decimal(0),    # Total received from sales
+                    'currency': ''
+                }
+                
+                for tx in transactions:
+                    try:
+                        qty = to_decimal(tx.get('quantity', 0))
+                        price = to_decimal(tx.get('price', 0))
+                        fee = to_decimal(tx.get('fee', 0))
+                        side = str(tx.get('side', 'buy')).lower()
+                        
+                        # Transaction value (qty * price + fee)
+                        tx_value = (qty * price) + fee
+                        
+                        to_wallet = tx.get("toWallet")
+                        from_wallet = tx.get("fromWallet")
+                        
+                        if side == 'buy':
+                            # BUY: Add to holdings and cost basis
+                            entry['total_qty'] += qty
+                            entry['total_cost'] += tx_value
+                            entry['total_value_buy'] += tx_value
+                            entry['total_fee'] += fee
+                            
+                            # Wallet balance: money goes out of from_wallet, crypto goes into to_wallet
+                            if from_wallet:
+                                wallet_balances[from_wallet] -= tx_value  # Cash out
+                            if to_wallet:
+                                wallet_balances[to_wallet] += tx_value   # Crypto asset in
+                                # Track live crypto quantity by destination wallet
+                                wallet_crypto_qty[to_wallet][name] += qty
+                                
+                        elif side == 'sell':
+                            # SELL: Use weighted average to calculate cost of sold portion
+                            if entry['total_qty'] > 0:
+                                # Calculate current weighted average cost per unit
+                                avg_cost_per_unit = entry['total_cost'] / entry['total_qty']
+                                
+                                # Determine how much we can actually sell from current holdings
+                                qty_to_sell = min(qty, entry['total_qty'])
+                                
+                                # Cost basis of the sold quantity
+                                sold_cost = qty_to_sell * avg_cost_per_unit
+                                
+                                # Update holdings
+                                entry['total_qty'] -= qty_to_sell
+                                entry['total_cost'] -= sold_cost
+                                entry['total_value_sell'] += (qty * price)  # Revenue from sale (excluding fee)
+                                entry['total_fee'] += fee
+                                
+                                # If selling more than we have, handle the excess as short position
+                                excess_qty = qty - qty_to_sell
+                                if excess_qty > 0:
+                                    # Track the excess as negative position
+                                    entry['total_qty'] -= excess_qty
+                                    # No additional cost basis change for short position
+                                
+                            else:
+                                # Selling without holdings (short sell) - track as negative
+                                entry['total_qty'] -= qty
+                                entry['total_value_sell'] += (qty * price)
+                                entry['total_fee'] += fee
+                        
+                            # Wallet balance: crypto goes out of from_wallet, money goes into to_wallet
+                            revenue = qty * price
+                            if from_wallet:
+                                wallet_balances[from_wallet] -= tx_value  # Crypto asset out (at cost basis)
+                            if to_wallet:
+                                wallet_balances[to_wallet] += revenue   # Cash in (minus fees)
+                            # Track live crypto quantity leaving the source wallet
+                            if from_wallet:
+                                wallet_crypto_qty[from_wallet][name] -= qty
+                        
+                        # Set currency from first transaction
+                        if not entry['currency'] and tx.get('currency'):
+                            entry['currency'] = tx.get('currency')
+                            
+                    except Exception as e:
+                        print(f"Error processing transaction for {name}: {e} | Raw tx: {tx}")
+                        continue
+                
+                # Set total_value as current cost basis for compatibility (same as crypto.py)
+                entry['total_value'] = entry['total_cost']
+                crypto_totals_map[name] = entry
+                
+        except Exception as e:
+            print(f"Error computing crypto totals: {e}")
 
-        cryptoLabels = list(crypto_totals.keys())    
-        cryptoValues = list(crypto_totals.values()) 
+        # Fetch and process regular transactions
+        try:
+            response = requests.get(f"{API_URL}/transactions", params={"userId": userId}, auth=aws_auth)
+            transactions = response.json().get("transactions", []) if response.status_code == 200 else []
+        except Exception as e:
+            print(f"Error fetching transactions: {e}")
+            transactions = []
+            
+        # Process regular transactions
+        for transaction in transactions:
+            try:
+                amt = Decimal(str(transaction.get('amount', 0) or transaction.get('price', 0)))
+                fee = Decimal(str(transaction.get('fee', 0)))
+                
+                # Calculate total transaction value (amount + fee)
+                transaction_value = amt + fee
+                
+                to_wallet = transaction.get('toWallet')
+                from_wallet = transaction.get('fromWallet')
+                
+                if to_wallet:
+                    wallet_balances[to_wallet] += transaction_value
+                if from_wallet:
+                    wallet_balances[from_wallet] -= transaction_value
+                    
+            except Exception as e:
+                print(f"Error processing transaction {transaction}: {e}")
+                continue        # Fetch and process stock transactions  
+        try:
+            response = requests.get(f"{API_URL}/stocks", params={"userId": userId}, auth=aws_auth)
+            stocks = response.json().get("stocks", []) if response.status_code == 200 else []
+        except Exception as e:
+            print(f"Error fetching stocks: {e}")
+            stocks = []
+        # Process stocks
+        for stock in stocks:
+            try:
+                quantity = Decimal(str(stock.get('quantity', 0)))
+                price = Decimal(str(stock.get('price', 0)))
+                fee = Decimal(str(stock.get('fee', 0)))
+                side = stock.get('side', 'buy')
+                wallet = stock.get('wallet')
+                
+                # Calculate transaction value using quantity * price + fee
+                transaction_value = quantity * price + fee
+                
+                if wallet:
+                    if side.lower() == 'buy':
+                        wallet_balances[wallet] -= transaction_value  # Money spent (including fee)
+                    else:  # sell
+                        wallet_balances[wallet] += (quantity * price - fee)  # Money received (minus fee)
+                        
+            except Exception as e:
+                print(f"Error processing stock {stock}: {e}")
+                continue
 
+        # Fetch wallet names
         try:
             response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
-            cryptos = response.json().get("wallets", []) if response.status_code == 200 else []
+            wallets = response.json().get("wallets", []) if response.status_code == 200 else []
         except Exception as e:
             print(f"Error fetching wallets: {e}")
-            wallets = []   
+            wallets = []
 
-             
+        # Fetch live prices from CoinGecko for chart values and compute per-wallet live values
+        crypto_chart_data = {}
+        wallet_live_values = defaultdict(lambda: Decimal(0))
+        try:
+            # Get top coins from CoinGecko
+            cg_url = "https://api.coingecko.com/api/v3/coins/markets"
+            cg_params = {"vs_currency": "eur", "order": "market_cap_desc", "per_page": 500, "page": 1}
+            cg_resp = requests.get(cg_url, params=cg_params, timeout=10)
+            if cg_resp.status_code == 200:
+                coins = cg_resp.json()
+                
+                # Helper function to find coin by name
+                def find_coin_for_name(name_to_find):
+                    if not name_to_find:
+                        return None
+                    s = (name_to_find or '').strip()
+                    parts = [s]
+                    if ' - ' in s:
+                        left, right = s.split(' - ', 1)
+                        parts.insert(0, left.strip())
+                        parts.append(right.strip())
+                    parts.append(s.replace(' ', '').strip())
+                    parts = [p.lower() for p in parts if p]
 
-        return render_template("home.html", cryptoLabels=cryptoLabels, cryptoValues=cryptoValues, to_wallet_totals=to_wallet_totals,
-                               userId=userId)
+                    for coin in coins:
+                        coin_id = (coin.get('id') or '').lower()
+                        coin_symbol = (coin.get('symbol') or '').lower()
+                        coin_name = (coin.get('name') or '').lower()
+                        
+                        for part in parts:
+                            if part in [coin_id, coin_symbol, coin_name]:
+                                return coin
+                    return None
+                
+                # Calculate total values with live prices (exact same logic as crypto.py)
+                price_by_name = {}
+                for name, entry in crypto_totals_map.items():
+                    # Show ALL cryptos (including zero/negative holdings) to match crypto page
+                    # Try to find latest price for this crypto name (same as crypto.py)
+                    coin = find_coin_for_name(entry['cryptoName'])
+                    if coin and coin.get('current_price') is not None:
+                        try:
+                            latest_price = Decimal(str(coin.get('current_price', 0)))
+                        except Exception:
+                            latest_price = Decimal(0)
+                    else:
+                        # fallback: use 0 for latest price if not found (same as crypto.py)
+                        latest_price = Decimal(0)
+                    price_by_name[name] = latest_price
+                    
+                    # Compute live total value based on latest price (exact same formula as crypto.py)
+                    total_value_live = entry['total_qty'] * (latest_price or Decimal(0))
+                    crypto_chart_data[name] = float(total_value_live)
+
+                # Compute live values per wallet: sum(qty_by_wallet_crypto * latest_price)
+                for w_id, per_crypto in wallet_crypto_qty.items():
+                    total_live = Decimal(0)
+                    for cname, q in per_crypto.items():
+                        p = price_by_name.get(cname, Decimal(0)) or Decimal(0)
+                        total_live += (q * p)
+                    wallet_live_values[w_id] = total_live
+
+                # DEBUG: Print wallet live valuation details
+                print("=== WALLET LIVE VALUES DEBUG ===")
+                for w_id, per_crypto in wallet_crypto_qty.items():
+                    print(f"Wallet {w_id}:")
+                    for cname, q in per_crypto.items():
+                        p = price_by_name.get(cname, Decimal(0)) or Decimal(0)
+                        print(f"  {cname}: qty={q} latest_price={p} live_value={(q*p):.4f}")
+                    print(f"  Total Live Value: {wallet_live_values.get(w_id, Decimal(0)):.4f}")
+                print("===============================")
+                            
+            else:
+                print(f"CoinGecko returned status {cg_resp.status_code}")
+                # Fallback: use 0 for live values if no price available (same as crypto.py)
+                for name, entry in crypto_totals_map.items():
+                    # Show ALL cryptos (including zero/negative holdings) to match crypto page
+                    total_value_live = entry['total_qty'] * Decimal(0)  # No price = 0 value
+                    crypto_chart_data[name] = float(total_value_live)
+                # Without prices, wallet live values are 0
+                wallet_live_values = defaultdict(lambda: Decimal(0))
+                        
+        except Exception as e:
+            print(f"Error fetching CoinGecko prices: {e}")
+            # Fallback: use 0 for live values if no price available (same as crypto.py)
+            for name, entry in crypto_totals_map.items():
+                # Show ALL cryptos (including zero/negative holdings) to match crypto page
+                total_value_live = entry['total_qty'] * Decimal(0)  # No price = 0 value
+                crypto_chart_data[name] = float(total_value_live)
+            wallet_live_values = defaultdict(lambda: Decimal(0))
+
+        cryptoLabels = list(crypto_chart_data.keys())    
+        cryptoValues = list(crypto_chart_data.values()) 
+
+        # Build wallet list with balances based on live crypto values per wallet
+        wallet_list = []
+        for wallet in wallets:
+            wallet_id = wallet.get('walletId')
+            wallet_name = wallet.get('walletName')
+            balance = wallet_live_values.get(wallet_id, Decimal(0))
+            wallet_list.append({
+                'walletId': wallet_id,
+                'walletName': wallet_name,
+                'balance': float(round(balance, 2))
+            })
+
+        return render_template("home.html", cryptoLabels=cryptoLabels, cryptoValues=cryptoValues, 
+                               wallets=wallet_list, userId=userId)
  
     else:
         return render_template("home.html")
