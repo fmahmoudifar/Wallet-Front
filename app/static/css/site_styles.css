@@ -2,6 +2,106 @@
    Applies consistent form/list/button styles across pages (crypto, stock, transaction, wallet, settings)
 */
 
+/* App layout: sidebar (desktop) + bottom nav (mobile) */
+.app-shell {
+    min-height: 100vh;
+    display: flex;
+    background: #fff;
+}
+
+.app-sidebar {
+    width: 260px;
+    flex: 0 0 260px;
+    padding: 18px 14px;
+    box-sizing: border-box;
+    background: #f8f9fa;
+    border-right: 1px solid #e6e6e6;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: auto;
+}
+
+.app-brand { margin-bottom: 14px; }
+.app-brand-link {
+    display: inline-block;
+    text-decoration: none;
+    color: #222;
+    font-weight: 800;
+    font-size: 18px;
+    padding: 8px 10px;
+    border-radius: 10px;
+}
+
+.app-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.app-nav-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: #222;
+    padding: 10px 12px;
+    border-radius: 14px;
+    font-weight: 600;
+}
+
+.app-nav-link:hover { background: #e9ecef; }
+
+.app-nav-link-logout { margin-top: 10px; }
+
+.app-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.app-content {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 22px 22px;
+    box-sizing: border-box;
+}
+
+.app-bottom-nav {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .app-shell { display: block; }
+    .app-sidebar { display: none; }
+    .app-content { padding: 16px 14px 88px; }
+
+    .app-bottom-nav {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 64px;
+        background: #fff;
+        border-top: 1px solid #e6e6e6;
+        z-index: 1100;
+    }
+
+    .app-bottom-link {
+        flex: 1 1 0;
+        text-decoration: none;
+        color: #222;
+        font-weight: 600;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 6px;
+    }
+
+    .app-bottom-link:hover { background: #f3f4f6; }
+}
+
 form {
     display: grid;
     grid-template-columns: 1fr 1fr;
