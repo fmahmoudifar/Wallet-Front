@@ -79,6 +79,7 @@
         }
         initAutocomplete('cryptoSearch','cryptoSearchList','cryptoName', coinsList);
         initAutocomplete('updateCryptoSearch','updateCryptoSearchList','updateCryptoName', coinsList);
+        // No autocomplete for the history filter crypto field (free text filter)
 
         // apply percent-fill widths for visual bars (using data attributes to avoid inline css parsing issues)
         const fills = document.querySelectorAll('.pct-fill');
@@ -127,7 +128,21 @@
             const span = document.createElement('span');
             span.className = 'field-error';
             span.innerText = msg || 'Please select a coin from the list.';
-            if (inputElem && inputElem.parentNode) inputElem.parentNode.appendChild(span);
+            if (!inputElem || !inputElem.parentNode) return;
+
+            // For the coin search fields, show error inline beside the label.
+            const isCoinSearch = inputElem.id === 'cryptoSearch' || inputElem.id === 'updateCryptoSearch';
+            if (isCoinSearch) {
+                span.classList.add('field-error-inline');
+                const label = inputElem.parentNode.querySelector('label');
+                if (label) {
+                    label.appendChild(span);
+                    return;
+                }
+            }
+
+            // Fallback: show below the input.
+            inputElem.parentNode.appendChild(span);
         }
 
         function clearError(inputElem) {
@@ -186,6 +201,20 @@
                 }
             });
         }
+
+        // Hook filter inputs to live filtering
+        const fStart = document.getElementById('filterStart');
+        const fEnd = document.getElementById('filterEnd');
+        const fCrypto = document.getElementById('filterCrypto');
+        const fFrom = document.getElementById('filterFromWallet');
+        const fTo = document.getElementById('filterToWallet');
+        ['input','change'].forEach(evt => {
+            if (fStart) fStart.addEventListener(evt, applyCryptoFilters);
+            if (fEnd) fEnd.addEventListener(evt, applyCryptoFilters);
+            if (fCrypto) fCrypto.addEventListener(evt, applyCryptoFilters);
+            if (fFrom) fFrom.addEventListener(evt, applyCryptoFilters);
+            if (fTo) fTo.addEventListener(evt, applyCryptoFilters);
+        });
     });
 
     // Minimal vanilla JS autocomplete
@@ -207,13 +236,14 @@
 
             const list = document.createElement('div');
             list.setAttribute('class','autocomplete-items');
+                // Anchor the dropdown to the wrapper directly under the input
+                if (!listWrap.style.position) listWrap.style.position = 'relative';
                 list.style.position = 'absolute';
                 list.style.zIndex = 1000;
-                // size the dropdown to match the input width and anchor it to left edge
-                const rect = input.getBoundingClientRect();
-                list.style.minWidth = (rect.width) + 'px';
                 list.style.left = '0px';
-                list.style.top = (input.offsetHeight + 4) + 'px';
+                list.style.right = '0px';
+                // listWrap is placed right after the input, so top=0 keeps it snug
+                list.style.top = '4px';
                 list.style.maxHeight = '260px';
                 list.style.overflowY = 'auto';
                 listWrap.appendChild(list);
@@ -224,25 +254,39 @@
                 item.style.padding = '6px 8px';
                 item.style.cursor = 'pointer';
                 item.addEventListener('click', function(e){
-                    input.value = `${(c.symbol||'').toUpperCase()} - ${c.name}`;
+                    if (inputId === 'filterCrypto') {
+                        input.value = `${(c.symbol||'').toUpperCase()}`;
+                    } else {
+                        input.value = `${(c.symbol||'').toUpperCase()} - ${c.name}`;
+                    }
                     if (hidden) {
                         if (c.symbol) hidden.value = (c.symbol||'').toUpperCase();
                         else if (c.id) hidden.value = c.id;
                         else hidden.value = c.name;
                     }
                     closeAllLists();
+                    if (inputId === 'filterCrypto' && typeof applyCryptoFilters === 'function') {
+                        applyCryptoFilters();
+                    }
                 });
                 // touch support for mobile devices
                 item.addEventListener('touchstart', function(e){
                     // prevent duplicate click/touch events
                     e.preventDefault();
-                    input.value = `${(c.symbol||'').toUpperCase()} - ${c.name}`;
+                    if (inputId === 'filterCrypto') {
+                        input.value = `${(c.symbol||'').toUpperCase()}`;
+                    } else {
+                        input.value = `${(c.symbol||'').toUpperCase()} - ${c.name}`;
+                    }
                     if (hidden) {
                         if (c.symbol) hidden.value = (c.symbol||'').toUpperCase();
                         else if (c.id) hidden.value = c.id;
                         else hidden.value = c.name;
                     }
                     closeAllLists();
+                    if (inputId === 'filterCrypto' && typeof applyCryptoFilters === 'function') {
+                        applyCryptoFilters();
+                    }
                 });
                 list.appendChild(item);
             });
@@ -309,12 +353,88 @@
             document.getElementById("panel").style.display = "none";
             document.getElementById("back").style.display = "";
             button.style.display = "none";
+            if (typeof applyCryptoFilters === 'function') { applyCryptoFilters(); }
         } else {
             div.style.display = "none"; 
             document.getElementById("newCrypto").style.display = "block";
             document.getElementById("panel").style.display = "block";
             button.innerText = "Cryptos Transactions History";
         }
+    }
+</script>
+
+<script>
+    // Utilities for client-side filtering
+    function parseLocalDateTime(val) {
+        if (!val) return null;
+        try { return new Date(val); } catch(e) { return null; }
+    }
+    function parseTxDate(val) {
+        if (!val) return null;
+        // Attempt ISO, then fallback by replacing space with T
+        let s = String(val);
+        let d = new Date(s);
+        if (isNaN(d)) {
+            d = new Date(s.replace(' ', 'T'));
+        }
+        return isNaN(d) ? null : d;
+    }
+
+    function applyCryptoFilters() {
+        const list = document.getElementById('cryptoList');
+        if (!list) return;
+        const items = Array.from(list.children || []);
+        const startVal = document.getElementById('filterStart')?.value || '';
+        const endVal = document.getElementById('filterEnd')?.value || '';
+        const cryptoVal = (document.getElementById('filterCrypto')?.value || '').trim().toLowerCase();
+        const fromVal = document.getElementById('filterFromWallet')?.value || '';
+        const toVal = document.getElementById('filterToWallet')?.value || '';
+
+        const startDt = parseLocalDateTime(startVal);
+        const endDt = parseLocalDateTime(endVal);
+
+        let shown = 0;
+        items.forEach(li => {
+            let show = true;
+            const tdate = parseTxDate(li.getAttribute('data-tdate'));
+            if (startDt && tdate && tdate < startDt) show = false;
+            if (endDt && tdate && tdate > endDt) show = false;
+            // If date filters exist but tx date invalid, hide
+            if ((startDt || endDt) && !tdate) show = false;
+
+            if (show && cryptoVal) {
+                const name = (li.getAttribute('data-crypto') || '').toLowerCase();
+                const symbol = name.includes(' - ') ? name.split(' - ')[0] : name;
+                const typed = cryptoVal;
+                // match typed against symbol or full name
+                if (!(symbol.includes(typed) || name.includes(typed))) show = false;
+            }
+            if (show && fromVal) {
+                const fromAttr = (li.getAttribute('data-from') || '').trim();
+                if (String(fromAttr) !== String(fromVal)) show = false;
+            }
+            if (show && toVal) {
+                const toAttr = (li.getAttribute('data-to') || '').trim();
+                if (String(toAttr) !== String(toVal)) show = false;
+            }
+
+            li.style.display = show ? '' : 'none';
+            if (show) shown++;
+        });
+
+        const emptyMsg = document.getElementById('filterEmptyMsg');
+        if (emptyMsg) emptyMsg.style.display = shown ? 'none' : '';
+    }
+
+    function resetCryptoFilters() {
+        ['filterStart','filterEnd','filterCrypto','filterFromWallet','filterToWallet'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (el.tagName === 'SELECT') el.selectedIndex = 0;
+                else el.value = '';
+            }
+        });
+        applyCryptoFilters();
     }
 </script>
 
@@ -457,10 +577,48 @@
 
 <div id="cryptoListDiv" class="form-container" style="display: none;" >
     <h2 class="center-text">Cryptos Transactions History</h2>
+    <div id="filters" class="history-filters">
+        <form class="filters-grid" onsubmit="applyCryptoFilters(); return false;">
+            <div>
+                <label for="filterStart">From Date:</label>
+                <input type="datetime-local" id="filterStart" name="start">
+            </div>
+            <div>
+                <label for="filterEnd">To Date:</label>
+                <input type="datetime-local" id="filterEnd" name="end">
+            </div>
+            <div>
+                <label for="filterCrypto">Crypto:</label>
+                <input type="text" id="filterCrypto" name="crypto" placeholder="Symbol or name" autocomplete="off" />
+            </div>
+            <div>
+                <label for="filterFromWallet">From Wallet:</label>
+                <select id="filterFromWallet" name="fromWallet">
+                    <option value="">-- Any --</option>
+                    {% for wallet in wallets %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="filterToWallet">To Wallet:</label>
+                <select id="filterToWallet" name="toWallet">
+                    <option value="">-- Any --</option>
+                    {% for wallet in wallets %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filters-actions">
+                <button type="button" class="btn-clear" onclick="resetCryptoFilters()">Clear</button>
+            </div>
+        </form>
+        <div id="filterEmptyMsg" class="small-muted" style="display:none;margin-top:8px">No matching transactions.</div>
+    </div>
 {% if cryptos %}
 <ul id="cryptoList">
     {% for crypto in cryptos %}
-    <li data-tdate="{{ crypto.tdate }}">
+    <li data-tdate="{{ crypto.tdate }}" data-crypto="{{ crypto.cryptoName }}" data-from="{{ crypto.fromWallet }}" data-to="{{ crypto.toWallet }}">
         <!-- <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br> -->
         <!-- <strong>User ID:</strong> {{ crypto.userId }}<br> -->
         <div class="crypto-grid">

@@ -139,3 +139,77 @@ button:hover { background-color: #005fa3; }
 }
 
 .field-error { color: #c82333; font-size: 13px; margin-top:6px; display:block; }
+
+/* Inline variant used beside labels (e.g., crypto coin selection) */
+.field-error.field-error-inline {
+    display: inline;
+    margin: 0 0 0 8px;
+    font-weight: 500;
+}
+
+/* Crypto transaction history filters */
+.history-filters {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto 12px;
+    padding: 12px 14px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    background: #fff;
+    text-align: left;
+}
+
+.history-filters .filters-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    align-items: end;
+    width: 100%;
+    max-width: none;
+    margin-bottom: 0;
+}
+
+.history-filters .filters-grid > div {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.history-filters .filters-grid label {
+    margin: 0;
+    font-weight: 600;
+    font-size: 13px;
+    text-align: left;
+}
+
+.history-filters input[type="text"],
+.history-filters input[type="datetime-local"],
+.history-filters select {
+    width: 100%;
+    height: 36px;
+}
+
+/* Autocomplete wrapper should not change row height in the filter bar */
+.history-filters .autocomplete-list {
+    width: 100%;
+    position: relative;
+    height: 0;
+}
+
+.history-filters .filters-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: end;
+}
+
+@media (min-width: 768px) {
+    .history-filters .filters-grid {
+        grid-template-columns: 1.35fr 1.35fr 1.15fr 1fr 1fr auto;
+        column-gap: 12px;
+    }
+}
