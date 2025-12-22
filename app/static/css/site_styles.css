@@ -14,7 +14,7 @@
     flex: 0 0 260px;
     padding: 18px 14px;
     box-sizing: border-box;
-    background: #f8f9fa;
+    background: #e6f4ea;
     border-right: 1px solid #e6e6e6;
     position: sticky;
     top: 0;
@@ -70,6 +70,19 @@
     display: none;
 }
 
+/* Visually hidden (accessible) text */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 @media (max-width: 768px) {
     .app-shell { display: block; }
     .app-sidebar { display: none; }
@@ -82,7 +95,7 @@
         right: 0;
         bottom: 0;
         height: 64px;
-        background: #fff;
+        background: #e6f4ea;
         border-top: 1px solid #e6e6e6;
         z-index: 1100;
     }
@@ -94,9 +107,21 @@
         font-weight: 600;
         font-size: 12px;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 0 6px;
+        gap: 4px;
+        padding: 6px 6px;
+    }
+
+    .app-bottom-icon {
+        width: 22px;
+        height: 22px;
+        display: block;
+        color: #222;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        shape-rendering: geometricPrecision;
     }
 
     .app-bottom-link:hover { background: #f3f4f6; }
@@ -113,7 +138,11 @@ form {
     max-width: 900px;
 }
 
-:root { --input-desktop-width: 360px; }
+:root {
+    --input-desktop-width: 360px;
+    /* Gray for all titles */
+    --title-accent: #6c757d;
+}
 
 input[type="text"], input[type="datetime-local"], select {
     width: var(--input-desktop-width);
@@ -132,15 +161,23 @@ form > div input, form > div select { flex: 1 1 auto; max-width: none; }
 
 label { margin-right: 10px; font-weight: bold; }
 
-button { padding: 6px 12px; margin: 2px; border: none; border-radius: 5px; background-color: #0077cc; color: white; cursor: pointer; font-size: 14px; }
-button:hover { background-color: #005fa3; }
+button { padding: 6px 12px; margin: 2px; border: 1px solid #ced4da; border-radius: 6px; background-color: #e9ecef; color: #222; cursor: pointer; font-size: 14px; }
+button:hover { background-color: #dde2e6; }
 
-.btn-insert { background-color: #28a745; color: #fff; border: none; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
-.btn-insert:hover { background-color: #218838; }
-.btn-clear { background-color: #dc3545; color: #fff; border: none; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
-.btn-clear:hover { background-color: #c82333; }
-.btn-cancel { background-color: #007bff; color: #fff; border: none; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
-.btn-cancel:hover { background-color: #0069d9; }
+.btn-insert { background-color: #e9ecef; color: #222; border: 1px solid #ced4da; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
+.btn-insert:hover { background-color: #dde2e6; }
+
+/* Clear (reset) */
+.btn-clear { background-color: #6c757d; color: #fff; border: 1px solid #6c757d; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
+.btn-clear:hover { background-color: #5a6268; }
+
+/* Delete (destructive) */
+.btn-delete { background-color: #6c757d; color: #fff; border: 1px solid #6c757d; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
+.btn-delete:hover { background-color: #5a6268; }
+
+/* Cancel */
+.btn-cancel { background-color: #343a40; color: #fff; border: none; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
+.btn-cancel:hover { background-color: #23272b; }
 
 .form-container { display: flex; flex-direction: column; align-items: center; width: 100%; padding: 0; }
 
@@ -150,13 +187,181 @@ button:hover { background-color: #005fa3; }
     margin: 20px 0 12px 0;
     text-align: left;
     font-weight: 700;
-    color: #222;
+    color: var(--title-accent);
 }
+
+/* Crypto page: header (title + actions) */
+.crypto-page-header {
+    width: 100%;
+    max-width: 1100px;
+    margin: 10px auto 18px;
+    padding-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+/* Crypto page: keep a little breathing room under header for all views */
+#panel,
+#newCrypto,
+#cryptoListDiv,
+#updateCryptoDiv {
+    margin-top: 10px;
+}
+
+.crypto-page-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: normal;
+    color: var(--title-accent);
+}
+
+.crypto-page-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.crypto-page-actions .btn-insert {
+    min-width: 0;
+    height: 40px;
+    padding: 8px 14px;
+    border-radius: 10px;
+}
+
+@media (max-width: 768px) {
+    .crypto-page-header {
+        align-items: flex-start;
+    }
+    .crypto-page-actions {
+        width: 100%;
+    }
+    .crypto-page-actions .btn-insert {
+        flex: 1 1 auto;
+    }
+}
+
+/* Crypto page: section title */
+.crypto-section-title {
+    width: 100%;
+    max-width: 1100px;
+    margin: 20px auto 12px;
+    text-align: left;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: normal;
+    color: var(--title-accent);
+}
+
+/* Titles used across other pages */
+.center-text {
+    font-size: 1.5rem;
+    margin: 20px 0 12px 0;
+    text-align: left;
+    font-weight: 700;
+    color: var(--title-accent);
+}
+
+
 
 /* List containers: crypto, stock, transactions, wallets */
 #cryptoList, #stockList, #transList, #walletList, #settingsList { display: grid; grid-template-columns: 1fr 1fr; column-gap: 25px; padding: 0; }
 
 #cryptoList li, #stockList li, #transList li, #walletList li { background-color: #f0f0f0; padding: 25px; border: 1px solid #333; padding: 12px; border-radius: 10px; margin: 8px; list-style-type: none; width: 100%; max-width: 900px; box-sizing: border-box; box-shadow: 0 6px 12px #979797 }
+
+/* Crypto transaction history: force one transaction per row + lighter Wise-like card styling */
+#cryptoList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    column-gap: 0;
+}
+
+#cryptoList li {
+    list-style-type: none;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    box-sizing: border-box;
+}
+
+#cryptoList li:hover {
+    background: #f8f9fa;
+}
+
+#cryptoList li.crypto-group-header {
+    padding: 6px 4px;
+    margin: 8px 0 -4px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #666;
+    font-weight: 800;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+#cryptoList li.crypto-group-header:hover {
+    background: transparent;
+}
+
+/* Crypto history: Wise-like rows */
+#cryptoList .crypto-history-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px 14px;
+    align-items: center;
+}
+
+#cryptoList .crypto-history-title {
+    font-weight: 800;
+    color: #222;
+}
+
+#cryptoList .crypto-history-right {
+    text-align: right;
+}
+
+#cryptoList .crypto-history-amount {
+    font-weight: 800;
+    color: #222;
+}
+
+#cryptoList .crypto-history-sub {
+    color: #666;
+    font-weight: 600;
+    font-size: 13px;
+    margin-top: 2px;
+}
+
+#cryptoList .crypto-history-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+    #cryptoList .crypto-history-row {
+        grid-template-columns: 1fr auto;
+    }
+    #cryptoList .crypto-history-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+}
 
 .crypto-grid, .record-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; justify-items: start; }
 
@@ -187,7 +392,7 @@ button:hover { background-color: #005fa3; }
     font-size: 13px;
 }
 
-.block-new h2, .block-update h2 { font-size: 1.1rem; margin-bottom: 6px; }
+.block-new h2:not(.center-text), .block-update h2:not(.center-text) { font-size: 1.1rem; margin-bottom: 6px; }
 
 .block-new .form-container form input[type="text"], .block-new .form-container form input[type="datetime-local"], .block-new .form-container form select,
 .block-update .form-container form input[type="text"], .block-update .form-container form input[type="datetime-local"], .block-update .form-container form select {
@@ -199,13 +404,21 @@ button:hover { background-color: #005fa3; }
 .totals-card{background:linear-gradient(180deg,#fff,#fbfbfb);border-radius:10px;padding:12px;border:1px solid rgba(0,0,0,0.04);box-shadow:0 6px 18px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:8px}
 .totals-header{display:flex;justify-content:space-between;align-items:center}
 .pct-badge{font-weight:700;padding:4px 8px;border-radius:12px;color:#fff;font-size:0.85rem}
-.pct-positive{background:#28a745}
-.pct-negative{background:#dc3545}
+.pct-positive{background:#d9f2e3;color:#1f6a3a}
+.pct-negative{background:#f8d7da;color:#842029}
 .pct-neutral{background:#6c757d}
 .pct-bar{background:#e9eef3;border-radius:8px;height:10px;overflow:hidden}
 .pct-fill{height:100%;width:0%}
-.pct-fill-positive{background:linear-gradient(90deg,#28a745,#19b86a)}
-.pct-fill-negative{background:linear-gradient(90deg,#dc3545,#ff6b6b)}
+.pct-fill-positive{background:linear-gradient(90deg,#7fc8a3,#d9f2e3)}
+.pct-fill-negative{background:linear-gradient(90deg,#f2a3aa,#f8d7da)}
+
+/* Gain/Loss value chips inside totals */
+.totals-meta .pct-positive,
+.totals-meta .pct-negative {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 6px;
+}
 .totals-meta{display:flex;flex-direction:column;gap:4px;font-size:0.95rem;text-align: left;}
 .small-muted{color:var(--muted);font-size:0.85rem}
 
@@ -250,20 +463,21 @@ button:hover { background-color: #005fa3; }
 /* Crypto transaction history filters */
 .history-filters {
     width: 100%;
-    max-width: 900px;
-    margin: 0 auto 12px;
-    padding: 12px 14px;
+    max-width: 1100px;
+    margin: 10px auto 16px;
+    padding: 16px 18px;
     box-sizing: border-box;
-    border: 1px solid #ccc;
-    border-radius: 10px;
+    border: 1px solid #e6e6e6;
+    border-radius: 14px;
     background: #fff;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
     text-align: left;
 }
 
 .history-filters .filters-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 14px;
     align-items: end;
     width: 100%;
     max-width: none;
@@ -291,7 +505,8 @@ button:hover { background-color: #005fa3; }
 .history-filters input[type="datetime-local"],
 .history-filters select {
     width: 100%;
-    height: 36px;
+    height: 40px;
+    border-radius: 10px;
 }
 
 /* Autocomplete wrapper should not change row height in the filter bar */
@@ -307,9 +522,17 @@ button:hover { background-color: #005fa3; }
     align-items: end;
 }
 
+.history-filters .filters-actions .btn-clear {
+    min-width: 120px;
+    height: 40px;
+    border-radius: 10px;
+    padding: 8px 16px;
+}
+
 @media (min-width: 768px) {
     .history-filters .filters-grid {
-        grid-template-columns: 1.35fr 1.35fr 1.15fr 1fr 1fr auto;
-        column-gap: 12px;
+        grid-template-columns: 1.25fr 1.25fr 1.1fr 1fr 1fr auto;
+        column-gap: 16px;
+        row-gap: 14px;
     }
 }

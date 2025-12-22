@@ -5,8 +5,16 @@ from config import API_URL, aws_auth
 from decimal import Decimal
 import math
 from datetime import datetime
+import time
 
 crypto_bp = Blueprint('crypto', __name__)
+
+# CoinGecko markets cache (in-process) to reduce rate-limit and avoid showing 0 prices
+_COINGECKO_MARKETS_CACHE = {
+    'ts': 0.0,
+    'data': []
+}
+_COINGECKO_MARKETS_TTL_SECONDS = 300
 
 @crypto_bp.route('/crypto', methods=['GET'])
 def crypto_page():
@@ -35,13 +43,35 @@ def crypto_page():
         try:
             cg_url = "https://api.coingecko.com/api/v3/coins/markets"
             cg_params = {"vs_currency": "eur", "order": "market_cap_desc", "per_page": 500, "page": 1}
-            cg_resp = requests.get(cg_url, params=cg_params, timeout=10)
-            if cg_resp.status_code == 200:
-                coins = cg_resp.json()
+            now = time.time()
+
+            # Serve from cache if still fresh
+            if _COINGECKO_MARKETS_CACHE['data'] and (now - _COINGECKO_MARKETS_CACHE['ts'] < _COINGECKO_MARKETS_TTL_SECONDS):
+                coins = _COINGECKO_MARKETS_CACHE['data']
             else:
-                print(f"CoinGecko returned status {cg_resp.status_code}")
+                cg_headers = {
+                    'Accept': 'application/json',
+                    'User-Agent': 'Wallet-Front/1.0'
+                }
+                cg_resp = requests.get(cg_url, params=cg_params, headers=cg_headers, timeout=10)
+                if cg_resp.status_code == 200:
+                    coins = cg_resp.json()
+                    _COINGECKO_MARKETS_CACHE['data'] = coins
+                    _COINGECKO_MARKETS_CACHE['ts'] = now
+                else:
+                    # If CoinGecko fails (e.g. rate limit), fall back to the last cached data.
+                    if _COINGECKO_MARKETS_CACHE['data']:
+                        coins = _COINGECKO_MARKETS_CACHE['data']
+                        print(f"CoinGecko returned status {cg_resp.status_code}; using cached markets")
+                    else:
+                        print(f"CoinGecko returned status {cg_resp.status_code}")
         except Exception as e:
-            print(f"Error fetching CoinGecko coins: {e}")
+            # On transient network errors, prefer cache rather than showing 0s everywhere.
+            if _COINGECKO_MARKETS_CACHE['data']:
+                coins = _COINGECKO_MARKETS_CACHE['data']
+                print(f"Error fetching CoinGecko coins: {e}; using cached markets")
+            else:
+                print(f"Error fetching CoinGecko coins: {e}")
 
         # --- Compute totals per crypto using weighted average price method ---
         totals_map = {}

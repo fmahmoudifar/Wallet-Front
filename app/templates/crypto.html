@@ -51,8 +51,12 @@
         document.getElementById("newCryptoB").style.display = "none"; 
         document.getElementById("CryptoTransB").style.display = "none"; 
         document.getElementById("panel").style.display = "none";
-        document.getElementById("back").style.display = "none"; 
         document.getElementById("deleteForm").action = `/deleteCrypto/${cryptoId}/${userId}`;
+
+        // Hide the header title while editing (the form has its own heading).
+        document.body.classList.remove('crypto-mode-history');
+        const title = document.getElementById('cryptoPageTitle');
+        if (title) title.style.display = 'none';
     }  
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -68,6 +72,11 @@
                     return dateB - dateA;
                 });
                 items.forEach(item => list.appendChild(item));
+            }
+
+            // After sorting, insert month/year group headers (since rows don't show dates)
+            if (typeof ensureCryptoGroupsBuilt === 'function') {
+                ensureCryptoGroupsBuilt(true);
             }
         }
 
@@ -329,36 +338,94 @@
     function newCryptoDiv() {
         let div = document.getElementById("newCrypto");
         let button = document.getElementById("newCryptoB");
+        const title = document.getElementById('cryptoPageTitle');
+        const toggleBtn = document.getElementById('CryptoTransB');
+        const wasHistory = document.body.classList.contains('crypto-mode-history');
+        // leaving history mode if user starts creating a transaction
+        document.body.classList.remove('crypto-mode-history');
+        if (title) {
+            title.innerText = 'New Crypto Transaction';
+            title.style.display = '';
+        }
+        if (toggleBtn) toggleBtn.innerText = 'Cryptos Transactions History';
+        const sectionTitle = document.querySelector('#cryptoListDiv .crypto-section-title');
+        if (sectionTitle) sectionTitle.style.display = '';
 
         if (div.style.display === "none" || div.style.display === "") {
+            // remember where we came from so cancel/close could restore if needed
+            div.dataset.returnView = wasHistory ? 'history' : 'manager';
             div.style.display = "block";  
+            const updateDiv = document.getElementById('updateCryptoDiv');
+            if (updateDiv) updateDiv.style.display = 'none';
             document.getElementById("cryptoListDiv").style.display = "none";
             document.getElementById("panel").style.display = "none";
             document.getElementById("CryptoTransB").style.display = "none";
             button.style.display = "none";
         } else {
             div.style.display = "none"; 
+            // Restore whichever view the user was on before opening the form
+            const backTo = div.dataset.returnView || 'manager';
+            if (backTo === 'history') {
+                cryptoHistoryDiv();
+                return;
+            }
+
             document.getElementById("cryptoListDiv").style.display = "block";
             document.getElementById("panel").style.display = "block";
-            button.innerText = "Add New Crypto";
+            if (title) {
+                title.innerText = 'Cryptos Manager';
+                title.style.display = '';
+            }
+            if (toggleBtn) {
+                toggleBtn.style.display = '';
+                toggleBtn.innerText = 'Cryptos Transactions History';
+            }
+            if (button) {
+                button.style.display = '';
+                button.innerText = "Add New Crypto";
+            }
         }
     }
 
-        function cryptoHistoryDiv() {
+    function cryptoHistoryDiv() {
         let div = document.getElementById("cryptoListDiv");
         let button = document.getElementById("CryptoTransB");
+        const title = document.getElementById('cryptoPageTitle');
+        const addBtn = document.getElementById('newCryptoB');
+        const sectionTitle = document.querySelector('#cryptoListDiv .crypto-section-title');
 
         if (div.style.display === "none" || div.style.display === "") {
             div.style.display = "block";  
             document.getElementById("panel").style.display = "none";
-            document.getElementById("back").style.display = "";
-            button.style.display = "none";
+            // If coming from create/update view, hide them.
+            const newDiv = document.getElementById('newCrypto');
+            const updateDiv = document.getElementById('updateCryptoDiv');
+            if (newDiv) newDiv.style.display = 'none';
+            if (updateDiv) updateDiv.style.display = 'none';
+
+            // Keep Add New Crypto available in history view.
+            if (addBtn) addBtn.style.display = "";
+            if (button) button.style.display = "";
+            if (button) button.innerText = "Cryptos Manager";
+            document.body.classList.add('crypto-mode-history');
+            if (title) {
+                title.innerText = 'Cryptos Transactions History';
+                title.style.display = '';
+            }
+            if (sectionTitle) sectionTitle.style.display = 'none';
             if (typeof applyCryptoFilters === 'function') { applyCryptoFilters(); }
         } else {
             div.style.display = "none"; 
-            document.getElementById("newCrypto").style.display = "block";
+            document.getElementById("newCrypto").style.display = "none";
             document.getElementById("panel").style.display = "block";
-            button.innerText = "Cryptos Transactions History";
+            if (addBtn) addBtn.style.display = "";
+            if (button) button.innerText = "Cryptos Transactions History";
+            document.body.classList.remove('crypto-mode-history');
+            if (title) {
+                title.innerText = 'Cryptos Manager';
+                title.style.display = '';
+            }
+            if (sectionTitle) sectionTitle.style.display = '';
         }
     }
 </script>
@@ -380,10 +447,84 @@
         return isNaN(d) ? null : d;
     }
 
+    function monthKeyFromDate(d) {
+        if (!d || isNaN(d)) return 'unknown';
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+    }
+
+    function monthLabelFromDate(d) {
+        if (!d || isNaN(d)) return 'Unknown date';
+        try {
+            return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+        } catch (e) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        }
+    }
+
+    function buildCryptoMonthGroups() {
+        const list = document.getElementById('cryptoList');
+        if (!list) return;
+
+        // Remove existing headers
+        list.querySelectorAll('li.crypto-group-header').forEach(h => h.remove());
+
+        // Only group real transaction items
+        const txItems = Array.from(list.querySelectorAll('li[data-tdate]'));
+        if (!txItems.length) return;
+
+        let currentKey = null;
+        txItems.forEach(li => {
+            const d = parseTxDate(li.getAttribute('data-tdate'));
+            const key = monthKeyFromDate(d);
+            li.setAttribute('data-group', key);
+
+            if (key !== currentKey) {
+                const header = document.createElement('li');
+                header.className = 'crypto-group-header';
+                header.setAttribute('data-group', key);
+                header.textContent = monthLabelFromDate(d);
+                list.insertBefore(header, li);
+                currentKey = key;
+            }
+        });
+    }
+
+    function syncCryptoGroupHeaders() {
+        const list = document.getElementById('cryptoList');
+        if (!list) return;
+
+        const headers = Array.from(list.querySelectorAll('li.crypto-group-header'));
+        if (!headers.length) return;
+
+        const txItems = Array.from(list.querySelectorAll('li[data-tdate]'));
+        headers.forEach(h => {
+            const key = h.getAttribute('data-group') || '';
+            const anyVisible = txItems.some(li => {
+                if ((li.getAttribute('data-group') || '') !== key) return false;
+                return li.style.display !== 'none';
+            });
+            h.style.display = anyVisible ? '' : 'none';
+        });
+    }
+
+    function ensureCryptoGroupsBuilt(force) {
+        const list = document.getElementById('cryptoList');
+        if (!list) return;
+        const hasHeaders = !!list.querySelector('li.crypto-group-header');
+        if (force || !hasHeaders) {
+            buildCryptoMonthGroups();
+        }
+        syncCryptoGroupHeaders();
+    }
+
     function applyCryptoFilters() {
         const list = document.getElementById('cryptoList');
         if (!list) return;
-        const items = Array.from(list.children || []);
+        // Ensure month/year grouping headers exist, but only filter real tx items
+        ensureCryptoGroupsBuilt(false);
+        const items = Array.from(list.querySelectorAll('li[data-tdate]'));
         const startVal = document.getElementById('filterStart')?.value || '';
         const endVal = document.getElementById('filterEnd')?.value || '';
         const cryptoVal = (document.getElementById('filterCrypto')?.value || '').trim().toLowerCase();
@@ -422,6 +563,8 @@
             if (show) shown++;
         });
 
+        syncCryptoGroupHeaders();
+
         const emptyMsg = document.getElementById('filterEmptyMsg');
         if (emptyMsg) emptyMsg.style.display = shown ? 'none' : '';
     }
@@ -439,11 +582,13 @@
 </script>
 
 
-<h1 class="page-title">Cryptos Manager</h1>
-
-<button id="newCryptoB" class="btn-insert" onclick="newCryptoDiv()">Add New Crypto</button>
-<button id="CryptoTransB" class="btn-insert" onclick="cryptoHistoryDiv()">Cryptos Transactions History</button>
-<button id="back" type="button" class="btn-insert" style="display: none;" onclick="location.reload();">Back</button>
+<div class="crypto-page-header">
+    <h1 id="cryptoPageTitle" class="crypto-page-title">Cryptos Manager</h1>
+    <div class="crypto-page-actions">
+        <button id="newCryptoB" class="btn-insert" onclick="newCryptoDiv()">Add New Crypto</button>
+        <button id="CryptoTransB" class="btn-insert" onclick="cryptoHistoryDiv()">Cryptos Transactions History</button>
+    </div>
+</div>
 
 
 
@@ -500,7 +645,7 @@
 
 
 <div id="newCrypto" class="block-new" style="display: none;">
-    <h2 class="center-text">New Crypto Transaction</h2>
+    <h2 class="center-text" style="display:none;">New Crypto Transaction</h2>
     <div class="form-container">
         <form action="/crypto" method="POST">
             <div>
@@ -576,7 +721,7 @@
 </div>
 
 <div id="cryptoListDiv" class="form-container" style="display: none;" >
-    <h2 class="center-text">Cryptos Transactions History</h2>
+    <h2 class="crypto-section-title">Cryptos Transactions History</h2>
     <div id="filters" class="history-filters">
         <form class="filters-grid" onsubmit="applyCryptoFilters(); return false;">
             <div>
@@ -619,59 +764,22 @@
 <ul id="cryptoList">
     {% for crypto in cryptos %}
     <li data-tdate="{{ crypto.tdate }}" data-crypto="{{ crypto.cryptoName }}" data-from="{{ crypto.fromWallet }}" data-to="{{ crypto.toWallet }}">
-        <!-- <strong>Crypto ID:</strong> {{ crypto.cryptoId }}<br> -->
-        <!-- <strong>User ID:</strong> {{ crypto.userId }}<br> -->
-        <div class="crypto-grid">
-        <div>
-            <strong>Crypto:</strong> {{ crypto.cryptoName }}<br>
+        <div class="crypto-history-row">
+            <div class="crypto-history-left">
+                <div class="crypto-history-title">{{ crypto.cryptoName }}</div>
+                <div class="crypto-history-sub">{{ crypto.side }}</div>
+            </div>
+
+            <div class="crypto-history-right">
+                <div class="crypto-history-amount">{{ crypto.quantity }}</div>
+                <div class="crypto-history-sub">{{ crypto.price }}{% if crypto.currency %} {{ crypto.currency }}{% endif %}</div>
+            </div>
+
+            <div class="crypto-history-actions">
+                <button class="btn-insert" onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.cryptoName }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}',
+                '{{ crypto.toWallet }}','{{ crypto.side }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
+            </div>
         </div>
-        <div>
-            <strong>Date:</strong> {{ crypto.tdate | replace("T", " ") }}<br>
-        </div>
-        <div>
-            <!-- <strong>From Wallet:</strong> {{ crypto.fromWallet }}<br> -->
-            <strong>From Wallet:</strong>
-            {% for w in wallets %}
-                {% if w['walletId']|string == crypto.fromWallet|string %}
-                    {{ w['walletName'] }}
-                {% endif %}
-            {% endfor %}
-            <br>
-    </div>
-        <div>
-            <!-- <strong>To Wallet:</strong> {{ crypto.toWallet }}<br> -->
-            <strong>To Wallet:</strong>
-            {% for w in wallets %}
-                {% if w['walletId']|string == crypto.toWallet|string %}
-                    {{ w['walletName'] }}
-                {% endif %}
-            {% endfor %}
-            <br>
-        
-        </div>
-        <div>
-            <strong>Side:</strong> {{ crypto.side }}<br>
-        </div>
-        <div>
-            <strong>Quantity:</strong> {{ crypto.quantity }}<br>
-        </div>
-        <div>
-            <strong>Price:</strong> {{ crypto.price }}<br>
-        </div>
-        <div>
-            <strong>Currency:</strong> {{ crypto.currency }}<br>
-        </div>
-        <div>
-            <strong>Fee:</strong> {{ crypto.fee }}<br>
-        </div>
-        <div>
-            <strong>Note:</strong> {{ crypto.note }}<br>
-        </div>
-    <div>
-    <button class="btn-insert" onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.cryptoName }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}',
-    '{{ crypto.toWallet }}','{{ crypto.side }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
-    </div>
-    </div>
     </li>
     {% endfor %}
 </ul>
@@ -751,7 +859,7 @@
             </div>
             <div>
                 <button type="submit" class="btn-insert">Save</button>
-                <button type="submit" form="deleteForm" class="btn-clear" onclick="return confirm('Are you sure?')">Delete</button>
+                <button type="submit" form="deleteForm" class="btn-delete" onclick="return confirm('Are you sure?')">Delete</button>
                 <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
             </div>
         </form>
