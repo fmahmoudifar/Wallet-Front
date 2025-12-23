@@ -373,7 +373,7 @@
             document.getElementById("cryptoListDiv").style.display = "block";
             document.getElementById("panel").style.display = "block";
             if (title) {
-                title.innerText = 'Cryptos Manager';
+                title.innerText = 'Crypto Portfolio';
                 title.style.display = '';
             }
             if (toggleBtn) {
@@ -406,7 +406,7 @@
             // Keep Add New Crypto available in history view.
             if (addBtn) addBtn.style.display = "";
             if (button) button.style.display = "";
-            if (button) button.innerText = "Cryptos Manager";
+            if (button) button.innerText = "Crypto Portfolio";
             document.body.classList.add('crypto-mode-history');
             if (title) {
                 title.innerText = 'Cryptos Transactions History';
@@ -422,7 +422,7 @@
             if (button) button.innerText = "Cryptos Transactions History";
             document.body.classList.remove('crypto-mode-history');
             if (title) {
-                title.innerText = 'Cryptos Manager';
+                title.innerText = 'Crypto Portfolio';
                 title.style.display = '';
             }
             if (sectionTitle) sectionTitle.style.display = '';
@@ -534,8 +534,11 @@
         const startDt = parseLocalDateTime(startVal);
         const endDt = parseLocalDateTime(endVal);
 
-        let shown = 0;
-        items.forEach(li => {
+        // Pagination state
+        if (window.cryptoPageSize == null) window.cryptoPageSize = 20;
+        if (window.cryptoCurrentPage == null) window.cryptoCurrentPage = 1;
+
+        function itemMatches(li) {
             let show = true;
             const tdate = parseTxDate(li.getAttribute('data-tdate'));
             if (startDt && tdate && tdate < startDt) show = false;
@@ -559,14 +562,41 @@
                 if (String(toAttr) !== String(toVal)) show = false;
             }
 
-            li.style.display = show ? '' : 'none';
-            if (show) shown++;
-        });
+            return show;
+        }
+
+        const matching = items.filter(itemMatches);
+        const total = matching.length;
+        const pageSize = Number(window.cryptoPageSize) || 20;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        window.cryptoCurrentPage = Math.min(Math.max(1, Number(window.cryptoCurrentPage) || 1), totalPages);
+
+        // Hide everything first
+        items.forEach(li => { li.style.display = 'none'; });
+
+        // Show only the current page slice
+        const startIdx = (window.cryptoCurrentPage - 1) * pageSize;
+        const endIdx = startIdx + pageSize;
+        matching.slice(startIdx, endIdx).forEach(li => { li.style.display = ''; });
 
         syncCryptoGroupHeaders();
 
         const emptyMsg = document.getElementById('filterEmptyMsg');
-        if (emptyMsg) emptyMsg.style.display = shown ? 'none' : '';
+        if (emptyMsg) emptyMsg.style.display = total ? 'none' : '';
+
+        // Update pagination controls
+        const pager = document.getElementById('cryptoPagination');
+        const pageInfo = document.getElementById('cryptoPageInfo');
+        const prevBtn = document.getElementById('cryptoPrevPage');
+        const nextBtn = document.getElementById('cryptoNextPage');
+        if (pager) {
+            pager.style.display = total ? '' : 'none';
+        }
+        if (pageInfo) {
+            pageInfo.textContent = `Page ${window.cryptoCurrentPage} of ${totalPages}`;
+        }
+        if (prevBtn) prevBtn.disabled = window.cryptoCurrentPage <= 1;
+        if (nextBtn) nextBtn.disabled = window.cryptoCurrentPage >= totalPages;
     }
 
     function resetCryptoFilters() {
@@ -577,13 +607,24 @@
                 else el.value = '';
             }
         });
+        window.cryptoCurrentPage = 1;
+        applyCryptoFilters();
+    }
+
+    function cryptoGoToPrevPage() {
+        window.cryptoCurrentPage = Math.max(1, (Number(window.cryptoCurrentPage) || 1) - 1);
+        applyCryptoFilters();
+    }
+
+    function cryptoGoToNextPage() {
+        window.cryptoCurrentPage = (Number(window.cryptoCurrentPage) || 1) + 1;
         applyCryptoFilters();
     }
 </script>
 
 
 <div class="crypto-page-header">
-    <h1 id="cryptoPageTitle" class="crypto-page-title">Cryptos Manager</h1>
+    <h1 id="cryptoPageTitle" class="crypto-page-title">Crypto Portfolio</h1>
     <div class="crypto-page-actions">
         <button id="newCryptoB" class="btn-insert" onclick="newCryptoDiv()">Add New Crypto</button>
         <button id="CryptoTransB" class="btn-insert" onclick="cryptoHistoryDiv()">Cryptos Transactions History</button>
@@ -759,6 +800,11 @@
             </div>
         </form>
         <div id="filterEmptyMsg" class="small-muted" style="display:none;margin-top:8px">No matching transactions.</div>
+        <div id="cryptoPagination" class="pagination-controls" style="display:none;margin-top:10px">
+            <button id="cryptoPrevPage" type="button" class="btn-clear" onclick="cryptoGoToPrevPage()">Prev</button>
+            <div id="cryptoPageInfo" class="small-muted" style="min-width:140px;text-align:center">Page 1 of 1</div>
+            <button id="cryptoNextPage" type="button" class="btn-clear" onclick="cryptoGoToNextPage()">Next</button>
+        </div>
     </div>
 {% if cryptos %}
 <ul id="cryptoList">

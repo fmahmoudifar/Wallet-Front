@@ -14,8 +14,8 @@
     flex: 0 0 260px;
     padding: 18px 14px;
     box-sizing: border-box;
-    background: #e6f4ea;
-    border-right: 1px solid #e6e6e6;
+    background: #4b5563;
+    border-right: 1px solid rgba(255,255,255,0.12);
     position: sticky;
     top: 0;
     height: 100vh;
@@ -26,7 +26,7 @@
 .app-brand-link {
     display: inline-block;
     text-decoration: none;
-    color: #222;
+    color: #fff;
     font-weight: 800;
     font-size: 18px;
     padding: 8px 10px;
@@ -43,13 +43,13 @@
     display: flex;
     align-items: center;
     text-decoration: none;
-    color: #222;
+    color: #fff;
     padding: 10px 12px;
     border-radius: 14px;
     font-weight: 600;
 }
 
-.app-nav-link:hover { background: #e9ecef; }
+.app-nav-link:hover { background: rgba(255,255,255,0.12); }
 
 .app-nav-link-logout { margin-top: 10px; }
 
@@ -95,15 +95,15 @@
         right: 0;
         bottom: 0;
         height: 64px;
-        background: #e6f4ea;
-        border-top: 1px solid #e6e6e6;
+        background: #4b5563;
+        border-top: 1px solid rgba(255,255,255,0.12);
         z-index: 1100;
     }
 
     .app-bottom-link {
         flex: 1 1 0;
         text-decoration: none;
-        color: #222;
+        color: #fff;
         font-weight: 600;
         font-size: 12px;
         display: flex;
@@ -118,13 +118,13 @@
         width: 22px;
         height: 22px;
         display: block;
-        color: #222;
+        color: #fff;
         stroke-linecap: round;
         stroke-linejoin: round;
         shape-rendering: geometricPrecision;
     }
 
-    .app-bottom-link:hover { background: #f3f4f6; }
+    .app-bottom-link:hover { background: rgba(255,255,255,0.12); }
 }
 
 form {
@@ -136,6 +136,13 @@ form {
     margin-bottom: 1rem;
     width: 100%;
     max-width: 900px;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
 }
 
 :root {
