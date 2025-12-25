@@ -31,6 +31,15 @@ def settings_page():
         except Exception:
             pass
 
+        # Store website currency in session so portfolio pages can calculate/display in base currency
+        try:
+            if settings and isinstance(settings, list):
+                currency = (settings[0] or {}).get('currency')
+                if currency:
+                    session['currency'] = currency
+        except Exception:
+            pass
+
         # Send both to template (include coin list)
         return render_template("settings.html", settings=settings, userId=userId)
     else:
@@ -51,6 +60,12 @@ def update_settings():
     # Update theme in session immediately
     try:
         session['theme'] = data.get('theme')
+    except Exception:
+        pass
+
+    # Update currency in session immediately
+    try:
+        session['currency'] = data.get('currency')
     except Exception:
         pass
     

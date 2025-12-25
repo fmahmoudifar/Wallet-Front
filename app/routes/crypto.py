@@ -3,24 +3,137 @@ import requests
 import uuid
 from config import API_URL, aws_auth
 from decimal import Decimal
+from decimal import ROUND_HALF_UP
 import math
 from datetime import datetime
 import time
 
 crypto_bp = Blueprint('crypto', __name__)
 
-# CoinGecko markets cache (in-process) to reduce rate-limit and avoid showing 0 prices
-_COINGECKO_MARKETS_CACHE = {
-    'ts': 0.0,
-    'data': []
-}
+# CoinGecko markets cache (in-process) to reduce rate-limit and avoid showing 0 prices.
+# Cache is keyed by vs_currency so EUR/USD results don't get mixed.
+_COINGECKO_MARKETS_CACHE = {}
 _COINGECKO_MARKETS_TTL_SECONDS = 300
+
+# FX rates cache (in-process) to convert transaction currency -> website currency
+_FX_RATES_CACHE = {}
+_FX_RATES_TTL_SECONDS = 3600
+
+
+def _normalize_currency(code: str, default: str = '') -> str:
+    try:
+        c = (code or '').strip().upper()
+        return c if c else default
+    except Exception:
+        return default
+
+
+def _get_user_base_currency(user_id: str) -> str:
+    """Return the website/base currency (from Settings). Defaults to EUR."""
+    # Prefer session value (updated when visiting/updating settings)
+    base = _normalize_currency(session.get('currency'), '')
+    if base:
+        return base
+
+    # Fallback: fetch settings directly
+    try:
+        resp = requests.get(f"{API_URL}/settings", params={"userId": user_id}, auth=aws_auth, timeout=10)
+        if resp.status_code == 200:
+            settings = resp.json().get('settings', [])
+            if settings and isinstance(settings, list):
+                currency = _normalize_currency((settings[0] or {}).get('currency'), 'EUR')
+                if currency:
+                    session['currency'] = currency
+                    return currency
+    except Exception:
+        pass
+
+    return 'EUR'
+
+
+def _get_fx_rate(from_currency: str, to_currency: str) -> Decimal:
+    """Get latest FX rate from_currency -> to_currency using Frankfurter (cached)."""
+    from_ccy = _normalize_currency(from_currency)
+    to_ccy = _normalize_currency(to_currency)
+    if from_ccy == to_ccy:
+        return Decimal(1)
+
+    key = (from_ccy, to_ccy)
+    now = time.time()
+    cached = _FX_RATES_CACHE.get(key)
+    if cached and (now - cached.get('ts', 0.0) < _FX_RATES_TTL_SECONDS):
+        return cached['rate']
+
+    # Frankfurter supports many fiat currencies. Crypto tx currencies should be normalized before calling.
+    url = "https://api.frankfurter.app/latest"
+    params = {"from": from_ccy, "to": to_ccy}
+    headers = {
+        'Accept': 'application/json',
+        'User-Agent': 'Wallet-Front/1.0'
+    }
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=10)
+        if r.status_code == 200:
+            data = r.json() or {}
+            rates = data.get('rates') or {}
+            rate_val = rates.get(to_ccy)
+            if rate_val is None:
+                raise ValueError(f"Missing FX rate {from_ccy}->{to_ccy}")
+            rate = Decimal(str(rate_val))
+            _FX_RATES_CACHE[key] = {"ts": now, "rate": rate}
+            return rate
+
+        # Non-200: fall back to cached, if available
+        if cached:
+            return cached['rate']
+        raise RuntimeError(f"FX API returned {r.status_code}")
+    except Exception:
+        # On network/parsing errors, prefer cache rather than breaking totals.
+        if cached:
+            return cached['rate']
+        raise
+
+
+def _format_number_trim(val, max_decimals: int) -> str:
+    """Format a numeric value to <= max_decimals, trimming trailing zeros.
+
+    Examples:
+      93.40 (2) -> '93.4'
+      1173.00340000 (8) -> '1173.0034'
+    """
+    try:
+        d = Decimal(str(val))
+    except Exception:
+        return '0'
+
+    try:
+        if max_decimals is None:
+            s = format(d, 'f')
+        else:
+            q = Decimal('1').scaleb(-int(max_decimals))  # 10^-max_decimals
+            d = d.quantize(q, rounding=ROUND_HALF_UP)
+            s = format(d, 'f')
+    except Exception:
+        s = str(d)
+
+    if '.' in s:
+        s = s.rstrip('0').rstrip('.')
+    # avoid showing '-0'
+    if s in ('-0', '-0.0'):
+        s = '0'
+    return s or '0'
 
 @crypto_bp.route('/crypto', methods=['GET'])
 def crypto_page():
     user = session.get('user')
     if user:
         userId = user.get('username')
+
+        base_currency = _get_user_base_currency(userId)
+        # CoinGecko vs_currency must be lowercase; only use commonly supported fiats here.
+        cg_vs_currency = (base_currency or 'EUR').lower()
+        if cg_vs_currency not in ('eur', 'usd'):
+            cg_vs_currency = 'eur'
 
         # --- Fetch Cryptos ---
         try:
@@ -42,12 +155,14 @@ def crypto_page():
         coins = []
         try:
             cg_url = "https://api.coingecko.com/api/v3/coins/markets"
-            cg_params = {"vs_currency": "eur", "order": "market_cap_desc", "per_page": 500, "page": 1}
+            cg_params = {"vs_currency": cg_vs_currency, "order": "market_cap_desc", "per_page": 500, "page": 1}
             now = time.time()
 
+            cache_bucket = _COINGECKO_MARKETS_CACHE.get(cg_vs_currency) or {'ts': 0.0, 'data': []}
+
             # Serve from cache if still fresh
-            if _COINGECKO_MARKETS_CACHE['data'] and (now - _COINGECKO_MARKETS_CACHE['ts'] < _COINGECKO_MARKETS_TTL_SECONDS):
-                coins = _COINGECKO_MARKETS_CACHE['data']
+            if cache_bucket['data'] and (now - cache_bucket['ts'] < _COINGECKO_MARKETS_TTL_SECONDS):
+                coins = cache_bucket['data']
             else:
                 cg_headers = {
                     'Accept': 'application/json',
@@ -56,19 +171,19 @@ def crypto_page():
                 cg_resp = requests.get(cg_url, params=cg_params, headers=cg_headers, timeout=10)
                 if cg_resp.status_code == 200:
                     coins = cg_resp.json()
-                    _COINGECKO_MARKETS_CACHE['data'] = coins
-                    _COINGECKO_MARKETS_CACHE['ts'] = now
+                    _COINGECKO_MARKETS_CACHE[cg_vs_currency] = {'data': coins, 'ts': now}
                 else:
                     # If CoinGecko fails (e.g. rate limit), fall back to the last cached data.
-                    if _COINGECKO_MARKETS_CACHE['data']:
-                        coins = _COINGECKO_MARKETS_CACHE['data']
+                    if cache_bucket['data']:
+                        coins = cache_bucket['data']
                         print(f"CoinGecko returned status {cg_resp.status_code}; using cached markets")
                     else:
                         print(f"CoinGecko returned status {cg_resp.status_code}")
         except Exception as e:
             # On transient network errors, prefer cache rather than showing 0s everywhere.
-            if _COINGECKO_MARKETS_CACHE['data']:
-                coins = _COINGECKO_MARKETS_CACHE['data']
+            cache_bucket = _COINGECKO_MARKETS_CACHE.get(cg_vs_currency) or {'ts': 0.0, 'data': []}
+            if cache_bucket['data']:
+                coins = cache_bucket['data']
                 print(f"Error fetching CoinGecko coins: {e}; using cached markets")
             else:
                 print(f"Error fetching CoinGecko coins: {e}")
@@ -109,7 +224,7 @@ def crypto_page():
                     'total_fee': Decimal(0),           # Total fees paid
                     'total_value_buy': Decimal(0),     # Total spent on purchases
                     'total_value_sell': Decimal(0),    # Total received from sales
-                    'currency': ''
+                    'currency': base_currency
                 }
                 
                 for tx in transactions:
@@ -118,16 +233,22 @@ def crypto_page():
                         price = to_decimal(tx.get('price', 0))
                         fee = to_decimal(tx.get('fee', 0))
                         side = str(tx.get('side', 'buy')).lower()
+
+                        tx_currency = _normalize_currency(tx.get('currency'), base_currency)
+                        fx_rate = _get_fx_rate(tx_currency, base_currency)
                         
                         # Transaction value (qty * price + fee)
                         tx_value = (qty * price) + fee
+                        tx_value_base = tx_value * fx_rate
+                        fee_base = fee * fx_rate
+                        revenue_base = (qty * price) * fx_rate
                         
                         if side == 'buy':
                             # BUY: Add to holdings and cost basis
                             entry['total_qty'] += qty
-                            entry['total_cost'] += tx_value
-                            entry['total_value_buy'] += tx_value
-                            entry['total_fee'] += fee
+                            entry['total_cost'] += tx_value_base
+                            entry['total_value_buy'] += tx_value_base
+                            entry['total_fee'] += fee_base
                             
                         elif side == 'sell':
                             # SELL: Use weighted average to calculate cost of sold portion
@@ -144,8 +265,8 @@ def crypto_page():
                                 # Update holdings
                                 entry['total_qty'] -= qty_to_sell
                                 entry['total_cost'] -= sold_cost
-                                entry['total_value_sell'] += (qty * price)  # Revenue from sale (excluding fee)
-                                entry['total_fee'] += fee
+                                entry['total_value_sell'] += revenue_base  # Revenue from sale (excluding fee)
+                                entry['total_fee'] += fee_base
                                 
                                 # If selling more than we have, handle the excess as short position
                                 excess_qty = qty - qty_to_sell
@@ -157,12 +278,8 @@ def crypto_page():
                             else:
                                 # Selling without holdings (short sell) - track as negative
                                 entry['total_qty'] -= qty
-                                entry['total_value_sell'] += (qty * price)
-                                entry['total_fee'] += fee
-                        
-                        # Set currency from first transaction
-                        if not entry['currency'] and tx.get('currency'):
-                            entry['currency'] = tx.get('currency')
+                                entry['total_value_sell'] += revenue_base
+                                entry['total_fee'] += fee_base
                             
                     except Exception as e:
                         print(f"Error processing transaction for {name}: {e} | Raw tx: {tx}")
@@ -370,12 +487,16 @@ def crypto_page():
             totals.append({
                 'cryptoName': v['cryptoName'],
                 'total_qty': tq,
+                'total_qty_display': _format_number_trim(v.get('total_qty', 0), 8),
                 # total_value: kept for backwards-compatibility (raw stored aggregate)
                 'total_value': tv,
                 # total_value_buy: the total amount user spent on buy transactions (includes buy fees)
                 'total_value_buy': tv_buy,
+                'total_value_buy_display': _format_number_trim(v.get('total_value_buy', 0), 2),
                 'latest_price': lp,
+                'latest_price_display': _format_number_trim(v.get('latest_price', 0), 6),
                 'total_value_live': tv_live,
+                'total_value_live_display': _format_number_trim(v.get('total_value_live', 0), 2),
                 'currency': v.get('currency',''),
                 'price_pct': price_pct if price_pct is not None else 0.0,
                 'value_pct': value_pct if value_pct is not None else 0.0,
@@ -385,8 +506,12 @@ def crypto_page():
                 'pct_fill': pct_fill,
                 'pct_fill_str': f"{pct_fill:.2f}",
                 'avg_buy_price': avg_buy,
+                'avg_buy_price_display': _format_number_trim(v.get('avg_buy_price', 0), 6),
                 'total_fee': fee_total,
+                'total_fee_display': _format_number_trim(v.get('total_fee', 0), 2),
                 'value_change_amount': change_amt
+                ,
+                'value_change_amount_abs_display': _format_number_trim(abs(v.get('value_change_amount', Decimal(0))), 2)
             })
 
         # Send both to template (include coin list and totals)

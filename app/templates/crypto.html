@@ -53,10 +53,13 @@
         document.getElementById("panel").style.display = "none";
         document.getElementById("deleteForm").action = `/deleteCrypto/${cryptoId}/${userId}`;
 
-        // Hide the header title while editing (the form has its own heading).
+        // Match the New Crypto Transaction layout: use the header title for consistent spacing.
         document.body.classList.remove('crypto-mode-history');
         const title = document.getElementById('cryptoPageTitle');
-        if (title) title.style.display = 'none';
+        if (title) {
+            title.innerText = 'Update Crypto Transaction';
+            title.style.display = '';
+        }
     }  
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -655,37 +658,36 @@
                 <div class="totals-meta">
                     <div class="totals-row">
                         <span class="totals-label small-muted">Total Quantity:</span>
-                        <span class="totals-value">{{ '%.8f' % (t.total_qty) }}</span>
-                    </div>
-                    <div class="totals-row">
-                        <span class="totals-label small-muted">Avg Buy Price:</span>
-                        <span class="totals-value">{{ '%.6f' % (t.avg_buy_price) }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
-                    </div>
-                    <div class="totals-row">
-                        <span class="totals-label small-muted">Unit price now:</span>
-                        <span class="totals-value">{{ '%.6f' % (t.latest_price) }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
-                    </div>
-                    <div class="totals-row">
-                        <span class="totals-label small-muted">Total Value Paid:</span>
-                        <span class="totals-value">{{ '%.2f' % (t.total_value_buy) }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
+                        <span class="totals-value">{{ t.total_qty_display }}</span>
                     </div>
                     <div class="totals-row">
                         <span class="totals-label small-muted">Total Value Now:</span>
-                        <span class="totals-value">{{ '%.2f' % (t.total_value_live) }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
+                        <span class="totals-value">{{ t.total_value_live_display }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
+                    </div>
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Total Value Paid:</span>
+                        <span class="totals-value">{{ t.total_value_buy_display }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
+                    </div>
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Unit price now:</span>
+                        <span class="totals-value">{{ t.latest_price_display }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
+                    </div>
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Avg Buy Price:</span>
+                        <span class="totals-value">{{ t.avg_buy_price_display }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
                     </div>
                     <div class="totals-row">
                         <span class="totals-label small-muted">Fees paid:</span>
-                        <span class="totals-value">{{ '%.2f' % (t.total_fee) }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
+                        <span class="totals-value">{{ t.total_fee_display }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
                     </div>
                     <div class="totals-row">
                         <span class="totals-label small-muted">Gain / Loss:</span>
-                        <span class="totals-value">
+                        <span class="totals-value" style="font-weight: bold;">
                             {% if t.value_change_amount >= 0 %}
-                                <span class="pct-positive">+{{ '%.2f' % (t.value_change_amount) }}</span>
+                                <span class="pct-positive">+{{ t.value_change_amount_abs_display }}</span>{% if t.currency %} {{ t.currency }}{% endif %}
                             {% else %}
-                                <span class="pct-negative">{{ '%.2f' % (t.value_change_amount) }}</span>
+                                <span class="pct-negative">-{{ t.value_change_amount_abs_display }}</span>{% if t.currency %} {{ t.currency }}{% endif %}
                             {% endif %}
-                            {% if t.currency %} {{ t.currency }}{% endif %}
                         </span>
                     </div>
                     <!-- <div><span class="small-muted">Gain / Loss (%%):</span> {{ t.value_pct_display }}</div> -->
@@ -737,8 +739,8 @@
                 <label for="side">Side:</label>
                 <select name="side" id="side" required>
                     <option value="">-- Select Side --</option> 
-                    <option value="buy">Buy</option>
-                    <option value="sell">Sell</option>
+                    <option value="Buy">Buy</option>
+                    <option value="Sell">Sell</option>
                 </select>
             </div>
             <div>
@@ -851,7 +853,7 @@
 {% endif %}
 
 <div id="updateCryptoDiv" class="block-update" style="display: none;">
-    <h2 class="center-text">Update Crypto Transaction</h2>
+    <h2 class="center-text" style="display:none;">Update Crypto Transaction</h2>
     <div class="form-container">
         <form id="updateForm" action="/updateCrypto" method="POST">
             <input type="hidden" id="updateCryptoId" name="cryptoId">
@@ -888,8 +890,8 @@
                 <label for="updateSide">Side:</label>
                 <select name="side" id="updateSide" required>
                     <option value="">-- Select Side --</option> 
-                    <option value="buy">Buy</option>
-                    <option value="sell">Sell</option>
+                    <option value="Buy">Buy</option>
+                    <option value="Sell">Sell</option>
                 </select>
             </div>
             <div>

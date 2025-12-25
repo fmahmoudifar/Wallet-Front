@@ -255,6 +255,22 @@ html[data-theme="dark"] select {
     border-color: rgba(255,255,255,0.18);
 }
 
+/* Native select dropdown menu items can render with a light background even in dark mode.
+   If options inherit the select's light text color, they become invisible. */
+html[data-theme="dark"] select option,
+html[data-theme="dark"] select optgroup {
+    /* Chrome often renders the dropdown menu with a light (white) background.
+       Use system colors so items stay readable (typically black text on white). */
+    color: CanvasText;
+    background: Canvas;
+}
+
+html[data-theme="dark"] select option:checked {
+    /* Ensure selected item is readable (typically white text on highlight). */
+    color: HighlightText;
+    background: Highlight;
+}
+
 html[data-theme="dark"] input::placeholder {
     color: rgba(229,231,235,0.65);
 }
@@ -335,6 +351,7 @@ button:hover { background-color: #dde2e6; }
     justify-content: space-between;
     gap: 14px;
     flex-wrap: wrap;
+    margin-bottom: 50px;
 }
 
 /* Crypto page: keep a little breathing room under header for all views */
