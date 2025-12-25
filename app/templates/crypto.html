@@ -163,6 +163,9 @@
             if (existing) existing.parentNode.removeChild(existing);
         }
 
+        // Expose error clearer so autocomplete selection handlers can remove stale messages
+        try { window.__clearCoinError = clearError; } catch (e) {}
+
         if (createInput) {
             createInput.addEventListener('blur', function(){
                 // small timeout to allow click selection to trigger first
@@ -239,6 +242,10 @@
         let currentFocus = -1;
 
         input.addEventListener('input', function(e) {
+            // As user types, remove any previous "must select from list" error.
+            try {
+                if (typeof window.__clearCoinError === 'function') window.__clearCoinError(input);
+            } catch (err) {}
             const val = this.value.trim().toLowerCase();
             closeAllLists();
             if (!val) { if (hidden) hidden.value = ''; return false; }
@@ -277,6 +284,9 @@
                         else hidden.value = c.name;
                     }
                     closeAllLists();
+                    try {
+                        if (typeof window.__clearCoinError === 'function') window.__clearCoinError(input);
+                    } catch (err) {}
                     if (inputId === 'filterCrypto' && typeof applyCryptoFilters === 'function') {
                         applyCryptoFilters();
                     }
@@ -296,9 +306,19 @@
                         else hidden.value = c.name;
                     }
                     closeAllLists();
+                    try {
+                        if (typeof window.__clearCoinError === 'function') window.__clearCoinError(input);
+                    } catch (err) {}
                     if (inputId === 'filterCrypto' && typeof applyCryptoFilters === 'function') {
                         applyCryptoFilters();
                     }
+                });
+
+                // Prefer committing selection before input blur fires (prevents stale error state)
+                item.addEventListener('mousedown', function(){
+                    try {
+                        if (typeof window.__clearCoinError === 'function') window.__clearCoinError(input);
+                    } catch (err) {}
                 });
                 list.appendChild(item);
             });
