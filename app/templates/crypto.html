@@ -653,28 +653,42 @@
                 </div>
 
                 <div class="totals-meta">
-                    <div><span class="small-muted">Total Quantity:</span> {{ '%.8f' % (t.total_qty) }}</div>
-                    <div><span class="small-muted">Avg Buy Price:</span> {{ '%.6f' % (t.avg_buy_price) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>
-                    <div><span class="small-muted">Unit price now:</span> {{ '%.6f' % (t.latest_price) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>
-                    <div><span class="small-muted">Total Value Paid:</span> {{ '%.2f' % (t.total_value_buy) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>
-                    <div><span class="small-muted">Total Value Now:</span> {{ '%.2f' % (t.total_value_live) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>
-                    <div><span class="small-muted">Fees paid:</span> {{ '%.2f' % (t.total_fee) }}{% if t.currency %} {{ t.currency }}{% endif %}</div>
-                    <div><span class="small-muted">Gain / Loss:</span>
-                        {% if t.value_change_amount >= 0 %}
-                            <span class="pct-positive">+{{ '%.2f' % (t.value_change_amount) }}</span>
-                        {% else %}
-                            <span class="pct-negative">{{ '%.2f' % (t.value_change_amount) }}</span>
-                        {% endif %}
-                        {% if t.currency %} {{ t.currency }}{% endif %}
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Total Quantity:</span>
+                        <span class="totals-value">{{ '%.8f' % (t.total_qty) }}</span>
+                    </div>
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Avg Buy Price:</span>
+                        <span class="totals-value">{{ '%.6f' % (t.avg_buy_price) }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
+                    </div>
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Unit price now:</span>
+                        <span class="totals-value">{{ '%.6f' % (t.latest_price) }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
+                    </div>
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Total Value Paid:</span>
+                        <span class="totals-value">{{ '%.2f' % (t.total_value_buy) }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
+                    </div>
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Total Value Now:</span>
+                        <span class="totals-value">{{ '%.2f' % (t.total_value_live) }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
+                    </div>
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Fees paid:</span>
+                        <span class="totals-value">{{ '%.2f' % (t.total_fee) }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
+                    </div>
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Gain / Loss:</span>
+                        <span class="totals-value">
+                            {% if t.value_change_amount >= 0 %}
+                                <span class="pct-positive">+{{ '%.2f' % (t.value_change_amount) }}</span>
+                            {% else %}
+                                <span class="pct-negative">{{ '%.2f' % (t.value_change_amount) }}</span>
+                            {% endif %}
+                            {% if t.currency %} {{ t.currency }}{% endif %}
+                        </span>
                     </div>
                     <!-- <div><span class="small-muted">Gain / Loss (%%):</span> {{ t.value_pct_display }}</div> -->
-                </div>
-
-                <div style="margin-top:6px">
-                    <div class="pct-bar" aria-hidden="true">
-                        {% set fill_class = 'pct-fill-positive' if (t.price_pct is defined and t.price_pct >= 0) else 'pct-fill-negative' %}
-                            <div class="pct-fill {{ fill_class }}" data-fill="{{ t.pct_fill_str }}"></div>
-                    </div>
                 </div>
             </div>
             {% endfor %}

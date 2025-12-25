@@ -149,6 +149,133 @@ form {
     --input-desktop-width: 360px;
     /* Gray for all titles */
     --title-accent: #6c757d;
+
+    /* Theme tokens (light defaults) */
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f8f9fa;
+    --text: #222222;
+    --muted: #6b7280;
+    --border: #e6e6e6;
+    --shadow: rgba(0,0,0,0.04);
+}
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+html[data-theme="dark"] {
+    --bg: #0b1220;
+    --surface: #111827;
+    --surface-2: #0f172a;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --border: rgba(255,255,255,0.12);
+    --shadow: rgba(0,0,0,0.35);
+}
+
+html[data-theme="dark"] body {
+    background: var(--bg);
+    color: var(--text);
+}
+
+html[data-theme="dark"] .app-shell {
+    background: var(--bg);
+}
+
+html[data-theme="dark"] .app-content {
+    color: var(--text);
+}
+
+html[data-theme="dark"] .page-title,
+html[data-theme="dark"] .center-text,
+html[data-theme="dark"] .crypto-page-title,
+html[data-theme="dark"] .crypto-section-title {
+    color: var(--text);
+}
+
+html[data-theme="dark"] .small-muted {
+    color: var(--muted);
+}
+
+html[data-theme="dark"] .history-filters {
+    /* Slightly lighter than the page background for readability */
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+    border-color: var(--border);
+    box-shadow: 0 6px 18px var(--shadow);
+}
+
+html[data-theme="dark"] #cryptoList li {
+    background: var(--surface);
+    border-color: var(--border);
+    box-shadow: 0 6px 18px var(--shadow);
+}
+
+html[data-theme="dark"] #transList li {
+    background: var(--surface);
+    border-color: var(--border);
+    box-shadow: 0 6px 18px var(--shadow);
+}
+
+html[data-theme="dark"] #cryptoList li:hover {
+    background: var(--surface-2);
+}
+
+html[data-theme="dark"] #transList li:hover {
+    background: var(--surface-2);
+}
+
+html[data-theme="dark"] #cryptoList .crypto-history-title,
+html[data-theme="dark"] #cryptoList .crypto-history-amount {
+    color: var(--text);
+}
+
+html[data-theme="dark"] #cryptoList .crypto-history-sub,
+html[data-theme="dark"] #cryptoList li.crypto-group-header {
+    color: var(--muted);
+}
+
+html[data-theme="dark"] .totals-card {
+    /* Lighter card surface in dark mode (portfolio boxes) */
+    background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+    border-color: rgba(255,255,255,0.22);
+    box-shadow: 0 6px 18px var(--shadow);
+}
+
+html[data-theme="dark"] .pct-bar {
+    background: rgba(255,255,255,0.10);
+}
+
+html[data-theme="dark"] input[type="text"],
+html[data-theme="dark"] input[type="datetime-local"],
+html[data-theme="dark"] select {
+    /* Lighter inputs in dark mode (transactions + filters + crypto forms) */
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    border-color: rgba(255,255,255,0.18);
+}
+
+html[data-theme="dark"] input::placeholder {
+    color: rgba(229,231,235,0.65);
+}
+
+html[data-theme="dark"] input[type="text"]:focus,
+html[data-theme="dark"] input[type="datetime-local"]:focus,
+html[data-theme="dark"] select:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.28);
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
+}
+
+html[data-theme="dark"] .autocomplete-items {
+    background: var(--surface);
+    border-color: var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+
+html[data-theme="dark"] .autocomplete-items div:hover,
+html[data-theme="dark"] .autocomplete-items div.autocomplete-active {
+    background: rgba(255,255,255,0.08);
 }
 
 input[type="text"], input[type="datetime-local"], select {
@@ -408,12 +535,17 @@ button:hover { background-color: #dde2e6; }
 
 /* Crypto totals cards */
 .totals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:0;padding:0}
-.totals-card{background:linear-gradient(180deg,#fff,#fbfbfb);border-radius:10px;padding:12px;border:1px solid rgba(0,0,0,0.04);box-shadow:0 6px 18px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:8px}
+.totals-card{background:linear-gradient(180deg,#fff,#fbfbfb);border-radius:10px;padding:12px;border:1px solid rgba(0,0,0,0.10);box-shadow:0 6px 18px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:8px}
 .totals-header{display:flex;justify-content:space-between;align-items:center}
-.pct-badge{font-weight:700;padding:4px 8px;border-radius:12px;color:#fff;font-size:0.85rem}
+.pct-badge{font-weight:800;padding:0;border-radius:0;background:transparent;color:inherit;font-size:0.9rem}
 .pct-positive{background:#d9f2e3;color:#1f6a3a}
 .pct-negative{background:#f8d7da;color:#842029}
 .pct-neutral{background:#6c757d}
+
+/* Percent badge should be text-only */
+.pct-badge.pct-positive{background:transparent;color:#166534}
+.pct-badge.pct-negative{background:transparent;color:#b91c1c}
+.pct-badge.pct-neutral{background:transparent;color:var(--muted)}
 .pct-bar{background:#e9eef3;border-radius:8px;height:10px;overflow:hidden}
 .pct-fill{height:100%;width:0%}
 .pct-fill-positive{background:linear-gradient(90deg,#7fc8a3,#d9f2e3)}
@@ -422,11 +554,18 @@ button:hover { background-color: #dde2e6; }
 /* Gain/Loss value chips inside totals */
 .totals-meta .pct-positive,
 .totals-meta .pct-negative {
-    display: inline-block;
-    padding: 2px 6px;
-    border-radius: 6px;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
 }
+
+/* Gain/Loss text colors (no background) */
+.totals-meta .pct-positive { color: #166534; }
+.totals-meta .pct-negative { color: #b91c1c; }
 .totals-meta{display:flex;flex-direction:column;gap:4px;font-size:0.95rem;text-align: left;}
+.totals-meta .totals-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.totals-meta .totals-label{flex:1 1 auto}
+.totals-meta .totals-value{flex:0 0 auto;text-align:right;white-space:nowrap}
 .small-muted{color:var(--muted);font-size:0.85rem}
 
 @media (max-width:480px){

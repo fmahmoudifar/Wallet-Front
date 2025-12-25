@@ -22,6 +22,15 @@ def settings_page():
             print(f"Error fetching settings: {e}")
             settings = []
 
+        # Store theme in session (used by base layout for light/dark mode)
+        try:
+            if settings and isinstance(settings, list):
+                theme = (settings[0] or {}).get('theme')
+                if theme:
+                    session['theme'] = theme
+        except Exception:
+            pass
+
         # Send both to template (include coin list)
         return render_template("settings.html", settings=settings, userId=userId)
     else:
@@ -38,6 +47,12 @@ def update_settings():
         "theme": request.form["theme"]
     }
     print(f"🔄 [DEBUG] Updating settings: {data}")
+
+    # Update theme in session immediately
+    try:
+        session['theme'] = data.get('theme')
+    except Exception:
+        pass
     
     try:
         response = requests.patch(f"{API_URL}/settings", json=data, auth=aws_auth)

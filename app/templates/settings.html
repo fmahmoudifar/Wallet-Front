@@ -6,10 +6,34 @@
 {% block content %}
 
 <script>
+    // Persist theme choice client-side so it applies across pages immediately.
+    function persistTheme(themeValue) {
+        try {
+            const t = String(themeValue || '').toLowerCase();
+            const theme = t.startsWith('d') ? 'dark' : 'light';
+            localStorage.setItem('theme', theme);
+            document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const newTheme = document.getElementById('newTheme');
+        const updateTheme = document.getElementById('updateTheme');
+        if (newTheme) newTheme.addEventListener('change', () => persistTheme(newTheme.value));
+        if (updateTheme) updateTheme.addEventListener('change', () => persistTheme(updateTheme.value));
+
+        // If server already has a theme, mirror it to localStorage
+        const serverTheme = "{{ (settings|first).theme if (settings|first) else '' }}";
+        if (serverTheme) persistTheme(serverTheme);
+    });
+</script>
+
+<script>
     function editSettings(userId, currency, theme) {
         document.getElementById("updateUserId").value = userId;
         document.getElementById("updateCurrency").value = currency;
         document.getElementById("updateTheme").value = theme;
+        persistTheme(theme);
         document.getElementById("updateSetDiv").style.display = "block";
         document.getElementById("setListDiv").style.display = "none";
         document.getElementById("newSetB").style.display = "none";
