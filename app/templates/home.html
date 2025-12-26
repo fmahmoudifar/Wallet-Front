@@ -6,23 +6,28 @@
 {% block content %}
 <!-- <h1>Home</h1> -->
 {% if session.get('user') %}
-<h6>Username : {{ userId }}</h6>
+<!-- <h6>Username : {{ userId }}</h6> -->
 
 
 <style>
     .grid-container {
         display: grid;
-        grid-template-columns: 1fr 1fr; 
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 20px;
         height: auto;
+        align-items: stretch;
     }
     .grid-item {
-        border: 1px solid #ccc;
-        padding: 10px;
         display: flex;
-        align-items: center;
-        justify-content: center;
+        align-items: stretch;
+        justify-content: stretch;
         min-height: 250px; 
+    }
+
+    .home-card {
+        width: 100%;
+        height: 100%;
+        min-height: 320px;
     }
     #myChart {
         width: 100% !important;
@@ -38,86 +43,198 @@
 
 <div class="grid-container">
     <div class="grid-item">
-                <div style="width: 100%; padding: 10px;">
-            <h3 style="margin: 0 0 20px 0; text-align: center; color: #333;">💰 Wallet Balances</h3>
+        <div class="totals-card home-card" style="display: flex; flex-direction: column;">
+            <div class="crypto-page-title" style="text-align: center; margin: 0 0 6px 0;">Wallet Balances</div>
             {% if wallets and wallets|length > 0 %}
-                <div style="display: flex; flex-direction: column; gap: 12px; max-height: 200px; overflow-y: auto;">
-                    {% for wallet in wallets %}
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <div style="font-weight: 600; color: #495057;">{{ wallet.walletName or wallet.walletId }}</div>
-                        <div style="font-size: 1.1rem; font-weight: 700; {% if wallet.balance >= 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %}">
-                            {% if wallet.balance >= 0 %}+{% endif %}€{{ '%.2f'|format(wallet.balance) }}
-                        </div>
-                    </div>
-                    {% endfor %}
+                <div style="flex: 1 1 auto; min-height: 200px;">
+                    <canvas id="walletChart"></canvas>
                 </div>
             {% else %}
-                <p style="text-align: center; color: #6c757d; font-style: italic;">No wallets found</p>
+                <div class="small-muted" style="text-align: center; padding: 10px 0;">No wallets found</div>
             {% endif %}
         </div>
     </div>
 
     <div class="grid-item">
-        <canvas id="myChart"></canvas>
+        <div class="totals-card home-card" style="display: flex; flex-direction: column;">
+            <div class="crypto-page-title" style="text-align: center; margin: 0 0 6px 0;">Crypto Portfolio</div>
+            <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center;">
+                <div style="width: 100%; max-width: 440px; height: 260px;">
+                    <canvas id="myChart"></canvas>
+                </div>
+            </div>
+            <div class="totals-meta" style="margin-top: 10px;">
+                <div class="totals-row">
+                    <div class="totals-label small-muted">Total value now</div>
+                    <div class="totals-value"><span class="pct-positive" id="sumNowText"></span></div>
+                </div>
+                <div class="totals-row">
+                    <div class="totals-label small-muted">Total value paid</div>
+                    <div class="totals-value"><span class="pct-negative" id="sumPaidText"></span></div>
+                </div>
+                <div class="totals-row">
+                    <div class="totals-label small-muted">Gain / loss</div>
+                    <div class="totals-value">
+                        <span class="{% if cryptoPortfolioGainIsPositive %}pct-positive{% else %}pct-negative{% endif %}">
+                            {% if cryptoPortfolioGainIsPositive %}+{% else %}-{% endif %}{{ cryptoPortfolioGainAbsDisplay }} {{ baseCurrency }}
+                        </span>
+                        <span class="small-muted">
+                            {% if cryptoPortfolioGainPctDisplay and cryptoPortfolioGainPctDisplay != 'N/A' %}
+                                ({{ cryptoPortfolioGainPctDisplay }})
+                            {% else %}
+                                (N/A)
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="grid-item">
-        <p>Section 3 content here</p>
+        <div class="totals-card home-card" style="display: flex; flex-direction: column; justify-content: center;">
+            <div class="crypto-page-title" style="text-align: center; margin: 0; font-size: 1.1rem;">Stocks</div>
+            <div class="small-muted" style="text-align: center; margin-top: 8px;">Overview coming soon.</div>
+        </div>
     </div>
 
 
     <div class="grid-item">
-        <p>Section 4 content here</p>
+        <div class="totals-card home-card" style="display: flex; flex-direction: column; justify-content: center;">
+            <div class="crypto-page-title" style="text-align: center; margin: 0; font-size: 1.1rem;">Transactions</div>
+            <div class="small-muted" style="text-align: center; margin-top: 8px;">Overview coming soon.</div>
+        </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const labels = {{ cryptoLabels | tojson }};
-    const data = {{ cryptoValues | tojson }};
+    // Wallet balances chart
+    const walletLabels = [
+        {% if wallets and wallets|length > 0 %}
+            {% for wallet in wallets %}
+                {{ (wallet.walletName or wallet.walletId) | tojson }}{% if not loop.last %},{% endif %}
+            {% endfor %}
+        {% else %}
+            
+        {% endif %}
+    ];
+    const walletBalances = [
+        {% if wallets and wallets|length > 0 %}
+            {% for wallet in wallets %}
+                {{ (wallet.balance or 0) | tojson }}{% if not loop.last %},{% endif %}
+            {% endfor %}
+        {% else %}
+            
+        {% endif %}
+    ];
+
+    const nowData = {{ cryptoNowValues | tojson }};
+    const paidData = {{ cryptoPaidValues | tojson }};
+    const baseCurrency = {{ (baseCurrency or 'EUR') | tojson }};
+    const gainIsPositive = {{ (cryptoPortfolioGainIsPositive or false) | tojson }};
+    const gainAbsDisplay = {{ (cryptoPortfolioGainAbsDisplay or '0') | tojson }};
+    const gainPctDisplay = {{ (cryptoPortfolioGainPctDisplay or 'N/A') | tojson }};
+
+    // Sum totals across all cryptos (overall portfolio)
+    const sumNow = (Array.isArray(nowData) ? nowData : []).reduce((acc, v) => acc + (Number(v) || 0), 0);
+    const sumPaid = (Array.isArray(paidData) ? paidData : []).reduce((acc, v) => acc + (Number(v) || 0), 0);
+    const labels = ['Total Value Now', 'Total Value Paid'];
+
+    const formatMoney = (v) => {
+        const n = Number(v || 0);
+        return `${n.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+    };
+
+    // Fill below-chart totals
+    const sumNowEl = document.getElementById('sumNowText');
+    const sumPaidEl = document.getElementById('sumPaidText');
+    if (sumNowEl) sumNowEl.textContent = formatMoney(sumNow);
+    if (sumPaidEl) sumPaidEl.textContent = formatMoney(sumPaid);
+
+    // Green for "Now", Red for "Paid"
+    const colorNow = 'rgba(40, 167, 69, 0.55)';
+    const colorPaid = 'rgba(220, 53, 69, 0.55)';
+    const borderNow = 'rgba(40, 167, 69, 1)';
+    const borderPaid = 'rgba(220, 53, 69, 1)';
+
+    // Render wallet bar chart (if the canvas exists)
+    const walletCanvas = document.getElementById('walletChart');
+    if (walletCanvas && Array.isArray(walletLabels) && walletLabels.length > 0) {
+        const walletColors = walletBalances.map(v => (Number(v) || 0) >= 0 ? colorNow : colorPaid);
+        const walletBorderColors = walletBalances.map(v => (Number(v) || 0) >= 0 ? borderNow : borderPaid);
+
+        new Chart(walletCanvas, {
+            type: 'bar',
+            data: {
+                labels: walletLabels,
+                datasets: [
+                    {
+                        label: `Balance (${baseCurrency})`,
+                        data: walletBalances,
+                        backgroundColor: walletColors,
+                        borderColor: walletBorderColors,
+                        borderWidth: 1,
+                        borderRadius: 6,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const v = Number(context.parsed.x || 0);
+                                return `${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            callback: function(value) {
+                                return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+                            }
+                        },
+                        grid: { display: true }
+                    },
+                    y: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
 
     new Chart(document.getElementById('myChart'), {
-        type: 'bar',
+        type: 'pie',
         data: {
-            labels: labels,
-            datasets: [{
-                label: 'Portfolio Value (€)',
-                data: data,
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.5)',
-                    'rgba(54, 162, 235, 0.5)',
-                    'rgba(255, 206, 86, 0.5)',
-                    'rgba(75, 192, 192, 0.5)',
-                    'rgba(153, 102, 255, 0.5)'
-                ],
-                borderColor: [
-                    'rgba(255, 99, 132, 1)',
-                    'rgba(54, 162, 235, 1)',
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(75, 192, 192, 1)',
-                    'rgba(153, 102, 255, 1)'
-                ],
-                borderWidth: 1
-            }]
+            labels,
+            datasets: [
+                {
+                    label: `Crypto Portfolio (${baseCurrency})`,
+                    data: [sumNow, sumPaid],
+                    backgroundColor: [colorNow, colorPaid],
+                    borderColor: [borderNow, borderPaid],
+                    borderWidth: 1
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: {
-                y: { 
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value, index, values) {
-                            return '€' + value.toLocaleString();
-                        }
-                    }
-                }
-            },
+            radius: '95%',
             plugins: {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return context.dataset.label + ': €' + context.parsed.y.toLocaleString();
+                            const v = Number(context.parsed || 0);
+                            return `${context.label}: ${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
                         }
                     }
                 }
@@ -127,6 +244,27 @@
 </script>
 
 {% else %}
-<h2>Please <a href="/login">login</a> to continue...</h2>
+<div style="width: 100%; max-width: 720px; margin: 40px auto; padding: 0 16px;">
+    <div class="totals-card" style="padding: 18px 18px 16px;">
+        <div class="crypto-page-title" style="margin: 0 0 6px 0; text-align: center;">Welcome</div>
+        <div class="small-muted" style="text-align: center; margin-bottom: 12px;">
+            Sign in to access your wallets, track crypto & stock holdings, and manage daily transactions.
+        </div>
+        <!-- <div class="small-muted" style="text-align: center; margin-bottom: 10px;">
+             Please sign in to see your wallets. 
+        </div> -->
+
+        <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+            <a class="btn-cancel" href="/login" style="text-decoration: none;">Sign in / Create account</a>
+            <!-- <a class="btn-insert" href="/login" style="text-decoration: none;">Create account / sign up</a> -->
+        </div>
+
+        <div class="small-muted" style="text-align: center; margin-top: 12px;">
+            <!-- New here? You can create an account during sign-in.
+            <span style="opacity: 0.7;">·</span> -->
+            You’ll be redirected to our secure sign-in provider.
+        </div>
+    </div>
+</div>
 {% endif %}
 {% endblock %}

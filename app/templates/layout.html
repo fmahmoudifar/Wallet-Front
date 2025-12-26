@@ -34,15 +34,15 @@
 
             <nav class="app-nav">
                 {% if session.get('user') %}
-                    <a class="app-nav-link" href="/">Home</a>
-                    <a class="app-nav-link" href="/wallet">Wallets</a>
-                    <a class="app-nav-link" href="/transaction">Transactions</a>
-                    <a class="app-nav-link" href="/crypto">Crypto Currencies</a>
-                    <a class="app-nav-link" href="/stock">Stocks</a>
-                    <a class="app-nav-link" href="/settings">Settings</a>
+                    <a class="app-nav-link" href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>Home</a>
+                    <a class="app-nav-link" href="/wallet" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>Wallets</a>
+                    <a class="app-nav-link" href="/transaction" {% if request.path.startswith('/transaction') %}aria-current="page"{% endif %}>Transactions</a>
+                    <a class="app-nav-link" href="/crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>Crypto Portfolio</a>
+                    <a class="app-nav-link" href="/stock" {% if request.path.startswith('/stock') %}aria-current="page"{% endif %}>Stocks</a>
+                    <a class="app-nav-link" href="/settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>Settings</a>
                     <a class="app-nav-link app-nav-link-logout" href="/logout">Logout</a>
                 {% else %}
-                    <a class="app-nav-link" href="/login">Login</a>
+                    <a class="app-nav-link" href="/login" {% if request.path.startswith('/login') %}aria-current="page"{% endif %}>Login</a>
                 {% endif %}
             </nav>
         </aside>
@@ -57,13 +57,13 @@
 
     {% if session.get('user') %}
     <nav class="app-bottom-nav" aria-label="Bottom navigation">
-        <a class="app-bottom-link" href="/" aria-label="Home">
+        <a class="app-bottom-link" href="/" aria-label="Home" {% if request.path == '/' %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M3 10.5 12 3l9 7.5v9.5a1 1 0 0 1-1 1h-5.5v-6.5h-5V21H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
             </svg>
             <span class="sr-only">Home</span>
         </a>
-        <a class="app-bottom-link" href="/wallet" aria-label="Wallets">
+        <a class="app-bottom-link" href="/wallet" aria-label="Wallets" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
                 <path d="M20 9h-4.5a2 2 0 0 0 0 4H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -71,14 +71,14 @@
             </svg>
             <span class="sr-only">Wallets</span>
         </a>
-        <a class="app-bottom-link" href="/transaction" aria-label="Transactions">
+        <a class="app-bottom-link" href="/transaction" aria-label="Transactions" {% if request.path.startswith('/transaction') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M7 7h13l-3-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M17 17H4l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span class="sr-only">Transactions</span>
         </a>
-        <a class="app-bottom-link" href="/crypto" aria-label="Crypto">
+        <a class="app-bottom-link" href="/crypto" aria-label="Crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <!-- Coin stack (clean + crisp) -->
                 <ellipse cx="12" cy="7" rx="6.5" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
@@ -87,7 +87,7 @@
             </svg>
             <span class="sr-only">Crypto</span>
         </a>
-        <a class="app-bottom-link" href="/stock" aria-label="Stocks">
+        <a class="app-bottom-link" href="/stock" aria-label="Stocks" {% if request.path.startswith('/stock') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 19V5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 <path d="M4 19h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -95,7 +95,7 @@
             </svg>
             <span class="sr-only">Stocks</span>
         </a>
-        <a class="app-bottom-link" href="/settings" aria-label="Settings">
+        <a class="app-bottom-link" href="/settings" aria-label="Settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <!-- Sliders (clean settings icon) -->
                 <path d="M5 7h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
