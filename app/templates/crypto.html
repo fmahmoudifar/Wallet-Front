@@ -9,7 +9,7 @@
 {% endblock %}
 
 <script>
-    function editCrypto(cryptoId, userId, cryptoName, tdate, fromWallet, toWallet, side, quantity, price, currency, fee, note) {
+    function editCrypto(cryptoId, userId, cryptoName, tdate, fromWallet, toWallet, operation, quantity, price, currency, fee, note) {
         document.getElementById("updateCryptoId").value = cryptoId;
         document.getElementById("updateUserId").value = userId;
         // set update visible input and hidden value; prefer uppercase symbol when available
@@ -40,7 +40,7 @@
         document.getElementById("updateTdate").value = tdate;
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
-        document.getElementById("updateSide").value = side;
+        document.getElementById("updateOperation").value = operation;
         document.getElementById("updateQuantity").value = quantity;
         document.getElementById("updatePrice").value = price;
         document.getElementById("updateCurrency").value = currency;
@@ -59,6 +59,11 @@
         if (title) {
             title.innerText = 'Update Crypto Transaction';
             title.style.display = '';
+        }
+
+        // Ensure Transfer-specific UI is applied for update form.
+        if (typeof syncCryptoOperationUI === 'function') {
+            syncCryptoOperationUI('update');
         }
     }  
 
@@ -193,13 +198,17 @@
         }
 
         // form submit guards
-        const createForm = document.querySelector('form[action="/crypto"]');
+        const createForm = document.getElementById('createCryptoForm');
         if (createForm) {
             createForm.addEventListener('submit', function(e){
                 if (!tryMatchAndSet(createInput, createHidden)) {
                     e.preventDefault();
                     showError(createInput, 'You must choose a coin from the list before submitting.');
                     createInput.focus();
+                    return false;
+                }
+                if (typeof validateTransfer === 'function' && !validateTransfer('')) {
+                    e.preventDefault();
                     return false;
                 }
             });
@@ -214,8 +223,191 @@
                     updateInput.focus();
                     return false;
                 }
+                if (typeof validateTransfer === 'function' && !validateTransfer('update')) {
+                    e.preventDefault();
+                    return false;
+                }
             });
         }
+
+        // Operation UI behavior (Transfer vs Buy/Sell)
+        function isTransfer(val) {
+            return String(val || '').trim().toLowerCase() === 'transfer';
+        }
+
+        function syncCryptoOperationUI(prefix) {
+            const p = prefix ? String(prefix) : '';
+            const op = document.getElementById(p ? (p + 'Operation') : 'operation');
+            const feeUnit = document.getElementById(p ? (p + 'FeeUnit') : 'feeUnit');
+            const price = document.getElementById(p ? (p + 'Price') : 'price');
+            const currency = document.getElementById(p ? (p + 'Currency') : 'currency');
+            const feeLabel = document.querySelector(`label[for="${p ? (p + 'Fee') : 'fee'}"]`);
+            const priceLabel = document.querySelector(`label[for="${p ? (p + 'Price') : 'price'}"]`);
+            const currencyLabel = (currency && currency.parentNode) ? currency.parentNode.querySelector('label') : null;
+            const fee = document.getElementById(p ? (p + 'Fee') : 'fee');
+            const fromWallet = document.getElementById(p ? (p + 'FromWallet') : 'fromWallet');
+            const toWallet = document.getElementById(p ? (p + 'ToWallet') : 'toWallet');
+
+            if (!op) return;
+
+            const transferMode = isTransfer(op.value);
+            if (feeUnit) {
+                feeUnit.value = transferMode ? 'crypto' : 'fiat';
+            }
+
+            if (feeLabel) {
+                feeLabel.textContent = transferMode ? 'Fee (crypto quantity):' : 'Fee:';
+            }
+
+            // For transfer, price/currency are not meaningful. Keep them, but disable and force 0.
+            if (price) {
+                if (transferMode) {
+                    price.value = '0';
+                    price.readOnly = true;
+                } else {
+                    price.readOnly = false;
+                }
+            }
+            if (currency) {
+                // Don't disable selects (disabled fields don't submit). Instead lock to EUR during transfer.
+                if (transferMode) {
+                    currency.value = 'EUR';
+                    currency.dataset.locked = '1';
+                } else {
+                    delete currency.dataset.locked;
+                }
+            }
+
+            if (priceLabel) {
+                priceLabel.textContent = transferMode ? 'Price (not used for Transfer):' : 'Price:';
+            }
+            if (currencyLabel) {
+                currencyLabel.textContent = transferMode ? 'Currency (not used for Transfer):' : 'Currency:';
+            }
+
+            // For Transfer, require both wallets
+            if (fromWallet) fromWallet.required = !!transferMode;
+            if (toWallet) toWallet.required = !!transferMode;
+        }
+        window.syncCryptoOperationUI = syncCryptoOperationUI;
+
+        const opCreate = document.getElementById('operation');
+        if (opCreate) {
+            opCreate.addEventListener('change', function(){ syncCryptoOperationUI(''); });
+            syncCryptoOperationUI('');
+        }
+        const ccyCreate = document.getElementById('currency');
+        if (ccyCreate) {
+            ccyCreate.addEventListener('change', function(){
+                if (ccyCreate.dataset.locked === '1') ccyCreate.value = 'EUR';
+            });
+        }
+        const opUpdate = document.getElementById('updateOperation');
+        if (opUpdate) {
+            opUpdate.addEventListener('change', function(){ syncCryptoOperationUI('update'); });
+        }
+        const ccyUpdate = document.getElementById('updateCurrency');
+        if (ccyUpdate) {
+            ccyUpdate.addEventListener('change', function(){
+                if (ccyUpdate.dataset.locked === '1') ccyUpdate.value = 'EUR';
+            });
+        }
+
+        function computeWalletHolding(cryptoName, walletId, ignoreCryptoId) {
+            const list = document.getElementById('cryptoList');
+            if (!list) return null;
+            if (!cryptoName || !walletId) return null;
+
+            let holding = 0;
+            const items = Array.from(list.querySelectorAll('li'));
+            items.forEach(li => {
+                if (ignoreCryptoId && String(li.getAttribute('data-id') || '') === String(ignoreCryptoId)) return;
+
+                const liCrypto = String(li.getAttribute('data-crypto') || '');
+                if (liCrypto !== String(cryptoName)) return;
+
+                const op = String(li.getAttribute('data-operation') || '').toLowerCase();
+                const from = String(li.getAttribute('data-from') || '');
+                const to = String(li.getAttribute('data-to') || '');
+                const qty = parseFloat(String(li.getAttribute('data-qty') || '0')) || 0;
+                const fee = parseFloat(String(li.getAttribute('data-fee') || '0')) || 0;
+
+                if (op === 'buy') {
+                    if (to === walletId) holding += qty;
+                } else if (op === 'sell') {
+                    if (from === walletId) holding -= qty;
+                } else if (op === 'transfer') {
+                    if (from === walletId) holding -= qty;
+                    if (to === walletId) holding += Math.max(0, qty - fee);
+                }
+            });
+
+            return holding;
+        }
+        window.computeWalletHolding = computeWalletHolding;
+
+        function validateTransfer(prefix) {
+            const p = prefix ? String(prefix) : '';
+            const op = document.getElementById(p ? (p + 'Operation') : 'operation');
+            if (!op) return true;
+            if (!isTransfer(op.value)) return true;
+
+            const fromWallet = document.getElementById(p ? (p + 'FromWallet') : 'fromWallet');
+            const toWallet = document.getElementById(p ? (p + 'ToWallet') : 'toWallet');
+            const qtyEl = document.getElementById(p ? (p + 'Quantity') : 'quantity');
+            const feeEl = document.getElementById(p ? (p + 'Fee') : 'fee');
+            const cryptoNameEl = document.getElementById(p ? (p + 'CryptoName') : 'cryptoName');
+            const cryptoIdEl = p ? document.getElementById(p + 'CryptoId') : null;
+
+            if (fromWallet) clearError(fromWallet);
+            if (toWallet) clearError(toWallet);
+            if (qtyEl) clearError(qtyEl);
+            if (feeEl) clearError(feeEl);
+
+            if (!fromWallet || !fromWallet.value) {
+                if (fromWallet) showError(fromWallet, 'From Wallet is required for Transfer.');
+                return false;
+            }
+            if (!toWallet || !toWallet.value) {
+                if (toWallet) showError(toWallet, 'To Wallet is required for Transfer.');
+                return false;
+            }
+            if (fromWallet.value === toWallet.value) {
+                showError(toWallet, 'From Wallet and To Wallet must be different.');
+                return false;
+            }
+
+            const qty = parseFloat((qtyEl && qtyEl.value) ? qtyEl.value : '0');
+            const fee = parseFloat((feeEl && feeEl.value) ? feeEl.value : '0');
+            if (!(qty > 0)) {
+                if (qtyEl) showError(qtyEl, 'Quantity must be greater than 0 for Transfer.');
+                return false;
+            }
+            if (isNaN(fee) || fee < 0) {
+                if (feeEl) showError(feeEl, 'Fee must be a valid number (>= 0).');
+                return false;
+            }
+            if (fee > qty) {
+                if (feeEl) showError(feeEl, 'Fee cannot be greater than Quantity for Transfer.');
+                return false;
+            }
+
+            // Prevent negative wallet balances by ensuring the source wallet has enough holdings.
+            // This is a UI guard only; backend should enforce the same rule.
+            const cryptoName = cryptoNameEl ? String(cryptoNameEl.value || '') : '';
+            const ignoreId = cryptoIdEl ? String(cryptoIdEl.value || '') : '';
+            const available = computeWalletHolding(cryptoName, fromWallet.value, ignoreId);
+            if (available !== null) {
+                // Use a small epsilon for floating point quantities.
+                const eps = 1e-12;
+                if (available + eps < qty) {
+                    if (qtyEl) showError(qtyEl, `Not enough ${cryptoName || 'crypto'} in From Wallet. Available: ${available}`);
+                    return false;
+                }
+            }
+            return true;
+        }
+        window.validateTransfer = validateTransfer;
 
         // Hook filter inputs to live filtering
         const fStart = document.getElementById('filterStart');
@@ -724,7 +916,7 @@
 <div id="newCrypto" class="block-new" style="display: none;">
     <h2 class="center-text" style="display:none;">New Crypto Transaction</h2>
     <div class="form-container">
-        <form action="/crypto" method="POST">
+        <form id="createCryptoForm" action="/crypto" method="POST">
             <div>
                 <label for="cryptoName">Crypto:</label>
                 <input type="text" id="cryptoSearch" placeholder="Type to search coins..." autocomplete="off" required />
@@ -756,20 +948,22 @@
                 </select>
             </div>
             <div>
-                <label for="side">Side:</label>
-                <select name="side" id="side" required>
-                    <option value="">-- Select Side --</option> 
+                <label for="operation">Operation:</label>
+                <select name="operation" id="operation" required>
+                    <option value="">-- Select Operation --</option> 
                     <option value="Buy">Buy</option>
                     <option value="Sell">Sell</option>
+                    <option value="Transfer">Transfer</option>
                 </select>
             </div>
+            <input type="hidden" name="feeUnit" id="feeUnit" value="fiat" />
             <div>
                 <label for="quantity">Quantity:</label>
-                <input type="text" name="quantity" required>
+                <input type="text" id="quantity" name="quantity" required>
             </div>
             <div>
                 <label for="price">Price:</label>
-                <input type="text" name="price" required>
+                <input type="text" id="price" name="price" required>
             </div>
             <div>
                 <label>Currency:</label>
@@ -782,7 +976,7 @@
             </div>
             <div>
                 <label for="fee">Fee:</label>
-                <input type="text" name="fee">
+                <input type="text" id="fee" name="fee">
             </div>
             <div>
                 <label for="note">Note:</label>
@@ -845,11 +1039,11 @@
 {% if cryptos %}
 <ul id="cryptoList">
     {% for crypto in cryptos %}
-    <li data-tdate="{{ crypto.tdate }}" data-crypto="{{ crypto.cryptoName }}" data-from="{{ crypto.fromWallet }}" data-to="{{ crypto.toWallet }}">
+    <li data-id="{{ crypto.cryptoId }}" data-tdate="{{ crypto.tdate }}" data-crypto="{{ crypto.cryptoName }}" data-operation="{{ crypto.operation|default(crypto.side) }}" data-qty="{{ crypto.quantity }}" data-fee="{{ crypto.fee|default(0, true) }}" data-from="{{ crypto.fromWallet }}" data-to="{{ crypto.toWallet }}">
         <div class="crypto-history-row">
             <div class="crypto-history-left">
                 <div class="crypto-history-title">{{ crypto.cryptoName }}</div>
-                <div class="crypto-history-sub">{{ crypto.side }}</div>
+                <div class="crypto-history-sub">{{ crypto.operation|default(crypto.side) }}</div>
             </div>
 
             <div class="crypto-history-right">
@@ -859,7 +1053,7 @@
 
             <div class="crypto-history-actions">
                 <button class="btn-insert" onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.cryptoName }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}',
-                '{{ crypto.toWallet }}','{{ crypto.side }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
+                '{{ crypto.toWallet }}','{{ crypto.operation|default(crypto.side) }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
             </div>
         </div>
     </li>
@@ -907,13 +1101,15 @@
                 </select>
             </div>
             <div>
-                <label for="updateSide">Side:</label>
-                <select name="side" id="updateSide" required>
-                    <option value="">-- Select Side --</option> 
+                <label for="updateOperation">Operation:</label>
+                <select name="operation" id="updateOperation" required>
+                    <option value="">-- Select Operation --</option> 
                     <option value="Buy">Buy</option>
                     <option value="Sell">Sell</option>
+                    <option value="Transfer">Transfer</option>
                 </select>
             </div>
+            <input type="hidden" name="feeUnit" id="updateFeeUnit" value="fiat" />
             <div>
                 <label for="updateQuantity">Quantity:</label>
                 <input type="text" id="updateQuantity" name="quantity">

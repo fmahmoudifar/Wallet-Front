@@ -85,7 +85,47 @@ def users():
                         qty = to_decimal(tx.get('quantity', 0))
                         price = to_decimal(tx.get('price', 0))
                         fee = to_decimal(tx.get('fee', 0))
-                        side = str(tx.get('side', 'buy')).lower()
+                        operation = str(tx.get('operation') or tx.get('side') or 'buy').lower()
+
+                        to_wallet = tx.get("toWallet")
+                        from_wallet = tx.get("fromWallet")
+
+                        # TRANSFER: fee is crypto quantity.
+                        # Net received quantity = max(0, qty - fee).
+                        # - From wallet loses qty (gross)
+                        # - To wallet receives (qty - fee) (net)
+                        # Portfolio delta = (+net if toWallet else 0) - (qty if fromWallet else 0)
+                        if operation == 'transfer':
+                            fee_qty = fee
+                            qty_total = qty
+                            qty_net = qty_total - fee_qty
+                            if qty_net < 0:
+                                qty_net = Decimal(0)
+
+                            qty_in = qty_net if to_wallet else Decimal(0)
+                            qty_out = qty_total if from_wallet else Decimal(0)
+
+                            if from_wallet:
+                                wallet_crypto_qty[from_wallet][name] -= qty_out
+                            if to_wallet:
+                                wallet_crypto_qty[to_wallet][name] += qty_in
+
+                            delta_qty = qty_in - qty_out
+                            if delta_qty > 0:
+                                entry['total_qty'] += delta_qty
+                            elif delta_qty < 0:
+                                qty_to_remove = -delta_qty
+                                if entry['total_qty'] and entry['total_qty'] > 0:
+                                    avg_cost_per_unit = entry['total_cost'] / entry['total_qty']
+                                    can_remove = min(qty_to_remove, entry['total_qty'])
+                                    entry['total_qty'] -= can_remove
+                                    entry['total_cost'] -= (can_remove * avg_cost_per_unit)
+                                    remaining = qty_to_remove - can_remove
+                                    if remaining > 0:
+                                        entry['total_qty'] -= remaining
+                                else:
+                                    entry['total_qty'] -= qty_to_remove
+                            continue
 
                         tx_currency = _normalize_currency(tx.get('currency'), base_currency)
                         fx_rate = _get_fx_rate(tx_currency, base_currency)
@@ -96,10 +136,8 @@ def users():
                         fee_base = fee * fx_rate
                         revenue_base = (qty * price) * fx_rate
                         
-                        to_wallet = tx.get("toWallet")
-                        from_wallet = tx.get("fromWallet")
                         
-                        if side == 'buy':
+                        if operation == 'buy':
                             # BUY: Add to holdings and cost basis
                             entry['total_qty'] += qty
                             entry['total_cost'] += tx_value_base
@@ -114,7 +152,7 @@ def users():
                                 # Track live crypto quantity by destination wallet
                                 wallet_crypto_qty[to_wallet][name] += qty
                                 
-                        elif side == 'sell':
+                        elif operation == 'sell':
                             # SELL: Use weighted average to calculate cost of sold portion
                             if entry['total_qty'] > 0:
                                 # Calculate current weighted average cost per unit

@@ -232,7 +232,44 @@ def crypto_page():
                         qty = to_decimal(tx.get('quantity', 0))
                         price = to_decimal(tx.get('price', 0))
                         fee = to_decimal(tx.get('fee', 0))
-                        side = str(tx.get('side', 'buy')).lower()
+                        operation = str(tx.get('operation') or tx.get('side') or 'buy').lower()
+
+                        # TRANSFER: fee is a crypto quantity.
+                        # Net received quantity = max(0, qty - fee).
+                        # - From wallet loses qty (gross)
+                        # - To wallet receives (qty - fee) (net)
+                        # Portfolio delta = (+net if toWallet else 0) - (qty if fromWallet else 0)
+                        if operation == 'transfer':
+                            from_wallet = tx.get('fromWallet')
+                            to_wallet = tx.get('toWallet')
+                            fee_qty = fee
+                            qty_total = qty
+                            qty_net = qty_total - fee_qty
+                            if qty_net < 0:
+                                qty_net = Decimal(0)
+
+                            qty_in = qty_net if to_wallet else Decimal(0)
+                            qty_out = qty_total if from_wallet else Decimal(0)
+                            delta_qty = qty_in - qty_out
+
+                            if delta_qty > 0:
+                                # Incoming transfer (no cost basis info here) -> add qty with zero cost basis.
+                                entry['total_qty'] += delta_qty
+                            elif delta_qty < 0:
+                                # Outgoing amount reduces holdings at average cost (no revenue).
+                                qty_to_remove = -delta_qty
+                                if entry['total_qty'] and entry['total_qty'] > 0:
+                                    avg_cost_per_unit = entry['total_cost'] / entry['total_qty']
+                                    can_remove = min(qty_to_remove, entry['total_qty'])
+                                    entry['total_qty'] -= can_remove
+                                    entry['total_cost'] -= (can_remove * avg_cost_per_unit)
+                                    remaining = qty_to_remove - can_remove
+                                    if remaining > 0:
+                                        # reflect as negative holdings (no additional cost basis change)
+                                        entry['total_qty'] -= remaining
+                                else:
+                                    entry['total_qty'] -= qty_to_remove
+                            continue
 
                         tx_currency = _normalize_currency(tx.get('currency'), base_currency)
                         fx_rate = _get_fx_rate(tx_currency, base_currency)
@@ -243,14 +280,14 @@ def crypto_page():
                         fee_base = fee * fx_rate
                         revenue_base = (qty * price) * fx_rate
                         
-                        if side == 'buy':
+                        if operation == 'buy':
                             # BUY: Add to holdings and cost basis
                             entry['total_qty'] += qty
                             entry['total_cost'] += tx_value_base
                             entry['total_value_buy'] += tx_value_base
                             entry['total_fee'] += fee_base
                             
-                        elif side == 'sell':
+                        elif operation == 'sell':
                             # SELL: Use weighted average to calculate cost of sold portion
                             if entry['total_qty'] > 0:
                                 # Calculate current weighted average cost per unit
@@ -554,7 +591,8 @@ def create_crypto():
         "tdate": request.form["tdate"],        
         "fromWallet": request.form["fromWallet"],
         "toWallet": request.form["toWallet"],
-        "side": request.form["side"],
+        "operation": request.form.get("operation") or request.form.get("side"),
+        "feeUnit": request.form.get("feeUnit"),
         "quantity": request.form["quantity"],  
         "price": request.form["price"],  
         "currency": request.form["currency"],
@@ -581,7 +619,8 @@ def update_crypto():
         "tdate": request.form["tdate"],        
         "fromWallet": request.form["fromWallet"],
         "toWallet": request.form["toWallet"],
-        "side": request.form["side"],
+        "operation": request.form.get("operation") or request.form.get("side"),
+        "feeUnit": request.form.get("feeUnit"),
         "quantity": request.form["quantity"],  
         "price": request.form["price"],  
         "currency": request.form["currency"], 
