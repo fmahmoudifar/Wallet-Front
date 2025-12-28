@@ -260,12 +260,16 @@ html[data-theme="dark"] #transList li:hover {
 }
 
 html[data-theme="dark"] #cryptoList .crypto-history-title,
-html[data-theme="dark"] #cryptoList .crypto-history-amount {
+html[data-theme="dark"] #cryptoList .crypto-history-amount,
+html[data-theme="dark"] #transList .crypto-history-title,
+html[data-theme="dark"] #transList .crypto-history-amount {
     color: var(--text);
 }
 
 html[data-theme="dark"] #cryptoList .crypto-history-sub,
-html[data-theme="dark"] #cryptoList li.crypto-group-header {
+html[data-theme="dark"] #cryptoList li.crypto-group-header,
+html[data-theme="dark"] #transList .crypto-history-sub,
+html[data-theme="dark"] #transList li.crypto-group-header {
     color: var(--muted);
 }
 
@@ -521,6 +525,53 @@ button.pct-positive:hover {
     background: transparent;
 }
 
+/* Transactions history: match crypto history row layout */
+#transList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    column-gap: 0;
+}
+
+#transList li {
+    list-style-type: none;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    box-sizing: border-box;
+}
+
+#transList li:hover {
+    background: #f8f9fa;
+}
+
+#transList li.crypto-group-header {
+    padding: 6px 4px;
+    margin: 8px 0 -4px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #666;
+    font-weight: 800;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+#transList li.crypto-group-header:hover {
+    background: transparent;
+}
+
 /* Crypto history: Wise-like rows */
 #cryptoList .crypto-history-row {
     display: grid;
@@ -555,11 +606,53 @@ button.pct-positive:hover {
     justify-content: flex-end;
 }
 
+/* Reuse the same row typography/layout for transaction history rows */
+#transList .crypto-history-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px 14px;
+    align-items: center;
+}
+
+#transList .crypto-history-title {
+    font-weight: 800;
+    color: #222;
+}
+
+#transList .crypto-history-right {
+    text-align: right;
+}
+
+#transList .crypto-history-amount {
+    font-weight: 800;
+    color: #222;
+}
+
+#transList .crypto-history-sub {
+    color: #666;
+    font-weight: 600;
+    font-size: 13px;
+    margin-top: 2px;
+}
+
+#transList .crypto-history-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
 @media (max-width: 768px) {
     #cryptoList .crypto-history-row {
         grid-template-columns: 1fr auto;
     }
     #cryptoList .crypto-history-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+
+    #transList .crypto-history-row {
+        grid-template-columns: 1fr auto;
+    }
+    #transList .crypto-history-actions {
         grid-column: 1 / -1;
         justify-content: flex-start;
     }

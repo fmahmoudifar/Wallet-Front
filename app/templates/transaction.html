@@ -9,7 +9,20 @@
     function editTransaction(transId, userId, transType, mainCat, tdate, fromWallet, toWallet, amount, price, currency, fee, note) {
         document.getElementById("updateTransId").value = transId;
         document.getElementById("updateUserId").value = userId;
-        document.getElementById("updateTransType").value = transType;
+        {
+            const sel = document.getElementById("updateTransType");
+            if (sel) {
+                const v = (transType || '').trim();
+                const hasOption = Array.from(sel.options || []).some(o => String(o.value) === String(v));
+                if (!hasOption && v) {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.textContent = v;
+                    sel.appendChild(opt);
+                }
+                sel.value = v;
+            }
+        }
         document.getElementById("updateMainCat").value = mainCat;
         {
             const el = document.getElementById("updateTdate");
@@ -23,56 +36,321 @@
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
         document.getElementById("updatePrice").value = price;
-        document.getElementById("updateCurrency").value = currency;
+        {
+            const sel = document.getElementById("updateCurrency");
+            if (sel) {
+                const v = (currency || '').trim();
+                const hasOption = Array.from(sel.options || []).some(o => String(o.value) === String(v));
+                if (!hasOption && v) {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.textContent = v;
+                    sel.appendChild(opt);
+                }
+                sel.value = v;
+            }
+        }
         document.getElementById("updateFee").value = fee;
         document.getElementById("updateNote").value = note;
         document.getElementById("updateTransDiv").style.display = "block";
         document.getElementById("transListDiv").style.display = "none";
-        document.getElementById("newTransB").style.display = "none";
+        const newDiv = document.getElementById("newTrans");
+        if (newDiv) newDiv.style.display = "none";
+
+        const addBtn = document.getElementById("newTransB");
+        if (addBtn) addBtn.style.display = "none";
+        const historyBtn = document.getElementById("TransHistoryB");
+        if (historyBtn) historyBtn.style.display = "none";
+
+        const title = document.getElementById('transPageTitle');
+        if (title) title.innerText = 'Update Transaction';
         document.getElementById("deleteForm").action = `/deleteTrans/${transId}/${userId}`;
     }  
 
     document.addEventListener("DOMContentLoaded", function() {
-    let list = document.getElementById("transList");
-    let items = Array.from(list.children);
+        const list = document.getElementById("transList");
+        if (list) {
+            const items = Array.from(list.querySelectorAll('li[data-tdate]'));
+            if (items.length > 1) {
+                items.sort((a, b) => {
+                    let dateA = new Date(a.getAttribute("data-tdate") || 0);
+                    let dateB = new Date(b.getAttribute("data-tdate") || 0);
+                    return dateB - dateA;
+                });
+                items.forEach(item => list.appendChild(item));
+            }
 
-    items.sort((a, b) => {
-        let dateA = new Date(a.getAttribute("data-tdate"));
-        let dateB = new Date(b.getAttribute("data-tdate"));
-        return dateB - dateA;  // Sort descending
+            if (typeof ensureTransGroupsBuilt === 'function') {
+                ensureTransGroupsBuilt(true);
+            }
+            if (typeof applyTransFilters === 'function') {
+                applyTransFilters();
+            }
+        }
+
+        // Hook up live filtering
+        const ids = ['filterStart','filterEnd','filterType','filterCategory','filterNote','filterFromWallet','filterToWallet','filterCurrency'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const evt = (el.tagName === 'SELECT') ? 'change' : 'input';
+            el.addEventListener(evt, function () {
+                window.transCurrentPage = 1;
+                applyTransFilters();
+            });
+        });
     });
 
-    items.forEach(item => list.appendChild(item));
-});
+    function newTransDiv() {
+        const div = document.getElementById("newTrans");
+        const list = document.getElementById("transListDiv");
+        const update = document.getElementById("updateTransDiv");
+        const addBtn = document.getElementById("newTransB");
+        const historyBtn = document.getElementById("TransHistoryB");
+        const title = document.getElementById('transPageTitle');
 
-function newTransDiv() {
-    let div = document.getElementById("newTrans");
-    let button = document.getElementById("newTransB");
-
-    if (div.style.display === "none" || div.style.display === "") {
-        div.style.display = "block";
-        document.getElementById("transListDiv").style.display = "none";
-        button.style.display = "none" ;
-        // button.innerText = "Cancel" ;
-    } else {
-        div.style.display = "none"; 
-        document.getElementById("transListDiv").style.display = "block";
-        button.innerText = "Add New Transaction" ;
+        if (div.style.display === "none" || div.style.display === "") {
+            div.style.display = "block";
+            if (list) list.style.display = "none";
+            if (update) update.style.display = "none";
+            if (addBtn) addBtn.style.display = "none";
+            if (historyBtn) historyBtn.style.display = "none";
+            if (title) title.innerText = 'New Transaction';
+        } else {
+            div.style.display = "none";
+            if (list) list.style.display = "block";
+            if (addBtn) addBtn.style.display = "";
+            if (historyBtn) historyBtn.style.display = "";
+            if (title) title.innerText = 'Fiat Transactions';
+            if (typeof applyTransFilters === 'function') { applyTransFilters(); }
+        }
     }
-}
+
+    function transHistoryDiv() {
+        const div = document.getElementById("transListDiv");
+        const newDiv = document.getElementById("newTrans");
+        const updateDiv = document.getElementById("updateTransDiv");
+        const addBtn = document.getElementById("newTransB");
+        const historyBtn = document.getElementById("TransHistoryB");
+        const title = document.getElementById('transPageTitle');
+
+        if (newDiv) newDiv.style.display = "none";
+        if (updateDiv) updateDiv.style.display = "none";
+        if (div) div.style.display = "block";
+        if (addBtn) addBtn.style.display = "";
+        if (historyBtn) historyBtn.style.display = "";
+        if (title) title.innerText = 'Fiat Transactions';
+        if (typeof applyTransFilters === 'function') { applyTransFilters(); }
+    }
+
+    // Utilities for client-side filtering
+    function parseLocalDateTime(val) {
+        if (!val) return null;
+        try { return new Date(val); } catch(e) { return null; }
+    }
+
+    function parseTxDate(val) {
+        if (!val) return null;
+        let s = String(val);
+        let d = new Date(s);
+        if (isNaN(d)) {
+            d = new Date(s.replace(' ', 'T'));
+        }
+        return isNaN(d) ? null : d;
+    }
+
+    function monthKeyFromDate(d) {
+        if (!d || isNaN(d)) return 'unknown';
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+    }
+
+    function monthLabelFromDate(d) {
+        if (!d || isNaN(d)) return 'Unknown date';
+        try {
+            return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+        } catch (e) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        }
+    }
+
+    function buildTransMonthGroups() {
+        const list = document.getElementById('transList');
+        if (!list) return;
+
+        list.querySelectorAll('li.crypto-group-header').forEach(h => h.remove());
+
+        const txItems = Array.from(list.querySelectorAll('li[data-tdate]'));
+        if (!txItems.length) return;
+
+        let currentKey = null;
+        txItems.forEach(li => {
+            const d = parseTxDate(li.getAttribute('data-tdate'));
+            const key = monthKeyFromDate(d);
+            li.setAttribute('data-group', key);
+
+            if (key !== currentKey) {
+                const header = document.createElement('li');
+                header.className = 'crypto-group-header';
+                header.setAttribute('data-group', key);
+                header.textContent = monthLabelFromDate(d);
+                list.insertBefore(header, li);
+                currentKey = key;
+            }
+        });
+    }
+
+    function syncTransGroupHeaders() {
+        const list = document.getElementById('transList');
+        if (!list) return;
+
+        const headers = Array.from(list.querySelectorAll('li.crypto-group-header'));
+        if (!headers.length) return;
+
+        const txItems = Array.from(list.querySelectorAll('li[data-tdate]'));
+        headers.forEach(h => {
+            const key = h.getAttribute('data-group') || '';
+            const anyVisible = txItems.some(li => {
+                if ((li.getAttribute('data-group') || '') !== key) return false;
+                return li.style.display !== 'none';
+            });
+            h.style.display = anyVisible ? '' : 'none';
+        });
+    }
+
+    function ensureTransGroupsBuilt(force) {
+        const list = document.getElementById('transList');
+        if (!list) return;
+        const hasHeaders = !!list.querySelector('li.crypto-group-header');
+        if (force || !hasHeaders) {
+            buildTransMonthGroups();
+        }
+        syncTransGroupHeaders();
+    }
+
+    function applyTransFilters() {
+        const list = document.getElementById('transList');
+        if (!list) return;
+
+        ensureTransGroupsBuilt(false);
+        const items = Array.from(list.querySelectorAll('li[data-tdate]'));
+
+        const startVal = document.getElementById('filterStart')?.value || '';
+        const endVal = document.getElementById('filterEnd')?.value || '';
+        const typeVal = (document.getElementById('filterType')?.value || '').trim().toLowerCase();
+        const catVal = (document.getElementById('filterCategory')?.value || '').trim().toLowerCase();
+        const noteVal = (document.getElementById('filterNote')?.value || '').trim().toLowerCase();
+        const fromVal = (document.getElementById('filterFromWallet')?.value || '').trim().toLowerCase();
+        const toVal = (document.getElementById('filterToWallet')?.value || '').trim().toLowerCase();
+        const ccyVal = (document.getElementById('filterCurrency')?.value || '').trim().toLowerCase();
+
+        const startDt = parseLocalDateTime(startVal);
+        const endDt = parseLocalDateTime(endVal);
+
+        if (window.transPageSize == null) window.transPageSize = 20;
+        if (window.transCurrentPage == null) window.transCurrentPage = 1;
+
+        function itemMatches(li) {
+            let show = true;
+            const tdate = parseTxDate(li.getAttribute('data-tdate'));
+            if (startDt && tdate && tdate < startDt) show = false;
+            if (endDt && tdate && tdate > endDt) show = false;
+            if ((startDt || endDt) && !tdate) show = false;
+
+            if (show && typeVal) {
+                const v = (li.getAttribute('data-type') || '').toLowerCase();
+                if (!v.includes(typeVal)) show = false;
+            }
+            if (show && catVal) {
+                const v = (li.getAttribute('data-cat') || '').toLowerCase();
+                if (!v.includes(catVal)) show = false;
+            }
+            if (show && noteVal) {
+                const v = (li.getAttribute('data-note') || '').toLowerCase();
+                if (!v.includes(noteVal)) show = false;
+            }
+            if (show && fromVal) {
+                const v = (li.getAttribute('data-from') || '').toLowerCase();
+                if (!v.includes(fromVal)) show = false;
+            }
+            if (show && toVal) {
+                const v = (li.getAttribute('data-to') || '').toLowerCase();
+                if (!v.includes(toVal)) show = false;
+            }
+            if (show && ccyVal) {
+                const v = (li.getAttribute('data-currency') || '').toLowerCase();
+                if (!v.includes(ccyVal)) show = false;
+            }
+            return show;
+        }
+
+        const matching = items.filter(itemMatches);
+        const total = matching.length;
+        const pageSize = Number(window.transPageSize) || 20;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        window.transCurrentPage = Math.min(Math.max(1, Number(window.transCurrentPage) || 1), totalPages);
+
+        items.forEach(li => { li.style.display = 'none'; });
+        const startIdx = (window.transCurrentPage - 1) * pageSize;
+        const endIdx = startIdx + pageSize;
+        matching.slice(startIdx, endIdx).forEach(li => { li.style.display = ''; });
+
+        syncTransGroupHeaders();
+
+        const emptyMsg = document.getElementById('filterEmptyMsg');
+        if (emptyMsg) emptyMsg.style.display = total ? 'none' : '';
+
+        const pager = document.getElementById('transPagination');
+        const pageInfo = document.getElementById('transPageInfo');
+        const prevBtn = document.getElementById('transPrevPage');
+        const nextBtn = document.getElementById('transNextPage');
+        if (pager) pager.style.display = total ? '' : 'none';
+        if (pageInfo) pageInfo.textContent = `Page ${window.transCurrentPage} of ${totalPages}`;
+        if (prevBtn) prevBtn.disabled = window.transCurrentPage <= 1;
+        if (nextBtn) nextBtn.disabled = window.transCurrentPage >= totalPages;
+    }
+
+    function resetTransFilters() {
+        ['filterStart','filterEnd','filterType','filterCategory','filterNote','filterFromWallet','filterToWallet','filterCurrency'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        window.transCurrentPage = 1;
+        applyTransFilters();
+    }
+
+    function transGoToPrevPage() {
+        window.transCurrentPage = Math.max(1, (Number(window.transCurrentPage) || 1) - 1);
+        applyTransFilters();
+    }
+
+    function transGoToNextPage() {
+        window.transCurrentPage = (Number(window.transCurrentPage) || 1) + 1;
+        applyTransFilters();
+    }
 </script>
 
-<h1 class="page-title">Transactions Manager</h1>
-
-<button id="newTransB" class="btn-insert" onclick="newTransDiv()">Add New Transaction</button>
+<div class="crypto-page-header">
+    <h1 id="transPageTitle" class="crypto-page-title">Fiat Transactions</h1>
+    <div class="crypto-page-actions">
+        <button id="newTransB" class="btn-insert pct-positive" onclick="newTransDiv()">New Transaction</button>
+        <button id="TransHistoryB" class="btn-insert" onclick="transHistoryDiv()">Transactions History</button>
+    </div>
+</div>
 
 <div id="newTrans" class="block-new" style="display: none;">
-    <h2 class="center-text">Add New Transaction</h2>
+    <h2 class="center-text" style="display:none;">Add New Transaction</h2>
     <div class="form-container">
         <form action="/transaction" method="POST">
     <div>
     <label for="transType">Transaction Type:</label>
-    <input type="text" name="transType" placeholder="transType" required>
+    <select id="transType" name="transType" required>
+        <option value="">-- Select --</option>
+        <option value="Income">Income</option>
+        <option value="Expense">Expense</option>
+        <option value="Transfer">Transfer</option>
+    </select>
     </div>
     <div>
     <label for="mainCat">Category:</label>
@@ -102,7 +380,10 @@ function newTransDiv() {
     </div>
     <div>
     <label for="currency">Currency:</label>
-    <input type="text" name="currency" placeholder="Currency" required>
+    <select id="currency" name="currency" required>
+        <option value="EUR">EUR</option>
+        <option value="USD">USD</option>
+    </select>
     </div>
     <div>
     <label for="fee">Fee:</label>
@@ -121,63 +402,80 @@ function newTransDiv() {
     </div>
 </div>
 
-<h6>{{ fd }}</h6>
+{% if fd %}
+    <div class="small-muted" style="margin-bottom:10px">{{ fd }}</div>
+{% endif %}
 
 <div id="transListDiv" class="form-container">
-    <h2 class="center-text">Transactions History</h2>
+    <h2 class="crypto-section-title">Transactions History</h2>
+    <div id="filters" class="history-filters">
+        <form class="filters-grid" onsubmit="applyTransFilters(); return false;">
+            <div>
+                <label for="filterStart">From Date:</label>
+                <input type="text" id="filterStart" name="start" data-dt-picker="1">
+            </div>
+            <div>
+                <label for="filterEnd">To Date:</label>
+                <input type="text" id="filterEnd" name="end" data-dt-picker="1">
+            </div>
+            <div>
+                <label for="filterType">Type:</label>
+                <input type="text" id="filterType" name="type" placeholder="Contains..." autocomplete="off" />
+            </div>
+            <div>
+                <label for="filterCategory">Category:</label>
+                <input type="text" id="filterCategory" name="category" placeholder="Contains..." autocomplete="off" />
+            </div>
+            <div>
+                <label for="filterNote">Note:</label>
+                <input type="text" id="filterNote" name="note" placeholder="Contains..." autocomplete="off" />
+            </div>
+            <div>
+                <label for="filterFromWallet">From Wallet:</label>
+                <input type="text" id="filterFromWallet" name="fromWallet" placeholder="Contains..." autocomplete="off" />
+            </div>
+            <div>
+                <label for="filterToWallet">To Wallet:</label>
+                <input type="text" id="filterToWallet" name="toWallet" placeholder="Contains..." autocomplete="off" />
+            </div>
+            <div>
+                <label for="filterCurrency">Currency:</label>
+                <input type="text" id="filterCurrency" name="currency" placeholder="e.g. EUR" autocomplete="off" />
+            </div>
+            <div class="filters-actions">
+                <button type="button" class="btn-clear" onclick="resetTransFilters()">Clear</button>
+            </div>
+        </form>
+        <div id="filterEmptyMsg" class="small-muted" style="display:none;margin-top:8px">No matching transactions.</div>
+        <div id="transPagination" class="pagination-controls" style="display:none;margin-top:10px">
+            <button id="transPrevPage" type="button" class="btn-clear" onclick="transGoToPrevPage()">Prev</button>
+            <div id="transPageInfo" class="small-muted" style="min-width:140px;text-align:center">Page 1 of 1</div>
+            <button id="transNextPage" type="button" class="btn-clear" onclick="transGoToNextPage()">Next</button>
+        </div>
+    </div>
 {% if transactions %}
-<ul id="transList" >
+<ul id="transList">
     {% for transaction in transactions %}
-        <li data-tdate="{{ transaction.tdate }}">
-            <div class="record-grid">
+        <li data-id="{{ transaction.transId }}" data-tdate="{{ transaction.tdate }}" data-type="{{ transaction.transType|default('') }}" data-cat="{{ transaction.mainCat|default('') }}" data-note="{{ transaction.note|default('') }}" data-from="{{ transaction.fromWallet|default('') }}" data-to="{{ transaction.toWallet|default('') }}" data-currency="{{ transaction.currency|default('') }}">
+            <div class="crypto-history-row">
+                <div class="crypto-history-left">
+                    <div class="crypto-history-title">{{ transaction.transType }}</div>
+                    <div class="crypto-history-sub">{{ transaction.mainCat }}</div>
+                    {% if transaction.note %}
+                    <div class="crypto-history-sub">{{ transaction.note }}</div>
+                    {% endif %}
+                </div>
 
-        <!-- <div>
-            <strong>Transaction ID:</strong> {{ transaction.transId }}
-        </div> -->
-        <!-- <div>
-            <strong>User ID:</strong> {{ transaction.userId }}
-        </div>  -->
-        <div>
-            <strong>Transaction Type:</strong> {{ transaction.transType }}
-        </div>
-        <div>
-            <strong>Main Category:</strong> {{ transaction.mainCat }}
-        </div>
-        <!-- <div>
-            <strong>Sub Category:</strong> {{ transaction.subCat }}
-        </div> -->
-        <div>
-            <strong>Date:</strong> {{ transaction.tdate | replace("T", " ") }}
-        </div>
-        <div>
-            <strong>Amount:</strong> {{ transaction.amount }}
-        </div>
-        <div>
-            <strong>From Wallet:</strong> {{ transaction.fromWallet }}
-        </div>
-        <div>
-            <strong>To Wallet:</strong> {{ transaction.toWallet }}
-        </div>
-        <div>
-            <strong>Price:</strong> {{ transaction.price }}
-        </div>
-        <div>
-            <strong>Currency:</strong> {{ transaction.currency }}
-        </div>
-        <div>
-            <strong>Fee:</strong> {{ transaction.fee }}
-        </div>
-        <div>
-            <strong>Note:</strong> {{ transaction.note }}
-        </div>
-        <div></div>
-        <div>
-            <button class="btn-insert" onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.transType }}',
-            '{{ transaction.mainCat }}','{{ transaction.tdate }}','{{ transaction.amount }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}',
-            '{{ transaction.price }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}')">Edit</button>
-        </div>
-        </div>
-    </li>
+                <div class="crypto-history-right">
+                    <div class="crypto-history-amount">{{ transaction.amount }}</div>
+                    <div class="crypto-history-sub">{% if transaction.price %}{{ transaction.price }}{% endif %}{% if transaction.currency %}{% if transaction.price %} {% endif %}{{ transaction.currency }}{% endif %}{% if transaction.fee %}{% if transaction.price or transaction.currency %} • {% endif %}Fee {{ transaction.fee }}{% endif %}</div>
+                </div>
+
+                <div class="crypto-history-actions">
+                    <button class="btn-insert" onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.transType }}','{{ transaction.mainCat }}','{{ transaction.tdate }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}','{{ transaction.amount }}','{{ transaction.price }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}')">Edit</button>
+                </div>
+            </div>
+        </li>
     {% endfor %}
 </ul>
 </div>
@@ -188,14 +486,19 @@ function newTransDiv() {
 
 
 <div id="updateTransDiv" class="block-update" style="display: none;">
-    <h2 class="center-text">Update Transaction</h2>
+    <h2 class="center-text" style="display:none;">Update Transaction</h2>
     <div class="form-container">
         <form id="updateForm" action="/updateTrans" method="POST">
             <input type="hidden" id="updateTransId" name="transId">
             <input type="hidden" id="updateUserId" name="userId">
             <div>
                 <label>Transaction Type:</label>
-                <input type="text" id="updateTransType" name="transType" required>
+                <select id="updateTransType" name="transType" required>
+                    <option value="">-- Select --</option>
+                    <option value="Income">Income</option>
+                    <option value="Expense">Expense</option>
+                    <option value="Transfer">Transfer</option>
+                </select>
             </div>
             <div>
                 <label>Main Category:</label>
@@ -223,7 +526,10 @@ function newTransDiv() {
             </div>
             <div>
                 <label>Currency:</label>
-                <input type="text" id="updateCurrency" name="currency" required>
+                <select id="updateCurrency" name="currency" required>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                </select>
             </div>
             <div>
                 <label>Fee:</label>

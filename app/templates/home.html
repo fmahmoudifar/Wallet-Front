@@ -244,6 +244,9 @@
 </script>
 
 {% else %}
+<script>
+    window.location.replace('/login');
+</script>
 <!-- <div style="width: 100%; max-width: 720px; margin: 40px auto; padding: 0 16px;">
     <div class="totals-card" style="padding: 18px 18px 16px;">
         <div class="crypto-page-title" style="margin: 0 0 6px 0; text-align: center;">Welcome</div>
@@ -266,8 +269,5 @@
         </div>
     </div>
 </div> -->
-<script>
-    window.location.replace('/login');
-</script>
 {% endif %}
 {% endblock %}
