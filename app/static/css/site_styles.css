@@ -351,13 +351,30 @@ button:hover { background-color: #dde2e6; }
 .btn-insert { background-color: #e9ecef; color: #222; border: 1px solid #ced4da; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
 .btn-insert:hover { background-color: #dde2e6; }
 
+/* Green (success) buttons: reuse existing pct-positive palette */
+.btn-insert.pct-positive,
+button.pct-positive {
+    background-color: #4cb464;
+    color: #fff;
+    border-color: #4cb464;
+}
+
+.btn-insert.pct-positive:hover,
+button.pct-positive:hover {
+    background-color: #4cb464;
+}
+
 /* Clear (reset) */
-.btn-clear { background-color: #6c757d; color: #fff; border: 1px solid #6c757d; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
-.btn-clear:hover { background-color: #5a6268; }
+.btn-clear { background-color: #f05757; color: #fff; border: 1px solid #f05757; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
+.btn-clear:hover { background-color: #f05757; }
+
+/* Pagination controls should keep the original neutral button styling */
+.pagination-controls .btn-clear { background-color: #6c757d; color: #fff; border: 1px solid #6c757d; }
+.pagination-controls .btn-clear:hover { background-color: #5a6268; }
 
 /* Delete (destructive) */
-.btn-delete { background-color: #6c757d; color: #fff; border: 1px solid #6c757d; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
-.btn-delete:hover { background-color: #5a6268; }
+.btn-delete { background-color: #f05757; color: #fff; border: 1px solid #f05757; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
+.btn-delete:hover { background-color: #f05757; }
 
 /* Cancel */
 .btn-cancel { background-color: #343a40; color: #fff; border: none; min-width: 100px; padding: 8px 14px; border-radius: 6px; }
@@ -589,18 +606,18 @@ button:hover { background-color: #dde2e6; }
 .totals-card{background:linear-gradient(180deg,#fff,#fbfbfb);border-radius:10px;padding:12px;border:1px solid rgba(0,0,0,0.10);box-shadow:0 6px 18px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:8px}
 .totals-header{display:flex;justify-content:space-between;align-items:center}
 .pct-badge{font-weight:800;padding:0;border-radius:0;background:transparent;color:inherit;font-size:0.9rem}
-.pct-positive{background:#d9f2e3;color:#1f6a3a}
-.pct-negative{background:#f8d7da;color:#842029}
+.pct-positive{background:#4cb464;color:#fff}
+.pct-negative{background:#f05757;color:#fff}
 .pct-neutral{background:#6c757d}
 
 /* Percent badge should be text-only */
-.pct-badge.pct-positive{background:transparent;color:#166534}
-.pct-badge.pct-negative{background:transparent;color:#b91c1c}
+.pct-badge.pct-positive{background:transparent;color:#4cb464}
+.pct-badge.pct-negative{background:transparent;color:#f05757}
 .pct-badge.pct-neutral{background:transparent;color:var(--muted)}
 .pct-bar{background:#e9eef3;border-radius:8px;height:10px;overflow:hidden}
 .pct-fill{height:100%;width:0%}
-.pct-fill-positive{background:linear-gradient(90deg,#7fc8a3,#d9f2e3)}
-.pct-fill-negative{background:linear-gradient(90deg,#f2a3aa,#f8d7da)}
+.pct-fill-positive{background:linear-gradient(90deg,#4cb464,#4cb464)}
+.pct-fill-negative{background:linear-gradient(90deg,#f05757,#f05757)}
 
 /* Gain/Loss value chips inside totals */
 .totals-meta .pct-positive,
@@ -611,8 +628,8 @@ button:hover { background-color: #dde2e6; }
 }
 
 /* Gain/Loss text colors (no background) */
-.totals-meta .pct-positive { color: #166534; }
-.totals-meta .pct-negative { color: #b91c1c; }
+.totals-meta .pct-positive { color: #4cb464; }
+.totals-meta .pct-negative { color: #f05757; }
 .totals-meta{display:flex;flex-direction:column;gap:4px;font-size:0.95rem;text-align: left;}
 .totals-meta .totals-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .totals-meta .totals-label{flex:1 1 auto}

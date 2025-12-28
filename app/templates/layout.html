@@ -36,8 +36,8 @@
                 {% if session.get('user') %}
                     <a class="app-nav-link" href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>Home</a>
                     <a class="app-nav-link" href="/wallet" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>Wallets</a>
-                    <a class="app-nav-link" href="/transaction" {% if request.path.startswith('/transaction') %}aria-current="page"{% endif %}>Transactions</a>
-                    <a class="app-nav-link" href="/crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>Crypto Portfolio</a>
+                    <a class="app-nav-link" href="/transaction" {% if request.path.startswith('/transaction') %}aria-current="page"{% endif %}>Fiat Transactions</a>
+                    <a class="app-nav-link" href="/crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>Cryptocurrencies</a>
                     <a class="app-nav-link" href="/stock" {% if request.path.startswith('/stock') %}aria-current="page"{% endif %}>Stocks</a>
                     <a class="app-nav-link" href="/settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>Settings</a>
                     <a class="app-nav-link app-nav-link-logout" href="/logout">Logout</a>
