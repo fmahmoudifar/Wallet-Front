@@ -11,7 +11,14 @@
         document.getElementById("updateUserId").value = userId;
         document.getElementById("updateTransType").value = transType;
         document.getElementById("updateMainCat").value = mainCat;
-        document.getElementById("updateTdate").value = tdate;
+        {
+            const el = document.getElementById("updateTdate");
+            if (el && el._flatpickr) {
+                el._flatpickr.setDate(tdate, false, "Y-m-d\\TH:i");
+            } else if (el) {
+                el.value = tdate;
+            }
+        }
         document.getElementById("updateAmount").value = amount;
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
@@ -75,7 +82,7 @@ function newTransDiv() {
     <!-- <input type="datetime-local" name="tdate" placeholder="date"> -->
     <div>
     <label for="tdate">Date:</label>
-    <input type="datetime-local" name="tdate" placeholder="date" required>
+    <input type="text" id="tdate" name="tdate" placeholder="date" data-dt-picker="1" required>
     </div>
     <div>
     <label for="amount">Amount:</label>
@@ -196,7 +203,7 @@ function newTransDiv() {
             </div>
             <div>
                 <label>Date:</label>
-                <input type="datetime-local" id="updateTdate" name="tdate" required>
+                <input type="text" id="updateTdate" name="tdate" data-dt-picker="1" required>
             </div>
             <div>
                 <label>Amount:</label>

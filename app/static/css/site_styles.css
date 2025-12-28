@@ -745,7 +745,8 @@ button.pct-positive:hover {
 
 @media (min-width: 768px) {
     .history-filters .filters-grid {
-        grid-template-columns: 1.25fr 1.25fr 1.1fr 1fr 1fr auto;
+        /* From, To, Crypto, Note, From Wallet, To Wallet, Actions */
+        grid-template-columns: 1.25fr 1.25fr 1.1fr 1.1fr 1fr 1fr auto;
         column-gap: 16px;
         row-gap: 14px;
     }

@@ -37,7 +37,14 @@
             if (updateVisible) updateVisible.value = cryptoName || '';
             if (updateHidden) updateHidden.value = (cryptoName||'').toUpperCase();
         }
-        document.getElementById("updateTdate").value = tdate;
+        {
+            const el = document.getElementById("updateTdate");
+            if (el && el._flatpickr) {
+                el._flatpickr.setDate(tdate, false, "Y-m-d\\TH:i");
+            } else if (el) {
+                el.value = tdate;
+            }
+        }
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
         document.getElementById("updateOperation").value = operation;
@@ -413,12 +420,14 @@
         const fStart = document.getElementById('filterStart');
         const fEnd = document.getElementById('filterEnd');
         const fCrypto = document.getElementById('filterCrypto');
+        const fNote = document.getElementById('filterNote');
         const fFrom = document.getElementById('filterFromWallet');
         const fTo = document.getElementById('filterToWallet');
         ['input','change'].forEach(evt => {
             if (fStart) fStart.addEventListener(evt, applyCryptoFilters);
             if (fEnd) fEnd.addEventListener(evt, applyCryptoFilters);
             if (fCrypto) fCrypto.addEventListener(evt, applyCryptoFilters);
+            if (fNote) fNote.addEventListener(evt, applyCryptoFilters);
             if (fFrom) fFrom.addEventListener(evt, applyCryptoFilters);
             if (fTo) fTo.addEventListener(evt, applyCryptoFilters);
         });
@@ -743,6 +752,7 @@
         const startVal = document.getElementById('filterStart')?.value || '';
         const endVal = document.getElementById('filterEnd')?.value || '';
         const cryptoVal = (document.getElementById('filterCrypto')?.value || '').trim().toLowerCase();
+        const noteVal = (document.getElementById('filterNote')?.value || '').trim().toLowerCase();
         const fromVal = document.getElementById('filterFromWallet')?.value || '';
         const toVal = document.getElementById('filterToWallet')?.value || '';
 
@@ -775,6 +785,11 @@
             if (show && toVal) {
                 const toAttr = (li.getAttribute('data-to') || '').trim();
                 if (String(toAttr) !== String(toVal)) show = false;
+            }
+
+            if (show && noteVal) {
+                const noteAttr = (li.getAttribute('data-note') || '').toLowerCase();
+                if (!noteAttr.includes(noteVal)) show = false;
             }
 
             return show;
@@ -815,7 +830,7 @@
     }
 
     function resetCryptoFilters() {
-        ['filterStart','filterEnd','filterCrypto','filterFromWallet','filterToWallet'].forEach(id => {
+        ['filterStart','filterEnd','filterCrypto','filterNote','filterFromWallet','filterToWallet'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 if (el.tagName === 'SELECT') el.selectedIndex = 0;
@@ -925,7 +940,7 @@
             </div>
             <div>
                 <label for="tdate">Date:</label>
-                <input type="datetime-local" name="tdate" required>
+                <input type="text" id="tdate" name="tdate" data-dt-picker="1" required>
             </div>
             <div>
                 <label for="fromWallet">From Wallet:</label>
@@ -997,15 +1012,19 @@
         <form class="filters-grid" onsubmit="applyCryptoFilters(); return false;">
             <div>
                 <label for="filterStart">From Date:</label>
-                <input type="datetime-local" id="filterStart" name="start">
+                <input type="text" id="filterStart" name="start" data-dt-picker="1">
             </div>
             <div>
                 <label for="filterEnd">To Date:</label>
-                <input type="datetime-local" id="filterEnd" name="end">
+                <input type="text" id="filterEnd" name="end" data-dt-picker="1">
             </div>
             <div>
                 <label for="filterCrypto">Crypto:</label>
-                <input type="text" id="filterCrypto" name="crypto" placeholder="Symbol or name" autocomplete="off" />
+                <input type="text" id="filterCrypto" name="crypto" placeholder="Symbol" autocomplete="off" />
+            </div>
+            <div>
+                <label for="filterNote">Note:</label>
+                <input type="text" id="filterNote" name="note" placeholder="Contains..." autocomplete="off" />
             </div>
             <div>
                 <label for="filterFromWallet">From Wallet:</label>
@@ -1039,11 +1058,14 @@
 {% if cryptos %}
 <ul id="cryptoList">
     {% for crypto in cryptos %}
-    <li data-id="{{ crypto.cryptoId }}" data-tdate="{{ crypto.tdate }}" data-crypto="{{ crypto.cryptoName }}" data-operation="{{ crypto.operation|default(crypto.side) }}" data-qty="{{ crypto.quantity }}" data-fee="{{ crypto.fee|default(0, true) }}" data-from="{{ crypto.fromWallet }}" data-to="{{ crypto.toWallet }}">
+    <li data-id="{{ crypto.cryptoId }}" data-tdate="{{ crypto.tdate }}" data-crypto="{{ crypto.cryptoName }}" data-operation="{{ crypto.operation|default(crypto.side) }}" data-qty="{{ crypto.quantity }}" data-fee="{{ crypto.fee|default(0, true) }}" data-note="{{ crypto.note|default('') }}" data-from="{{ crypto.fromWallet }}" data-to="{{ crypto.toWallet }}">
         <div class="crypto-history-row">
             <div class="crypto-history-left">
                 <div class="crypto-history-title">{{ crypto.cryptoName }}</div>
                 <div class="crypto-history-sub">{{ crypto.operation|default(crypto.side) }}</div>
+                {% if crypto.note %}
+                <div class="crypto-history-sub">{{ crypto.note }}</div>
+                {% endif %}
             </div>
 
             <div class="crypto-history-right">
@@ -1080,7 +1102,7 @@
             </div>
             <div>
                 <label for="updateTdate">Date:</label>
-                <input type="datetime-local" id="updateTdate" name="tdate">
+                <input type="text" id="updateTdate" name="tdate" data-dt-picker="1">
             </div>
             <div>
                 <label for="updateFromWallet">From Wallet:</label>

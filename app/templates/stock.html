@@ -10,7 +10,14 @@
         document.getElementById("updateStockId").value = stockId;
         document.getElementById("updateUserId").value = userId;
         document.getElementById("updateStockName").value = stockName;
-        document.getElementById("updateTdate").value = tdate;
+        {
+            const el = document.getElementById("updateTdate");
+            if (el && el._flatpickr) {
+                el._flatpickr.setDate(tdate, false, "Y-m-d\\TH:i");
+            } else if (el) {
+                el.value = tdate;
+            }
+        }
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
         document.getElementById("updateQuantity").value = quantity;
@@ -69,7 +76,7 @@ function newStockDiv() {
         </div>
         <div>
         <label for="tdate">Date:</label>
-        <input type="datetime-local" name="tdate" placeholder="date" required>
+        <input type="text" id="tdate" name="tdate" placeholder="date" data-dt-picker="1" required>
         </div>
         <div>
         <label for="fromWallet">From Wallet:</label>
@@ -171,7 +178,7 @@ function newStockDiv() {
             </div>
             <div>
                 <label>Date:</label>
-                <input type="datetime-local" id="updateTdate" name="tdate">
+                <input type="text" id="updateTdate" name="tdate" data-dt-picker="1">
             </div>
             <div>
                 <label>From Wallet:</label>
