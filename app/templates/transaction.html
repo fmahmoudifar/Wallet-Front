@@ -6,7 +6,49 @@
 {% block content %}
 
 <script>
-    function editTransaction(transId, userId, transType, mainCat, tdate, fromWallet, toWallet, amount, price, currency, fee, note) {
+    function syncTransTypeUI(prefix) {
+        const typeSel = document.getElementById(prefix ? `${prefix}TransType` : 'transType');
+        const fromRow = document.getElementById(prefix ? `${prefix}FromWalletRow` : 'createFromWalletRow');
+        const toRow = document.getElementById(prefix ? `${prefix}ToWalletRow` : 'createToWalletRow');
+        const fromSel = document.getElementById(prefix ? `${prefix}FromWallet` : 'fromWallet');
+        const toSel = document.getElementById(prefix ? `${prefix}ToWallet` : 'toWallet');
+        const feeRow = document.getElementById(prefix ? `${prefix}FeeRow` : 'createFeeRow');
+        const feeEl = document.getElementById(prefix ? `${prefix}Fee` : 'fee');
+
+        if (!typeSel) return;
+        const t = (typeSel.value || '').toLowerCase();
+
+        const showFrom = (t === 'expense' || t === 'transfer');
+        const showTo = (t === 'income' || t === 'transfer');
+        const showFee = (t === 'transfer');
+
+        if (fromRow) fromRow.style.display = showFrom ? '' : 'none';
+        if (toRow) toRow.style.display = showTo ? '' : 'none';
+        if (feeRow) feeRow.style.display = showFee ? '' : 'none';
+
+        if (fromSel) fromSel.required = (t === 'expense' || t === 'transfer');
+        if (toSel) toSel.required = (t === 'income' || t === 'transfer');
+
+        // Clear hidden fields so users don't accidentally submit stale values.
+        if (!showFrom && fromSel) fromSel.value = '';
+        if (!showTo && toSel) toSel.value = '';
+        if (!showFee && feeEl) feeEl.value = '';
+
+        // Clear any prior custom validity.
+        if (fromSel) fromSel.setCustomValidity('');
+        if (toSel) toSel.setCustomValidity('');
+
+        // For transfers, require different wallets.
+        if (t === 'transfer' && fromSel && toSel) {
+            const fromVal = String(fromSel.value || '');
+            const toVal = String(toSel.value || '');
+            if (fromVal && toVal && fromVal === toVal) {
+                toSel.setCustomValidity('From Wallet and To Wallet must be different for transfers.');
+            }
+        }
+    }
+
+    function editTransaction(transId, userId, transType, mainCat, tdate, fromWallet, toWallet, amount, currency, fee, note) {
         document.getElementById("updateTransId").value = transId;
         document.getElementById("updateUserId").value = userId;
         {
@@ -23,6 +65,7 @@
                 sel.value = v;
             }
         }
+        syncTransTypeUI('update');
         document.getElementById("updateMainCat").value = mainCat;
         {
             const el = document.getElementById("updateTdate");
@@ -33,9 +76,34 @@
             }
         }
         document.getElementById("updateAmount").value = amount;
-        document.getElementById("updateFromWallet").value = fromWallet;
-        document.getElementById("updateToWallet").value = toWallet;
-        document.getElementById("updatePrice").value = price;
+        {
+            const sel = document.getElementById("updateFromWallet");
+            if (sel) {
+                const v = (fromWallet || '').trim();
+                const hasOption = Array.from(sel.options || []).some(o => String(o.value) === String(v));
+                if (!hasOption && v) {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.textContent = v;
+                    sel.appendChild(opt);
+                }
+                sel.value = v;
+            }
+        }
+        {
+            const sel = document.getElementById("updateToWallet");
+            if (sel) {
+                const v = (toWallet || '').trim();
+                const hasOption = Array.from(sel.options || []).some(o => String(o.value) === String(v));
+                if (!hasOption && v) {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.textContent = v;
+                    sel.appendChild(opt);
+                }
+                sel.value = v;
+            }
+        }
         {
             const sel = document.getElementById("updateCurrency");
             if (sel) {
@@ -68,6 +136,27 @@
     }  
 
     document.addEventListener("DOMContentLoaded", function() {
+        // Type -> wallet field behavior
+        const createType = document.getElementById('transType');
+        if (createType) {
+            createType.addEventListener('change', function () { syncTransTypeUI(''); });
+            syncTransTypeUI('');
+        }
+        const updateType = document.getElementById('updateTransType');
+        if (updateType) {
+            updateType.addEventListener('change', function () { syncTransTypeUI('update'); });
+        }
+
+        const createFrom = document.getElementById('fromWallet');
+        const createTo = document.getElementById('toWallet');
+        if (createFrom) createFrom.addEventListener('change', function () { syncTransTypeUI(''); });
+        if (createTo) createTo.addEventListener('change', function () { syncTransTypeUI(''); });
+
+        const updateFrom = document.getElementById('updateFromWallet');
+        const updateTo = document.getElementById('updateToWallet');
+        if (updateFrom) updateFrom.addEventListener('change', function () { syncTransTypeUI('update'); });
+        if (updateTo) updateTo.addEventListener('change', function () { syncTransTypeUI('update'); });
+
         const list = document.getElementById("transList");
         if (list) {
             const items = Array.from(list.querySelectorAll('li[data-tdate]'));
@@ -116,6 +205,7 @@
             if (addBtn) addBtn.style.display = "none";
             if (historyBtn) historyBtn.style.display = "none";
             if (title) title.innerText = 'New Transaction';
+            syncTransTypeUI('');
         } else {
             div.style.display = "none";
             if (list) list.style.display = "block";
@@ -314,7 +404,19 @@
     function resetTransFilters() {
         ['filterStart','filterEnd','filterType','filterCategory','filterNote','filterFromWallet','filterToWallet','filterCurrency'].forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.value = '';
+            if (!el) return;
+
+            // Flatpickr keeps a separate visible input (altInput). Clearing el.value alone won't update the UI.
+            if (el._flatpickr) {
+                el._flatpickr.clear();
+                return;
+            }
+
+            if (el.tagName === 'SELECT') {
+                el.selectedIndex = 0;
+            } else {
+                el.value = '';
+            }
         });
         window.transCurrentPage = 1;
         applyTransFilters();
@@ -354,29 +456,35 @@
     </div>
     <div>
     <label for="mainCat">Category:</label>
-    <input type="text" name="mainCat" placeholder="mainCat">
+    <input type="text" name="mainCat">
     </div>
     <!-- <input type="text" name="subCat" placeholder="subCat"> -->
     <!-- <input type="datetime-local" name="tdate" placeholder="date"> -->
     <div>
     <label for="tdate">Date:</label>
-    <input type="text" id="tdate" name="tdate" placeholder="date" data-dt-picker="1" required>
+    <input type="text" id="tdate" name="tdate" data-dt-picker="1" required>
     </div>
     <div>
     <label for="amount">Amount:</label>
-    <input type="text" name="amount" placeholder="amount" required>
+    <input type="number" name="amount" step="any" inputmode="decimal" required>
     </div>
-    <div>
+    <div id="createFromWalletRow">
     <label for="fromWallet">From Wallet:</label>
-    <input type="text" name="fromWallet" placeholder="fromWallet">
+    <select name="fromWallet" id="fromWallet">
+        <option value="">-- Select Wallet --</option>
+        {% for wallet in wallets %}
+        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+        {% endfor %}
+    </select>
     </div>
-    <div>
+    <div id="createToWalletRow">
     <label for="toWallet">To Wallet:</label>
-    <input type="text" name="toWallet" placeholder="toWallet" required>
-    </div>
-    <div>
-    <label for="price">Price:</label>
-    <input type="text" name="price" placeholder="price" required>
+    <select name="toWallet" id="toWallet" required>
+        <option value="">-- Select Wallet --</option>
+        {% for wallet in wallets %}
+        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+        {% endfor %}
+    </select>
     </div>
     <div>
     <label for="currency">Currency:</label>
@@ -385,13 +493,13 @@
         <option value="USD">USD</option>
     </select>
     </div>
-    <div>
+    <div id="createFeeRow">
     <label for="fee">Fee:</label>
-    <input type="text" name="fee" placeholder="fee">
+    <input type="number" id="fee" name="fee" step="any" inputmode="decimal">
     </div>
     <div>
     <label for="note">Note:</label>
-    <input type="text" name="note" placeholder="Note">
+    <input type="text" name="note">
     </div>
                 <div>
                     <button type="submit" class="btn-insert">Insert</button>
@@ -438,10 +546,10 @@
                 <label for="filterToWallet">To Wallet:</label>
                 <input type="text" id="filterToWallet" name="toWallet" placeholder="Contains..." autocomplete="off" />
             </div>
-            <div>
+            <!-- <div>
                 <label for="filterCurrency">Currency:</label>
                 <input type="text" id="filterCurrency" name="currency" placeholder="e.g. EUR" autocomplete="off" />
-            </div>
+            </div> -->
             <div class="filters-actions">
                 <button type="button" class="btn-clear" onclick="resetTransFilters()">Clear</button>
             </div>
@@ -468,11 +576,11 @@
 
                 <div class="crypto-history-right">
                     <div class="crypto-history-amount">{{ transaction.amount }}</div>
-                    <div class="crypto-history-sub">{% if transaction.price %}{{ transaction.price }}{% endif %}{% if transaction.currency %}{% if transaction.price %} {% endif %}{{ transaction.currency }}{% endif %}{% if transaction.fee %}{% if transaction.price or transaction.currency %} • {% endif %}Fee {{ transaction.fee }}{% endif %}</div>
+                    <div class="crypto-history-sub">{% if transaction.currency %}{{ transaction.currency }}{% endif %}{% if transaction.fee %}{% if transaction.currency %} • {% endif %}Fee {{ transaction.fee }}{% endif %}</div>
                 </div>
 
                 <div class="crypto-history-actions">
-                    <button class="btn-insert" onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.transType }}','{{ transaction.mainCat }}','{{ transaction.tdate }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}','{{ transaction.amount }}','{{ transaction.price }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}')">Edit</button>
+                    <button class="btn-insert" onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.transType }}','{{ transaction.mainCat }}','{{ transaction.tdate }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}','{{ transaction.amount }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}')">Edit</button>
                 </div>
             </div>
         </li>
@@ -510,19 +618,25 @@
             </div>
             <div>
                 <label>Amount:</label>
-                <input type="text" id="updateAmount" name="amount" required>
+                <input type="number" id="updateAmount" name="amount" step="any" inputmode="decimal" required>
             </div>
-            <div>
+            <div id="updateFromWalletRow">
                 <label>From Wallet:</label>
-                <input type="text" id="updateFromWallet" name="fromWallet">
+                <select id="updateFromWallet" name="fromWallet">
+                    <option value="">-- Select Wallet --</option>
+                    {% for wallet in wallets %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            <div>
+            <div id="updateToWalletRow">
                 <label>To Wallet:</label>
-                <input type="text" id="updateToWallet" name="toWallet" required>
-            </div>
-            <div>
-                <label>Price:</label>
-                <input type="text" id="updatePrice" name="price" required>
+                <select id="updateToWallet" name="toWallet" required>
+                    <option value="">-- Select Wallet --</option>
+                    {% for wallet in wallets %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div>
                 <label>Currency:</label>
@@ -531,9 +645,9 @@
                     <option value="USD">USD</option>
                 </select>
             </div>
-            <div>
+            <div id="updateFeeRow">
                 <label>Fee:</label>
-                <input type="text" id="updateFee" name="fee">
+                <input type="number" id="updateFee" name="fee" step="any" inputmode="decimal">
             </div>
             <div>
                 <label>Note:</label>

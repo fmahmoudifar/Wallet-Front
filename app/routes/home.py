@@ -210,23 +210,63 @@ def users():
         except Exception as e:
             print(f"Error fetching transactions: {e}")
             transactions = []
+
+        # Fiat transactions affect wallet cash balances (in base currency)
+        wallet_fiat_balances = defaultdict(lambda: Decimal('0'))
             
         # Process regular transactions
         for transaction in transactions:
             try:
-                amt = Decimal(str(transaction.get('amount', 0) or transaction.get('price', 0)))
-                fee = Decimal(str(transaction.get('fee', 0)))
-                
-                # Calculate total transaction value (amount + fee)
-                transaction_value = amt + fee
-                
+                def to_decimal_fiat(val):
+                    try:
+                        if val is None:
+                            return Decimal(0)
+                        s = str(val).strip()
+                        if s == '':
+                            return Decimal(0)
+                        return Decimal(s)
+                    except Exception:
+                        return Decimal(0)
+
+                # Fiat transactions: amount is the only value field; price is deprecated.
+                amt = to_decimal_fiat(transaction.get('amount', 0))
+                fee = to_decimal_fiat(transaction.get('fee', 0))
+
+                tx_currency = _normalize_currency(transaction.get('currency'), base_currency)
+                fx_rate = _get_fx_rate(tx_currency, base_currency)
+                amt_base = amt * fx_rate
+                fee_base = fee * fx_rate
+
                 to_wallet = transaction.get('toWallet')
                 from_wallet = transaction.get('fromWallet')
-                
-                if to_wallet:
-                    wallet_balances[to_wallet] += transaction_value
-                if from_wallet:
-                    wallet_balances[from_wallet] -= transaction_value
+                ttype = str(transaction.get('transType') or '').strip().lower()
+
+                # Fiat wallet logic (as requested):
+                # - Income: add amount to toWallet (ignore fee)
+                # - Expense: deduct amount from fromWallet (ignore fee)
+                # - Transfer: deduct (amount + fee) from fromWallet and add amount to toWallet
+                if ttype == 'income':
+                    if to_wallet:
+                        wallet_fiat_balances[to_wallet] += amt_base
+                elif ttype == 'expense':
+                    if from_wallet:
+                        wallet_fiat_balances[from_wallet] -= amt_base
+                elif ttype == 'transfer':
+                    total_move = amt_base + fee_base
+                    if from_wallet:
+                        wallet_fiat_balances[from_wallet] -= total_move
+                    if to_wallet:
+                        wallet_fiat_balances[to_wallet] += amt_base
+                else:
+                    # Backward-compatible fallback based on which wallets are provided
+                    if from_wallet and to_wallet:
+                        total_move = amt_base + fee_base
+                        wallet_fiat_balances[from_wallet] -= total_move
+                        wallet_fiat_balances[to_wallet] += amt_base
+                    elif to_wallet:
+                        wallet_fiat_balances[to_wallet] += amt_base
+                    elif from_wallet:
+                        wallet_fiat_balances[from_wallet] -= amt_base
                     
             except Exception as e:
                 print(f"Error processing transaction {transaction}: {e}")
@@ -418,7 +458,7 @@ def users():
         for wallet in wallets:
             wallet_id = wallet.get('walletId')
             wallet_name = wallet.get('walletName')
-            balance = wallet_live_values.get(wallet_id, Decimal(0))
+            balance = (wallet_live_values.get(wallet_id, Decimal(0)) or Decimal(0)) + (wallet_fiat_balances.get(wallet_id, Decimal(0)) or Decimal(0))
             wallet_list.append({
                 'walletId': wallet_id,
                 'walletName': wallet_name,

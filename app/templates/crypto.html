@@ -832,10 +832,16 @@
     function resetCryptoFilters() {
         ['filterStart','filterEnd','filterCrypto','filterNote','filterFromWallet','filterToWallet'].forEach(id => {
             const el = document.getElementById(id);
-            if (el) {
-                if (el.tagName === 'SELECT') el.selectedIndex = 0;
-                else el.value = '';
+            if (!el) return;
+
+            // Flatpickr keeps a separate visible input (altInput). Clearing el.value alone won't update the UI.
+            if (el._flatpickr) {
+                el._flatpickr.clear();
+                return;
             }
+
+            if (el.tagName === 'SELECT') el.selectedIndex = 0;
+            else el.value = '';
         });
         window.cryptoCurrentPage = 1;
         applyCryptoFilters();
@@ -934,7 +940,7 @@
         <form id="createCryptoForm" action="/crypto" method="POST">
             <div>
                 <label for="cryptoName">Crypto:</label>
-                <input type="text" id="cryptoSearch" placeholder="Type to search coins..." autocomplete="off" required />
+                <input type="text" id="cryptoSearch" autocomplete="off" required />
                 <input type="hidden" name="cryptoName" id="cryptoName" />
                 <div id="cryptoSearchList" class="autocomplete-list" style="position:relative"></div>
             </div>
@@ -991,7 +997,7 @@
             </div>
             <div>
                 <label for="fee">Fee:</label>
-                <input type="text" id="fee" name="fee">
+                <input type="number" id="fee" name="fee" step="any" inputmode="decimal">
             </div>
             <div>
                 <label for="note">Note:</label>
@@ -1096,7 +1102,7 @@
             <input type="hidden" id="updateUserId" name="userId">
             <div>
                 <label for="updateCryptoName">Crypto:</label>
-                <input type="text" id="updateCryptoSearch" placeholder="Type to search coins..." autocomplete="off" required/>
+                <input type="text" id="updateCryptoSearch" autocomplete="off" required/>
                 <input type="hidden" id="updateCryptoName" name="cryptoName" />
                 <div id="updateCryptoSearchList" class="autocomplete-list" style="position:relative"></div>
             </div>
@@ -1151,7 +1157,7 @@
             </div>
             <div>
                 <label for="updateFee">Fee:</label>
-                <input type="text" id="updateFee" name="fee">
+                <input type="number" id="updateFee" name="fee" step="any" inputmode="decimal">
             </div>
             <div>
                 <label for="updateNote">Note:</label>

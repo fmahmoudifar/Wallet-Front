@@ -13,12 +13,20 @@ def transaction_page():
     if user:
         userId = user.get('username')
         try:
-            response = requests.get(f"{API_URL}/transactions", auth=aws_auth)
+            response = requests.get(f"{API_URL}/transactions", params={"userId": userId}, auth=aws_auth)
             transactions = response.json().get("transactions", []) if response.status_code == 200 else []
         except Exception as e:
             print(f"Error fetching transactions: {e}")
             transactions = []
-        return render_template("transaction.html", transactions=transactions, userId=userId)
+
+        try:
+            w_resp = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
+            wallets = w_resp.json().get("wallets", []) if w_resp.status_code == 200 else []
+        except Exception as e:
+            print(f"Error fetching wallets: {e}")
+            wallets = []
+
+        return render_template("transaction.html", transactions=transactions, userId=userId, wallets=wallets)
     else:
         return render_template("home.html")
 
@@ -37,11 +45,13 @@ def create_transaction():
             "amount": request.form["amount"], 
             "toWallet": request.form["toWallet"],
             "mainCat": request.form["mainCat"], 
-            "price": request.form["price"],  
             "currency": request.form["currency"],
             "fee": request.form["fee"],
             "note": request.form["note"]
         }
+        # Backwards compatibility: legacy backend schema may still expect a price field.
+        # Fiat transactions no longer expose or use price in the UI, so default to 0.
+        data["price"] = request.form.get("price", "0")
         print(data)
         try:
             response = requests.post(f"{API_URL}/transaction", json=data, auth=aws_auth)
@@ -69,11 +79,12 @@ def update_transaction():
         "amount": request.form["amount"],     
         "fromWallet": request.form["fromWallet"],
         "toWallet": request.form["toWallet"], 
-        "price": request.form["price"],  
         "currency": request.form["currency"], 
         "fee": request.form["fee"],  
         "note": request.form["note"]
     }
+    # Backwards compatibility: legacy backend schema may still expect a price field.
+    data["price"] = request.form.get("price", "0")
     print(f"🔄 [DEBUG] Updating transaction: {data}")
     
     try:

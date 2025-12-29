@@ -285,6 +285,7 @@ html[data-theme="dark"] .pct-bar {
 }
 
 html[data-theme="dark"] input[type="text"],
+html[data-theme="dark"] input[type="number"],
 html[data-theme="dark"] input[type="datetime-local"],
 html[data-theme="dark"] select {
     /* Lighter inputs in dark mode (transactions + filters + crypto forms) */
@@ -314,6 +315,7 @@ html[data-theme="dark"] input::placeholder {
 }
 
 html[data-theme="dark"] input[type="text"]:focus,
+html[data-theme="dark"] input[type="number"]:focus,
 html[data-theme="dark"] input[type="datetime-local"]:focus,
 html[data-theme="dark"] select:focus {
     outline: none;
@@ -332,7 +334,7 @@ html[data-theme="dark"] .autocomplete-items div.autocomplete-active {
     background: rgba(255,255,255,0.08);
 }
 
-input[type="text"], input[type="datetime-local"], select {
+input[type="text"], input[type="number"], input[type="datetime-local"], select {
     width: var(--input-desktop-width);
     padding: 6px 8px;
     border: 1px solid #ccc;
