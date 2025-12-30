@@ -75,11 +75,11 @@ function newWalletDive(){
     <div class="form-container">
         <form action="/wallet" method="POST">
     <div>
-        <label for="walletName">Wallet Name</label>
+        <label for="walletName">Wallet Name:</label>
         <input type="text" name="walletName" required>
     </div>
     <div>
-        <label for="walletType">Wallet Type</label>
+        <label for="walletType">Wallet Type:</label>
         <select id="walletType" name="walletType" required>
             <option value="">-- Select --</option>
             <option value="Fiat">Fiat</option>
@@ -88,15 +88,18 @@ function newWalletDive(){
         </select>
     </div>
     <div>
-        <label for="currency">Currency</label>
-        <input type="text" name="currency" required>
+        <label for="currency">Currency:</label>
+        <select id="currency" name="currency" required>
+            <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
+        </select>
     </div>
     <div>
-        <label for="accountNumber">Account Number</label>        
+        <label for="accountNumber">Account Number:</label>        
         <input type="text" name="accountNumber">
     </div>
     <div>
-        <label for="note">Note</label>        
+        <label for="note">Note:</label>        
         <input type="text" name="note">
     </div>
     <div>
@@ -164,7 +167,10 @@ function newWalletDive(){
             </div>
             <div>
                 <label>Currency:</label>
-                <input type="text" id="updateCurrency" name="currency" readonly>
+                <select id="updateCurrency" name="currency" required>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                </select>
             </div>
             <div>
                 <label>Account Number:</label>
