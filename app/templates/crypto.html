@@ -255,6 +255,9 @@
             const fromWallet = document.getElementById(p ? (p + 'FromWallet') : 'fromWallet');
             const toWallet = document.getElementById(p ? (p + 'ToWallet') : 'toWallet');
 
+            const priceRow = price ? (price.closest ? price.closest('div') : price.parentNode) : null;
+            const currencyRow = currency ? (currency.closest ? currency.closest('div') : currency.parentNode) : null;
+
             if (!op) return;
 
             const transferMode = isTransfer(op.value);
@@ -271,8 +274,10 @@
                 if (transferMode) {
                     price.value = '0';
                     price.readOnly = true;
+                    price.required = false;
                 } else {
                     price.readOnly = false;
+                    price.required = true;
                 }
             }
             if (currency) {
@@ -280,8 +285,10 @@
                 if (transferMode) {
                     currency.value = 'EUR';
                     currency.dataset.locked = '1';
+                    currency.required = false;
                 } else {
                     delete currency.dataset.locked;
+                    currency.required = true;
                 }
             }
 
@@ -291,6 +298,10 @@
             if (currencyLabel) {
                 currencyLabel.textContent = transferMode ? 'Currency (not used for Transfer):' : 'Currency:';
             }
+
+            // Hide currency + price for Transfer (insert + update).
+            if (priceRow) priceRow.style.display = transferMode ? 'none' : '';
+            if (currencyRow) currencyRow.style.display = transferMode ? 'none' : '';
 
             // For Transfer, require both wallets
             if (fromWallet) fromWallet.required = !!transferMode;
@@ -980,11 +991,11 @@
             <input type="hidden" name="feeUnit" id="feeUnit" value="fiat" />
             <div>
                 <label for="quantity">Quantity:</label>
-                <input type="text" id="quantity" name="quantity" required>
+                <input type="number" id="quantity" name="quantity" step="any" inputmode="decimal" required>
             </div>
             <div>
                 <label for="price">Price:</label>
-                <input type="text" id="price" name="price" required>
+                <input type="number" id="price" name="price" step="any" inputmode="decimal" required>
             </div>
             <div>
                 <label>Currency:</label>
@@ -1004,7 +1015,7 @@
                 <input type="text" name="note">
             </div>
             <div>
-                <button type="submit" class="btn-insert">Insert</button>
+                <button type="submit" class="btn-insert pct-positive">Insert</button>
                 <button type="reset" class="btn-clear">Clear</button>
                 <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
             </div>
@@ -1140,11 +1151,11 @@
             <input type="hidden" name="feeUnit" id="updateFeeUnit" value="fiat" />
             <div>
                 <label for="updateQuantity">Quantity:</label>
-                <input type="text" id="updateQuantity" name="quantity">
+                <input type="number" id="updateQuantity" name="quantity" step="any" inputmode="decimal">
             </div>
             <div>
                 <label for="updatePrice">Price:</label>
-                <input type="text" id="updatePrice" name="price">
+                <input type="number" id="updatePrice" name="price" step="any" inputmode="decimal">
             </div>
             <div>
                 <label>Currency:</label>

@@ -556,6 +556,35 @@ button.pct-positive:hover {
     background: #f8f9fa;
 }
 
+/* Wallets list: match crypto/transaction history card layout */
+#walletList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    column-gap: 0;
+}
+
+#walletList li {
+    list-style-type: none;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    box-sizing: border-box;
+}
+
+#walletList li:hover {
+    background: #f8f9fa;
+}
+
 #transList li.crypto-group-header {
     padding: 6px 4px;
     margin: 8px 0 -4px;
@@ -642,6 +671,40 @@ button.pct-positive:hover {
     justify-content: flex-end;
 }
 
+/* Reuse the same row typography/layout for wallet rows */
+#walletList .crypto-history-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px 14px;
+    align-items: center;
+}
+
+#walletList .crypto-history-title {
+    font-weight: 800;
+    color: #222;
+}
+
+#walletList .crypto-history-right {
+    text-align: right;
+}
+
+#walletList .crypto-history-amount {
+    font-weight: 800;
+    color: #222;
+}
+
+#walletList .crypto-history-sub {
+    color: #666;
+    font-weight: 600;
+    font-size: 13px;
+    margin-top: 2px;
+}
+
+#walletList .crypto-history-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
 @media (max-width: 768px) {
     #cryptoList .crypto-history-row {
         grid-template-columns: 1fr auto;
@@ -655,6 +718,14 @@ button.pct-positive:hover {
         grid-template-columns: 1fr auto;
     }
     #transList .crypto-history-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+
+    #walletList .crypto-history-row {
+        grid-template-columns: 1fr auto;
+    }
+    #walletList .crypto-history-actions {
         grid-column: 1 / -1;
         justify-content: flex-start;
     }

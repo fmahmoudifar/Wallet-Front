@@ -2,13 +2,13 @@ from flask import Blueprint, render_template, session, request, redirect, url_fo
 import requests
 import uuid
 from config import API_URL, aws_auth
-from decimal import Decimal
 
 
-transaction_bp = Blueprint('transaction', __name__)
+fiat_bp = Blueprint('fiat', __name__)
 
-@transaction_bp.route('/transaction', methods=['GET'])
-def transaction_page():
+
+@fiat_bp.route('/fiat', methods=['GET'])
+def fiat_page():
     user = session.get('user')
     if user:
         userId = user.get('username')
@@ -26,12 +26,13 @@ def transaction_page():
             print(f"Error fetching wallets: {e}")
             wallets = []
 
-        return render_template("transaction.html", transactions=transactions, userId=userId, wallets=wallets)
+        return render_template("fiat.html", transactions=transactions, userId=userId, wallets=wallets)
     else:
         return render_template("home.html")
 
-@transaction_bp.route('/transaction', methods=['POST'])
-def create_transaction():
+
+@fiat_bp.route('/fiat', methods=['POST'])
+def create_fiat_transaction():
     trans_id = str(uuid.uuid4())
     user = session.get('user')
     if user:
@@ -40,14 +41,14 @@ def create_transaction():
             "transId": trans_id,
             "userId": user_id,
             "transType": request.form["transType"],
-            "tdate": request.form["tdate"],        
+            "tdate": request.form["tdate"],
             "fromWallet": request.form["fromWallet"],
-            "amount": request.form["amount"], 
+            "amount": request.form["amount"],
             "toWallet": request.form["toWallet"],
-            "mainCat": request.form["mainCat"], 
+            "mainCat": request.form["mainCat"],
             "currency": request.form["currency"],
             "fee": request.form["fee"],
-            "note": request.form["note"]
+            "note": request.form["note"],
         }
         # Backwards compatibility: legacy backend schema may still expect a price field.
         # Fiat transactions no longer expose or use price in the UI, so default to 0.
@@ -56,60 +57,56 @@ def create_transaction():
         try:
             response = requests.post(f"{API_URL}/transaction", json=data, auth=aws_auth)
             print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {response.json()}")
-
-            return redirect(url_for("transaction.transaction_page"))
+            return redirect(url_for("fiat.fiat_page"))
         except Exception as e:
             print(f"❌ [ERROR] Failed to create transaction: {str(e)}")
             return jsonify({"error": "Internal Server Error"}), 500
     else:
         print('failed')
         fd = 'Please login and try again'
-        # return redirect(url_for("transaction.transaction_page"))
-        return render_template("transaction.html", fd=fd)
-        
- 
-@transaction_bp.route('/updateTrans', methods=['POST'])
-def update_transaction():
+        return render_template("fiat.html", fd=fd)
+
+
+@fiat_bp.route('/updateFiat', methods=['POST'])
+def update_fiat_transaction():
     data = {
         "transId": request.form["transId"],
         "userId": request.form["userId"],
         "transType": request.form["transType"],
         "mainCat": request.form["mainCat"],
-        "tdate": request.form["tdate"],    
-        "amount": request.form["amount"],     
+        "tdate": request.form["tdate"],
+        "amount": request.form["amount"],
         "fromWallet": request.form["fromWallet"],
-        "toWallet": request.form["toWallet"], 
-        "currency": request.form["currency"], 
-        "fee": request.form["fee"],  
-        "note": request.form["note"]
+        "toWallet": request.form["toWallet"],
+        "currency": request.form["currency"],
+        "fee": request.form["fee"],
+        "note": request.form["note"],
     }
     # Backwards compatibility: legacy backend schema may still expect a price field.
     data["price"] = request.form.get("price", "0")
     print(f"🔄 [DEBUG] Updating transaction: {data}")
-    
+
     try:
         response = requests.patch(f"{API_URL}/transaction", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {response.json()}")
-
-        return redirect(url_for("transaction.transaction_page"))
+        return redirect(url_for("fiat.fiat_page"))
     except Exception as e:
         print(f"❌ [ERROR] Failed to update transaction: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
-@transaction_bp.route('/deleteTrans/<trans_id>/<user_id>', methods=['POST'])
-def delete_transaction(trans_id, user_id):
-    """Delete a transaction."""
+
+@fiat_bp.route('/deleteFiat/<trans_id>/<user_id>', methods=['POST'])
+def delete_fiat_transaction(trans_id, user_id):
     data = {
         "transId": trans_id,
-        "userId": user_id
+        "userId": user_id,
     }
     print(f"🗑️ [DEBUG] Deleting transaction: {data}")
 
     try:
         response = requests.delete(f"{API_URL}/transaction", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Delete Response: {response.status_code}, JSON: {response.json()}")
-
-        return redirect(url_for("transaction.transaction_page"))
+        return redirect(url_for("fiat.fiat_page"))
     except Exception as e:
         print(f"❌ [ERROR] Failed to delete transaction: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500

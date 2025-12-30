@@ -35,7 +35,8 @@ def create_wallet():
         "accountNumber": request.form["accountNumber"],
         "note": request.form["note"],
         "currency": request.form["currency"],
-        "balance": request.form["balance"]
+        # Wallet balances are derived from transactions; keep a safe default for any legacy backend schema.
+        "balance": request.form.get("balance", "0")
 
     }
     print(data)
@@ -58,7 +59,7 @@ def update_wallet():
         "walletName": request.form["walletName"],
         "walletType": request.form["walletType"],
         "accountNumber": request.form["accountNumber"],
-        "balance": request.form["balance"],
+        "balance": request.form.get("balance", "0"),
         "note": request.form["note"]
     }
     print(f"🔄 [DEBUG] Updating wallet: {data}")
@@ -72,7 +73,7 @@ def update_wallet():
         print(f"❌ [ERROR] Failed to update wallet: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
-@wallet_bp.route('/delete/<wallet_id>/<user_id>', methods=['POST'])
+@wallet_bp.route('/deleteWallet/<wallet_id>/<user_id>', methods=['POST'])
 def delete_wallet(wallet_id, user_id):
     """Delete a wallet."""
     data = {
@@ -89,3 +90,9 @@ def delete_wallet(wallet_id, user_id):
     except Exception as e:
         print(f"❌ [ERROR] Failed to delete wallet: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
+
+
+# Backward compatible route (older template path)
+@wallet_bp.route('/delete/<wallet_id>/<user_id>', methods=['POST'])
+def delete_wallet_legacy(wallet_id, user_id):
+    return delete_wallet(wallet_id, user_id)

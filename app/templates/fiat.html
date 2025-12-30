@@ -132,7 +132,7 @@
 
         const title = document.getElementById('transPageTitle');
         if (title) title.innerText = 'Update Transaction';
-        document.getElementById("deleteForm").action = `/deleteTrans/${transId}/${userId}`;
+        document.getElementById("deleteForm").action = `/deleteFiat/${transId}/${userId}`;
     }  
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -444,7 +444,7 @@
 <div id="newTrans" class="block-new" style="display: none;">
     <h2 class="center-text" style="display:none;">Add New Transaction</h2>
     <div class="form-container">
-        <form action="/transaction" method="POST">
+        <form action="/fiat" method="POST">
     <div>
     <label for="transType">Transaction Type:</label>
     <select id="transType" name="transType" required>
@@ -502,7 +502,7 @@
     <input type="text" name="note">
     </div>
                 <div>
-                    <button type="submit" class="btn-insert">Insert</button>
+                    <button type="submit" class="btn-insert pct-positive">Insert</button>
                     <button type="reset" class="btn-clear">Clear</button>
                     <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
                 </div>
@@ -528,7 +528,12 @@
             </div>
             <div>
                 <label for="filterType">Type:</label>
-                <input type="text" id="filterType" name="type" placeholder="Contains..." autocomplete="off" />
+                <select id="filterType" name="type">
+                    <option value="">-- All --</option>
+                    <option value="Income">Income</option>
+                    <option value="Expense">Expense</option>
+                    <option value="Transfer">Transfer</option>
+                </select>
             </div>
             <div>
                 <label for="filterCategory">Category:</label>
@@ -540,11 +545,21 @@
             </div>
             <div>
                 <label for="filterFromWallet">From Wallet:</label>
-                <input type="text" id="filterFromWallet" name="fromWallet" placeholder="Contains..." autocomplete="off" />
+                <select id="filterFromWallet" name="fromWallet">
+                    <option value="">-- All --</option>
+                    {% for wallet in wallets %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div>
                 <label for="filterToWallet">To Wallet:</label>
-                <input type="text" id="filterToWallet" name="toWallet" placeholder="Contains..." autocomplete="off" />
+                <select id="filterToWallet" name="toWallet">
+                    <option value="">-- All --</option>
+                    {% for wallet in wallets %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <!-- <div>
                 <label for="filterCurrency">Currency:</label>
@@ -596,7 +611,7 @@
 <div id="updateTransDiv" class="block-update" style="display: none;">
     <h2 class="center-text" style="display:none;">Update Transaction</h2>
     <div class="form-container">
-        <form id="updateForm" action="/updateTrans" method="POST">
+        <form id="updateForm" action="/updateFiat" method="POST">
             <input type="hidden" id="updateTransId" name="transId">
             <input type="hidden" id="updateUserId" name="userId">
             <div>

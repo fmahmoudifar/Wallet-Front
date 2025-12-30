@@ -37,7 +37,7 @@
                 {% if session.get('user') %}
                     <a class="app-nav-link" href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>Home</a>
                     <a class="app-nav-link" href="/wallet" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>Wallets</a>
-                    <a class="app-nav-link" href="/transaction" {% if request.path.startswith('/transaction') %}aria-current="page"{% endif %}>Fiat Transactions</a>
+                    <a class="app-nav-link" href="/fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>Fiat Transactions</a>
                     <a class="app-nav-link" href="/crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>Crypto Portfolio</a>
                     <a class="app-nav-link" href="/stock" {% if request.path.startswith('/stock') %}aria-current="page"{% endif %}>Stock Portfolio</a>
                     <a class="app-nav-link" href="/settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>Settings</a>
@@ -72,7 +72,7 @@
             </svg>
             <span class="sr-only">Wallets</span>
         </a>
-        <a class="app-bottom-link" href="/transaction" aria-label="Transactions" {% if request.path.startswith('/transaction') %}aria-current="page"{% endif %}>
+        <a class="app-bottom-link" href="/fiat" aria-label="Transactions" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M7 7h13l-3-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M17 17H4l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
