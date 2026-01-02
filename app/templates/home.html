@@ -153,10 +153,11 @@
     if (sumPaidEl) sumPaidEl.textContent = formatMoney(sumPaid);
 
     // Green for "Now", Red for "Paid"
-    const colorNow = 'rgba(40, 167, 69, 0.55)';
-    const colorPaid = 'rgba(220, 53, 69, 0.55)';
-    const borderNow = 'rgba(40, 167, 69, 1)';
-    const borderPaid = 'rgba(220, 53, 69, 1)';
+    // Slightly muted ("matte") colors aligned with the app's green/red.
+    const colorNow = 'rgba(76, 180, 100, 0.45)';
+    const colorPaid = 'rgba(240, 87, 87, 0.45)';
+    const borderNow = 'rgba(76, 180, 100, 0.9)';
+    const borderPaid = 'rgba(240, 87, 87, 0.9)';
 
     // Render wallet bar chart (if the canvas exists)
     const walletCanvas = document.getElementById('walletChart');
@@ -247,27 +248,27 @@
 <script>
     window.location.replace('/login');
 </script>
-<!-- <div style="width: 100%; max-width: 720px; margin: 40px auto; padding: 0 16px;">
+ <div style="width: 100%; max-width: 720px; margin: 40px auto; padding: 0 16px;">
     <div class="totals-card" style="padding: 18px 18px 16px;">
         <div class="crypto-page-title" style="margin: 0 0 6px 0; text-align: center;">Welcome</div>
         <div class="small-muted" style="text-align: center; margin-bottom: 12px;">
             Sign in to access your wallets, track crypto & stock holdings, and manage daily transactions.
         </div>
-        < !-- <div class="small-muted" style="text-align: center; margin-bottom: 10px;">
+        <!-- <div class="small-muted" style="text-align: center; margin-bottom: 10px;">
              Please sign in to see your wallets. 
-        </div> --- >
+        </div> --->
 
         <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
             <a class="btn-cancel" href="/login" style="text-decoration: none;">Sign in / Create account</a>
-            < !-- <a class="btn-insert" href="/login" style="text-decoration: none;">Create account / sign up</a> -- >
+            <!-- <a class="btn-insert" href="/login" style="text-decoration: none;">Create account / sign up</a> -->
         </div>
 
         <div class="small-muted" style="text-align: center; margin-top: 12px;">
-            < !-- New here? You can create an account during sign-in.
-            <span style="opacity: 0.7;">·</span> -- >
+            <!-- New here? You can create an account during sign-in.
+            <span style="opacity: 0.7;">·</span> -->
             You’ll be redirected to our secure sign-in provider.
         </div>
     </div>
-</div> -->
+</div> 
 {% endif %}
 {% endblock %}

@@ -274,14 +274,21 @@
         // Dashboard date filter -> charts
         const ds = document.getElementById('dashStart');
         const de = document.getElementById('dashEnd');
+        const dm = document.getElementById('dashMonth');
+        const dy = document.getElementById('dashYear');
         ['input','change'].forEach(evt => {
             if (ds) ds.addEventListener(evt, function(){ renderFiatDashboard(); });
             if (de) de.addEventListener(evt, function(){ renderFiatDashboard(); });
         });
+        if (dm) dm.addEventListener('change', applyDashMonthYearSelection);
+        if (dy) dy.addEventListener('change', applyDashMonthYearSelection);
 
         // Initialize dashboard default range and render
         if (typeof initFiatDashboardDefaults === 'function') {
             initFiatDashboardDefaults();
+        }
+        if (typeof syncDashMonthYearDropdownsFromDates === 'function') {
+            syncDashMonthYearDropdownsFromDates();
         }
         if (typeof renderFiatDashboard === 'function') {
             renderFiatDashboard();
@@ -416,6 +423,159 @@
         else endEl.value = formatLocalDateTime(end);
     }
 
+    function ensureDashMonthDropdownPopulated() {
+        const monthEl = document.getElementById('dashMonth');
+        if (!monthEl) return;
+
+        if (monthEl.options.length < 13) {
+            monthEl.innerHTML = '';
+
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '-- Select --';
+            monthEl.appendChild(placeholder);
+
+            const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            for (let m = 0; m < 12; m++) {
+                const opt = document.createElement('option');
+                opt.value = String(m);
+                opt.textContent = monthNames[m];
+                monthEl.appendChild(opt);
+            }
+        }
+
+        // Default month to the current month (or dashStart's month if present).
+        const startVal = document.getElementById('dashStart')?.value || '';
+        const anchor = parseLocalDateTime(startVal) || new Date();
+        if (!String(monthEl.value || '').trim()) {
+            monthEl.value = String(anchor.getMonth());
+        }
+    }
+
+    function getAvailableDashYears() {
+        const list = document.getElementById('transList');
+        const years = new Set();
+
+        if (list) {
+            const items = Array.from(list.querySelectorAll('li[data-tdate]'));
+            items.forEach(li => {
+                const dt = parseTxDate(li.getAttribute('data-tdate'));
+                if (dt && !Number.isNaN(dt.getTime())) {
+                    years.add(dt.getFullYear());
+                }
+            });
+        }
+
+        if (years.size === 0) {
+            const y = new Date().getFullYear();
+            years.add(y - 1);
+            years.add(y);
+            years.add(y + 1);
+        }
+
+        return Array.from(years).sort((a, b) => a - b);
+    }
+
+    function ensureDashYearDropdownPopulated() {
+        const yearEl = document.getElementById('dashYear');
+        if (!yearEl) return;
+
+        const years = getAvailableDashYears();
+
+        // Rebuild only if the option set changed.
+        const existing = Array.from(yearEl.querySelectorAll('option'))
+            .map(o => o.value)
+            .filter(v => v !== '');
+        const desired = years.map(y => String(y));
+        const same = existing.length === desired.length && existing.every((v, i) => v === desired[i]);
+        if (same && yearEl.options.length >= 2) return;
+
+        yearEl.innerHTML = '';
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Select --';
+        yearEl.appendChild(placeholder);
+
+        desired.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = v;
+            yearEl.appendChild(opt);
+        });
+
+        // Default to current year when nothing selected.
+        const currentYear = String(new Date().getFullYear());
+        if (!String(yearEl.value || '').trim()) {
+            if (Array.from(yearEl.options).some(o => o.value === currentYear)) {
+                yearEl.value = currentYear;
+            } else if (desired.length) {
+                yearEl.value = desired[desired.length - 1];
+            }
+        }
+    }
+
+    function syncDashMonthYearDropdownsFromDates() {
+        ensureDashMonthDropdownPopulated();
+        ensureDashYearDropdownPopulated();
+
+        const monthEl = document.getElementById('dashMonth');
+        const yearEl = document.getElementById('dashYear');
+        if (!monthEl || !yearEl) return;
+
+        const startVal = document.getElementById('dashStart')?.value || '';
+        const anchor = parseLocalDateTime(startVal) || new Date();
+
+        const y = anchor.getFullYear();
+        const m = anchor.getMonth();
+
+        monthEl.value = String(m);
+        // If anchor year isn't in the list, add it.
+        if (!Array.from(yearEl.options).some(o => o.value === String(y))) {
+            const opt = document.createElement('option');
+            opt.value = String(y);
+            opt.textContent = String(y);
+            yearEl.appendChild(opt);
+            const opts = Array.from(yearEl.options);
+            const placeholder = opts.shift();
+            opts.sort((a, b) => Number(a.value) - Number(b.value));
+            yearEl.innerHTML = '';
+            if (placeholder) yearEl.appendChild(placeholder);
+            opts.forEach(o => yearEl.appendChild(o));
+        }
+        yearEl.value = String(y);
+    }
+
+    function applyDashMonthYearSelection() {
+        const monthEl = document.getElementById('dashMonth');
+        const yearEl = document.getElementById('dashYear');
+        if (!monthEl || !yearEl) return;
+
+        const startVal = document.getElementById('dashStart')?.value || '';
+        const anchor = parseLocalDateTime(startVal) || new Date();
+
+        let mv = String(monthEl.value || '').trim();
+        let yv = String(yearEl.value || '').trim();
+
+        // Ensure we always have a usable month/year (defaults: current month + current year).
+        if (mv === '') {
+            mv = String(anchor.getMonth());
+            monthEl.value = mv;
+        }
+        if (yv === '') {
+            yv = String(anchor.getFullYear());
+            yearEl.value = yv;
+        }
+
+        const monthIndex = Number(mv);
+        const year = Number(yv);
+        if (!Number.isFinite(monthIndex) || monthIndex < 0 || monthIndex > 11) return;
+        if (!Number.isFinite(year) || year < 1900 || year > 3000) return;
+
+        setDashRangeForMonth(year, monthIndex);
+        renderFiatDashboard();
+    }
+
     function shiftFiatDashboardMonth(delta) {
         const startVal = document.getElementById('dashStart')?.value || '';
         const anchor = parseLocalDateTime(startVal) || new Date();
@@ -423,6 +583,7 @@
         const m = anchor.getMonth();
         const target = new Date(y, m + Number(delta || 0), 1, 0, 0, 0);
         setDashRangeForMonth(target.getFullYear(), target.getMonth());
+        syncDashMonthYearDropdownsFromDates();
         renderFiatDashboard();
     }
     window.shiftFiatDashboardMonth = shiftFiatDashboardMonth;
@@ -436,6 +597,7 @@
         if (startEl._flatpickr) startEl._flatpickr.clear();
         if (endEl._flatpickr) endEl._flatpickr.clear();
         initFiatDashboardDefaults();
+        syncDashMonthYearDropdownsFromDates();
         renderFiatDashboard();
     }
     window.resetFiatDashboardDates = resetFiatDashboardDates;
@@ -443,6 +605,11 @@
     function renderFiatDashboard() {
         const list = document.getElementById('transList');
         if (!list) return;
+
+        // Keep month dropdown in sync with the currently selected range.
+        syncDashMonthYearDropdownsFromDates();
+
+        const baseCurrency = document.getElementById('fiatBaseCurrency')?.value || 'EUR';
 
         const startVal = document.getElementById('dashStart')?.value || '';
         const endVal = document.getElementById('dashEnd')?.value || '';
@@ -485,8 +652,8 @@
 
         const incTotalEl = document.getElementById('dashIncomeTotal');
         const expTotalEl = document.getElementById('dashExpenseTotal');
-        if (incTotalEl) incTotalEl.textContent = fmt(incomeTotal);
-        if (expTotalEl) expTotalEl.textContent = fmt(expenseTotal);
+        if (incTotalEl) incTotalEl.textContent = `${fmt(incomeTotal)} ${baseCurrency}`;
+        if (expTotalEl) expTotalEl.textContent = `${fmt(expenseTotal)} ${baseCurrency}`;
 
         function toSortedDataset(mapObj) {
             const entries = Object.entries(mapObj || {}).sort((a, b) => (b[1] || 0) - (a[1] || 0));
@@ -499,6 +666,29 @@
         const income = toSortedDataset(incomeByCat);
         const expense = toSortedDataset(expenseByCat);
 
+        function hashString(s) {
+            let h = 0;
+            const str = String(s || '');
+            for (let i = 0; i < str.length; i++) {
+                h = ((h << 5) - h) + str.charCodeAt(i);
+                h |= 0;
+            }
+            return h;
+        }
+
+        function colorForLabel(label) {
+            const hue = Math.abs(hashString(label)) % 360;
+            // Muted ("matte") palette: lower saturation + a bit of alpha.
+            return `hsla(${hue}, 55%, 55%, 0.85)`;
+        }
+
+        function colorsForLabels(labels) {
+            return (labels || []).map(l => colorForLabel(l));
+        }
+
+        const incomeColors = colorsForLabels(income.labels);
+        const expenseColors = colorsForLabels(expense.labels);
+
         const emptyIncome = document.getElementById('incomeChartEmpty');
         const emptyExpense = document.getElementById('expenseChartEmpty');
         if (emptyIncome) emptyIncome.style.display = income.labels.length ? 'none' : '';
@@ -506,6 +696,14 @@
 
         // Charts
         if (window.Chart) {
+            const isMobile = (window.matchMedia && window.matchMedia('(max-width: 480px)').matches);
+            // Higher aspect ratio => shorter chart height (reduces empty vertical space).
+            const pieAspect = isMobile ? 1.55 : 1.35;
+            const barAspect = isMobile ? 2.05 : 2.4;
+            const legendFontSize = isMobile ? 11 : 12;
+            const legendBoxWidth = isMobile ? 10 : 12;
+            const legendPadding = isMobile ? 8 : 10;
+
             if (window.__fiatIncomeChart) { try { window.__fiatIncomeChart.destroy(); } catch(e) {} }
             if (window.__fiatExpenseChart) { try { window.__fiatExpenseChart.destroy(); } catch(e) {} }
             if (window.__fiatIncomeBarChart) { try { window.__fiatIncomeBarChart.destroy(); } catch(e) {} }
@@ -524,12 +722,34 @@
                         datasets: [{
                             label: 'Income',
                             data: income.values,
+                            backgroundColor: incomeColors,
+                            borderColor: 'rgba(255,255,255,0.7)',
+                            borderWidth: 2,
+                            radius: '78%',
                         }]
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: true,
+                        aspectRatio: pieAspect,
+                        layout: { padding: { top: 4, bottom: 4, left: 6, right: 6 } },
                         plugins: {
-                            legend: { position: 'top' },
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    boxWidth: legendBoxWidth,
+                                    padding: legendPadding,
+                                    font: { size: legendFontSize },
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const v = Number(context.parsed || 0);
+                                        return `${context.label}: ${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+                                    }
+                                }
+                            }
                         }
                     }
                 });
@@ -542,12 +762,34 @@
                         datasets: [{
                             label: 'Expense',
                             data: expense.values,
+                            backgroundColor: expenseColors,
+                            borderColor: 'rgba(255,255,255,0.7)',
+                            borderWidth: 2,
+                            radius: '78%',
                         }]
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: true,
+                        aspectRatio: pieAspect,
+                        layout: { padding: { top: 4, bottom: 4, left: 6, right: 6 } },
                         plugins: {
-                            legend: { position: 'top' },
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    boxWidth: legendBoxWidth,
+                                    padding: legendPadding,
+                                    font: { size: legendFontSize },
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const v = Number(context.parsed || 0);
+                                        return `${context.label}: ${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+                                    }
+                                }
+                            }
                         }
                     }
                 });
@@ -561,16 +803,35 @@
                         datasets: [{
                             label: 'Income',
                             data: income.values,
+                            backgroundColor: incomeColors,
+                            borderColor: incomeColors,
+                            borderWidth: 1,
                         }]
                     },
                     options: {
                         responsive: true,
-                        indexAxis: 'y',
+                        maintainAspectRatio: true,
+                        aspectRatio: barAspect,
                         plugins: {
                             legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const v = Number(context.parsed.y || 0);
+                                        return `${context.label}: ${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+                                    }
+                                }
+                            }
                         },
                         scales: {
-                            x: { beginAtZero: true }
+                            x: {
+                                ticks: {
+                                    autoSkip: true,
+                                    maxRotation: isMobile ? 55 : 35,
+                                    minRotation: isMobile ? 35 : 0,
+                                }
+                            },
+                            y: { beginAtZero: true }
                         }
                     }
                 });
@@ -584,16 +845,35 @@
                         datasets: [{
                             label: 'Expense',
                             data: expense.values,
+                            backgroundColor: expenseColors,
+                            borderColor: expenseColors,
+                            borderWidth: 1,
                         }]
                     },
                     options: {
                         responsive: true,
-                        indexAxis: 'y',
+                        maintainAspectRatio: true,
+                        aspectRatio: barAspect,
                         plugins: {
                             legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const v = Number(context.parsed.y || 0);
+                                        return `${context.label}: ${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+                                    }
+                                }
+                            }
                         },
                         scales: {
-                            x: { beginAtZero: true }
+                            x: {
+                                ticks: {
+                                    autoSkip: true,
+                                    maxRotation: isMobile ? 55 : 35,
+                                    minRotation: isMobile ? 35 : 0,
+                                }
+                            },
+                            y: { beginAtZero: true }
                         }
                     }
                 });
@@ -637,12 +917,40 @@
 
     function parseTxDate(val) {
         if (!val) return null;
-        let s = String(val);
-        let d = new Date(s);
-        if (isNaN(d)) {
-            d = new Date(s.replace(' ', 'T'));
+        const s = String(val).trim();
+
+        // Prefer deterministic parsing:
+        // - If the timestamp has no timezone (or is date-only), interpret it as *local time*
+        //   to avoid UTC shifting across month/year boundaries.
+        // - If it includes Z/offset, let Date() handle it.
+        const m = s.match(/^\s*(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?(?:\.\d+)?(Z|[+-]\d{2}:\d{2})?\s*$/);
+        if (m) {
+            const y = Number(m[1]);
+            const mo = Number(m[2]) - 1;
+            const d = Number(m[3]);
+            const hh = Number(m[4] || '0');
+            const mm = Number(m[5] || '0');
+            const ss = Number(m[6] || '0');
+            const tz = m[7];
+
+            if (tz) {
+                const dt = new Date(s.replace(' ', 'T'));
+                return isNaN(dt) ? null : dt;
+            }
+
+            const dt = new Date(y, mo, d, hh, mm, ss);
+            return isNaN(dt) ? null : dt;
         }
-        return isNaN(d) ? null : d;
+
+        try {
+            let d = new Date(s);
+            if (isNaN(d)) {
+                d = new Date(s.replace(' ', 'T'));
+            }
+            return isNaN(d) ? null : d;
+        } catch (e) {
+            return null;
+        }
     }
 
     function monthKeyFromDate(d) {
@@ -840,10 +1148,16 @@
 
 <div id="fiatDashboardDiv" class="form-container">
     <h2 class="crypto-section-title">Dashboard</h2>
+    <input type="hidden" id="fiatBaseCurrency" value="{{ base_currency|default('EUR') }}">
+    {% if fx_warning %}
+    <div class="small-muted" style="width:100%;max-width:1100px;margin:0 auto 8px;">
+        Some transactions could not be converted to {{ base_currency|default('EUR') }} (FX unavailable). Totals may be approximate.
+    </div>
+    {% endif %}
     <div id="dashFilters" class="history-filters">
         <form class="filters-grid" onsubmit="renderFiatDashboard(); return false;">
             <div>
-                <button type="button" class="btn-insert" onclick="shiftFiatDashboardMonth(-1)">&lt;&lt;</button>
+                <button type="button" class="btn-insert" style="padding:6px 10px;height:34px;min-width:46px;font-size:0.95rem;" onclick="shiftFiatDashboardMonth(-1)">&lt;&lt;</button>
             </div>
             <div>
                 <label for="dashStart">From Date:</label>
@@ -854,7 +1168,19 @@
                 <input type="text" id="dashEnd" name="dashEnd" data-dt-picker="1">
             </div>
             <div>
-                <button type="button" class="btn-insert" onclick="shiftFiatDashboardMonth(1)">&gt;&gt;</button>
+                <button type="button" class="btn-insert" style="padding:6px 10px;height:34px;min-width:46px;font-size:0.95rem;" onclick="shiftFiatDashboardMonth(1)">&gt;&gt;</button>
+            </div>
+            <div>
+                <label for="dashMonth">Month:</label>
+                <select id="dashMonth" name="dashMonth">
+                    <option value="" selected>-- Select --</option>
+                </select>
+            </div>
+            <div>
+                <label for="dashYear">Year:</label>
+                <select id="dashYear" name="dashYear">
+                    <option value="" selected>-- Select --</option>
+                </select>
             </div>
             <div class="filters-actions">
                 <button type="button" class="btn-clear" onclick="resetFiatDashboardDates()">Reset</button>
@@ -864,43 +1190,28 @@
 
     <div class="totals-grid fiat-dashboard-grid" style="margin-top:12px;">
         <div class="totals-card fiat-dashboard-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <div style="font-size:1rem;font-weight:700">Income by Category</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px;gap:10px;">
+                <div>
+                    <div class="small-muted" style="margin-bottom:2px;">Total Income</div>
+                    <div class="totals-value" id="dashIncomeTotal" style="font-size:1.25rem;line-height:1.1;">0</div>
+                </div>
             </div>
             <div id="incomeChartEmpty" class="small-muted" style="display:none;margin:6px 0;">No income in this date range.</div>
-            <canvas id="incomeChart" height="320"></canvas>
-            <div class="totals-meta" style="margin-top:6px;">
-                <div class="totals-row">
-                    <div class="totals-label">Total Income</div>
-                    <div class="totals-value pct-positive" id="dashIncomeTotal">0</div>
-                </div>
-            </div>
+            <canvas id="incomeChart" height="280"></canvas>
+            <div style="height:10px;"></div>
+            <canvas id="incomeBarChart" height="200"></canvas>
         </div>
         <div class="totals-card fiat-dashboard-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <div style="font-size:1rem;font-weight:700">Expense by Category</div>
-            </div>
-            <div id="expenseChartEmpty" class="small-muted" style="display:none;margin:6px 0;">No expenses in this date range.</div>
-            <canvas id="expenseChart" height="320"></canvas>
-            <div class="totals-meta" style="margin-top:6px;">
-                <div class="totals-row">
-                    <div class="totals-label">Total Expense</div>
-                    <div class="totals-value pct-negative" id="dashExpenseTotal">0</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px;gap:10px;">
+                <div>
+                    <div class="small-muted" style="margin-bottom:2px;">Total Expense</div>
+                    <div class="totals-value" id="dashExpenseTotal" style="font-size:1.25rem;line-height:1.1;">0</div>
                 </div>
             </div>
-        </div>
-
-        <div class="totals-card fiat-dashboard-bar-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <div style="font-size:1rem;font-weight:700">Income (Bar)</div>
-            </div>
-            <canvas id="incomeBarChart" height="220"></canvas>
-        </div>
-        <div class="totals-card fiat-dashboard-bar-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <div style="font-size:1rem;font-weight:700">Expense (Bar)</div>
-            </div>
-            <canvas id="expenseBarChart" height="220"></canvas>
+            <div id="expenseChartEmpty" class="small-muted" style="display:none;margin:6px 0;">No expenses in this date range.</div>
+            <canvas id="expenseChart" height="280"></canvas>
+            <div style="height:10px;"></div>
+            <canvas id="expenseBarChart" height="200"></canvas>
         </div>
     </div>
 </div>
@@ -1045,7 +1356,7 @@
 {% if transactions %}
 <ul id="transList">
     {% for transaction in transactions %}
-        <li data-id="{{ transaction.transId }}" data-tdate="{{ transaction.tdate }}" data-type="{{ transaction.transType|default('') }}" data-cat="{{ transaction.mainCat|default('') }}" data-note="{{ transaction.note|default('') }}" data-from="{{ transaction.fromWallet|default('') }}" data-to="{{ transaction.toWallet|default('') }}" data-currency="{{ transaction.currency|default('') }}" data-amount="{{ transaction.amount|default(0) }}">
+        <li data-id="{{ transaction.transId }}" data-tdate="{{ transaction.tdate }}" data-type="{{ transaction.transType|default('') }}" data-cat="{{ transaction.mainCat|default('') }}" data-note="{{ transaction.note|default('') }}" data-from="{{ transaction.fromWallet|default('') }}" data-to="{{ transaction.toWallet|default('') }}" data-currency="{{ transaction.currency|default('') }}" data-amount="{{ transaction.amountBase|default(transaction.amount|default(0)) }}">
             <div class="crypto-history-row">
                 <div class="crypto-history-left">
                     <div class="crypto-history-title">{{ transaction.transType }}</div>
@@ -1056,8 +1367,16 @@
                 </div>
 
                 <div class="crypto-history-right">
-                    <div class="crypto-history-amount">{{ transaction.amount }}</div>
-                    <div class="crypto-history-sub">{% if transaction.currency %}{{ transaction.currency }}{% endif %}{% if transaction.fee %}{% if transaction.currency %} • {% endif %}Fee {{ transaction.fee }}{% endif %}</div>
+                    <div class="crypto-history-amount">{{ transaction.amountBase|default(transaction.amount) }} {{ base_currency|default('EUR') }}</div>
+                    <div class="crypto-history-sub">
+                        {{ base_currency|default('EUR') }}
+                        {% if transaction.currency and transaction.currency != (base_currency|default('EUR')) %}
+                            • Original {{ transaction.amount }} {{ transaction.currency }}
+                        {% endif %}
+                        {% if transaction.fee %}
+                            • Fee {{ transaction.fee }}{% if transaction.currency %} {{ transaction.currency }}{% endif %}
+                        {% endif %}
+                    </div>
                 </div>
 
                 <div class="crypto-history-actions">

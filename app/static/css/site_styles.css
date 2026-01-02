@@ -918,7 +918,7 @@ button.pct-positive:hover {
 }
 
 .fiat-dashboard-card {
-    min-height: 360px;
+    min-height: 0;
 }
 
 .fiat-dashboard-card canvas {
@@ -926,7 +926,7 @@ button.pct-positive:hover {
 }
 
 .fiat-dashboard-bar-card {
-    min-height: 260px;
+    min-height: 0;
 }
 
 @media (max-width: 768px) {
@@ -935,7 +935,23 @@ button.pct-positive:hover {
     }
 }
 
+@media (max-width: 480px) {
+    .fiat-dashboard-card {
+        min-height: 0;
+    }
+    .fiat-dashboard-bar-card {
+        min-height: 0;
+    }
+}
+
 @media (min-width: 768px) {
+    /* Fiat dashboard filters: <<, From, To, >>, Month, Year, Reset */
+    #dashFilters .filters-grid {
+        grid-template-columns: auto 1.25fr 1.25fr auto 1fr 0.85fr auto;
+        column-gap: 16px;
+        row-gap: 14px;
+    }
+
     .history-filters .filters-grid {
         /* From, To, Crypto, Note, From Wallet, To Wallet, Actions */
         grid-template-columns: 1.25fr 1.25fr 1.1fr 1.1fr 1fr 1fr auto;

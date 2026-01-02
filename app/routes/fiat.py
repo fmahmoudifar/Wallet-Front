@@ -2,9 +2,29 @@ from flask import Blueprint, render_template, session, request, redirect, url_fo
 import requests
 import uuid
 from config import API_URL, aws_auth
+from decimal import Decimal
+
+# Reuse the same Settings currency + FX conversion helpers
+from .crypto import (
+    _get_user_base_currency,
+    _get_fx_rate,
+    _normalize_currency,
+)
 
 
 fiat_bp = Blueprint('fiat', __name__)
+
+
+def _to_decimal(val) -> Decimal:
+    try:
+        if val is None:
+            return Decimal(0)
+        s = str(val).strip()
+        if s == '':
+            return Decimal(0)
+        return Decimal(s)
+    except Exception:
+        return Decimal(0)
 
 
 @fiat_bp.route('/fiat', methods=['GET'])
@@ -12,12 +32,36 @@ def fiat_page():
     user = session.get('user')
     if user:
         userId = user.get('username')
+
+        base_currency = _get_user_base_currency(userId)
+        fx_warning = False
         try:
             response = requests.get(f"{API_URL}/transactions", params={"userId": userId}, auth=aws_auth)
             transactions = response.json().get("transactions", []) if response.status_code == 200 else []
         except Exception as e:
             print(f"Error fetching transactions: {e}")
             transactions = []
+
+        # Convert transaction amounts/fees to base currency for dashboard/totals.
+        for tx in transactions:
+            try:
+                tx_currency = _normalize_currency(tx.get('currency'), base_currency)
+                fx_rate = _get_fx_rate(tx_currency, base_currency)
+                amt = _to_decimal(tx.get('amount', 0))
+                fee = _to_decimal(tx.get('fee', 0))
+                tx['amountBase'] = float(amt * fx_rate)
+                tx['feeBase'] = float(fee * fx_rate)
+                tx['baseCurrency'] = base_currency
+            except Exception:
+                # If FX fails, keep base amounts as original and flag a warning.
+                fx_warning = True
+                try:
+                    tx['amountBase'] = float(_to_decimal(tx.get('amount', 0)))
+                    tx['feeBase'] = float(_to_decimal(tx.get('fee', 0)))
+                except Exception:
+                    tx['amountBase'] = 0
+                    tx['feeBase'] = 0
+                tx['baseCurrency'] = base_currency
 
         try:
             w_resp = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
@@ -26,7 +70,14 @@ def fiat_page():
             print(f"Error fetching wallets: {e}")
             wallets = []
 
-        return render_template("fiat.html", transactions=transactions, userId=userId, wallets=wallets)
+        return render_template(
+            "fiat.html",
+            transactions=transactions,
+            userId=userId,
+            wallets=wallets,
+            base_currency=base_currency,
+            fx_warning=fx_warning,
+        )
     else:
         return render_template("home.html")
 
