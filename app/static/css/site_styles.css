@@ -909,6 +909,32 @@ button.pct-positive:hover {
     padding: 8px 16px;
 }
 
+/* Fiat dashboard charts layout */
+.fiat-dashboard-grid {
+    width: 100%;
+    max-width: 1100px;
+    margin: 12px auto 0;
+    grid-template-columns: 1fr 1fr;
+}
+
+.fiat-dashboard-card {
+    min-height: 360px;
+}
+
+.fiat-dashboard-card canvas {
+    width: 100% !important;
+}
+
+.fiat-dashboard-bar-card {
+    min-height: 260px;
+}
+
+@media (max-width: 768px) {
+    .fiat-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (min-width: 768px) {
     .history-filters .filters-grid {
         /* From, To, Crypto, Note, From Wallet, To Wallet, Actions */

@@ -8,6 +8,8 @@
 <script>
     function syncTransTypeUI(prefix) {
         const typeSel = document.getElementById(prefix ? `${prefix}TransType` : 'transType');
+        const catRow = document.getElementById(prefix ? `${prefix}MainCatRow` : 'createMainCatRow');
+        const catSel = document.getElementById(prefix ? `${prefix}MainCat` : 'mainCat');
         const fromRow = document.getElementById(prefix ? `${prefix}FromWalletRow` : 'createFromWalletRow');
         const toRow = document.getElementById(prefix ? `${prefix}ToWalletRow` : 'createToWalletRow');
         const fromSel = document.getElementById(prefix ? `${prefix}FromWallet` : 'fromWallet');
@@ -21,18 +23,85 @@
         const showFrom = (t === 'expense' || t === 'transfer');
         const showTo = (t === 'income' || t === 'transfer');
         const showFee = (t === 'transfer');
+        const showCat = (t === 'income' || t === 'expense');
+
+        const incomeCats = [
+            'Salary, Wage',
+            'Savings',
+            'Debt',
+            'Gift',
+            'Interest, Dividends',
+            'Lend, Rent',
+            'Lottery, Gambling',
+            'Refund',
+            'Sales',
+            'Other',
+        ];
+
+        const expenseCats = [
+            'Food and Beverage',
+            'Purchases',
+            'Housing',
+            'Transportation',
+            'Vehicle',
+            'Entertainment',
+            'Communications',
+            'Financial Expenses',
+            'Investments',
+            'Loans',
+            'Other',
+        ];
+
+        function rebuildCategoryOptions(options) {
+            if (!catSel) return;
+
+            const currentVal = String(catSel.value || '').trim();
+            catSel.innerHTML = '';
+
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '-- Select --';
+            catSel.appendChild(placeholder);
+
+            (options || []).forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                catSel.appendChild(opt);
+            });
+
+            if (currentVal) {
+                const has = Array.from(catSel.options || []).some(o => String(o.value) === String(currentVal));
+                if (!has) {
+                    const opt = document.createElement('option');
+                    opt.value = currentVal;
+                    opt.textContent = currentVal;
+                    catSel.appendChild(opt);
+                }
+                catSel.value = currentVal;
+            }
+        }
 
         if (fromRow) fromRow.style.display = showFrom ? '' : 'none';
         if (toRow) toRow.style.display = showTo ? '' : 'none';
         if (feeRow) feeRow.style.display = showFee ? '' : 'none';
+        if (catRow) catRow.style.display = showCat ? '' : 'none';
 
         if (fromSel) fromSel.required = (t === 'expense' || t === 'transfer');
         if (toSel) toSel.required = (t === 'income' || t === 'transfer');
+
+        if (catSel) {
+            if (t === 'income') rebuildCategoryOptions(incomeCats);
+            else if (t === 'expense') rebuildCategoryOptions(expenseCats);
+
+            catSel.required = (t === 'income' || t === 'expense');
+        }
 
         // Clear hidden fields so users don't accidentally submit stale values.
         if (!showFrom && fromSel) fromSel.value = '';
         if (!showTo && toSel) toSel.value = '';
         if (!showFee && feeEl) feeEl.value = '';
+        if (!showCat && catSel) catSel.value = '';
 
         // Clear any prior custom validity.
         if (fromSel) fromSel.setCustomValidity('');
@@ -66,7 +135,20 @@
             }
         }
         syncTransTypeUI('update');
-        document.getElementById("updateMainCat").value = mainCat;
+        {
+            const sel = document.getElementById("updateMainCat");
+            if (sel) {
+                const v = (mainCat || '').trim();
+                const hasOption = Array.from(sel.options || []).some(o => String(o.value) === String(v));
+                if (!hasOption && v) {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.textContent = v;
+                    sel.appendChild(opt);
+                }
+                sel.value = v;
+            }
+        }
         {
             const el = document.getElementById("updateTdate");
             if (el && el._flatpickr) {
@@ -122,8 +204,15 @@
         document.getElementById("updateNote").value = note;
         document.getElementById("updateTransDiv").style.display = "block";
         document.getElementById("transListDiv").style.display = "none";
+        const dashDiv = document.getElementById("fiatDashboardDiv");
+        if (dashDiv) dashDiv.style.display = "none";
         const newDiv = document.getElementById("newTrans");
         if (newDiv) newDiv.style.display = "none";
+
+        // In update view, keep all nav buttons visible.
+        if (typeof setFiatNavVisibility === 'function') {
+            setFiatNavVisibility('update');
+        }
 
         const addBtn = document.getElementById("newTransB");
         if (addBtn) addBtn.style.display = "none";
@@ -136,6 +225,11 @@
     }  
 
     document.addEventListener("DOMContentLoaded", function() {
+        // Show dashboard by default
+        if (typeof showFiatDashboard === 'function') {
+            showFiatDashboard();
+        }
+
         // Type -> wallet field behavior
         const createType = document.getElementById('transType');
         if (createType) {
@@ -177,6 +271,22 @@
             }
         }
 
+        // Dashboard date filter -> charts
+        const ds = document.getElementById('dashStart');
+        const de = document.getElementById('dashEnd');
+        ['input','change'].forEach(evt => {
+            if (ds) ds.addEventListener(evt, function(){ renderFiatDashboard(); });
+            if (de) de.addEventListener(evt, function(){ renderFiatDashboard(); });
+        });
+
+        // Initialize dashboard default range and render
+        if (typeof initFiatDashboardDefaults === 'function') {
+            initFiatDashboardDefaults();
+        }
+        if (typeof renderFiatDashboard === 'function') {
+            renderFiatDashboard();
+        }
+
         // Hook up live filtering
         const ids = ['filterStart','filterEnd','filterType','filterCategory','filterNote','filterFromWallet','filterToWallet','filterCurrency'];
         ids.forEach(id => {
@@ -194,49 +304,335 @@
         const div = document.getElementById("newTrans");
         const list = document.getElementById("transListDiv");
         const update = document.getElementById("updateTransDiv");
-        const addBtn = document.getElementById("newTransB");
-        const historyBtn = document.getElementById("TransHistoryB");
+        const dash = document.getElementById("fiatDashboardDiv");
         const title = document.getElementById('transPageTitle');
 
-        if (div.style.display === "none" || div.style.display === "") {
-            div.style.display = "block";
-            if (list) list.style.display = "none";
-            if (update) update.style.display = "none";
-            if (addBtn) addBtn.style.display = "none";
-            if (historyBtn) historyBtn.style.display = "none";
-            if (title) title.innerText = 'New Transaction';
-            syncTransTypeUI('');
-        } else {
-            div.style.display = "none";
-            if (list) list.style.display = "block";
-            if (addBtn) addBtn.style.display = "";
-            if (historyBtn) historyBtn.style.display = "";
-            if (title) title.innerText = 'Fiat Transactions';
-            if (typeof applyTransFilters === 'function') { applyTransFilters(); }
+        const isVisible = !!(div && window.getComputedStyle(div).display !== 'none');
+        if (isVisible) {
+            showFiatDashboard();
+            return;
         }
+
+        div.style.display = "block";
+        if (list) list.style.display = "none";
+        if (dash) dash.style.display = "none";
+        if (update) update.style.display = "none";
+        if (title) title.innerText = 'New Transaction';
+        setFiatNavVisibility('new');
+        syncTransTypeUI('');
     }
 
     function transHistoryDiv() {
         const div = document.getElementById("transListDiv");
         const newDiv = document.getElementById("newTrans");
         const updateDiv = document.getElementById("updateTransDiv");
-        const addBtn = document.getElementById("newTransB");
-        const historyBtn = document.getElementById("TransHistoryB");
+        const dash = document.getElementById("fiatDashboardDiv");
         const title = document.getElementById('transPageTitle');
+
+        const isVisible = !!(div && window.getComputedStyle(div).display !== 'none');
+        if (isVisible) {
+            showFiatDashboard();
+            return;
+        }
 
         if (newDiv) newDiv.style.display = "none";
         if (updateDiv) updateDiv.style.display = "none";
+        if (dash) dash.style.display = "none";
         if (div) div.style.display = "block";
-        if (addBtn) addBtn.style.display = "";
-        if (historyBtn) historyBtn.style.display = "";
-        if (title) title.innerText = 'Fiat Transactions';
+        if (title) title.innerText = 'Transactions History';
+        setFiatNavVisibility('history');
         if (typeof applyTransFilters === 'function') { applyTransFilters(); }
     }
 
+    function showFiatDashboard() {
+        const dash = document.getElementById("fiatDashboardDiv");
+        const list = document.getElementById("transListDiv");
+        const newDiv = document.getElementById("newTrans");
+        const updateDiv = document.getElementById("updateTransDiv");
+        const title = document.getElementById('transPageTitle');
+
+        if (dash) dash.style.display = "block";
+        if (list) list.style.display = "none";
+        if (newDiv) newDiv.style.display = "none";
+        if (updateDiv) updateDiv.style.display = "none";
+        if (title) title.innerText = 'Fiat Dashboard';
+        setFiatNavVisibility('dashboard');
+
+        if (typeof initFiatDashboardDefaults === 'function') {
+            initFiatDashboardDefaults();
+        }
+        if (typeof renderFiatDashboard === 'function') {
+            renderFiatDashboard();
+        }
+    }
+    window.showFiatDashboard = showFiatDashboard;
+
+    function setFiatNavVisibility(activeView) {
+        const newBtn = document.getElementById('newTransB');
+        const histBtn = document.getElementById('TransHistoryB');
+        const dashBtn = document.getElementById('FiatDashB');
+
+        // Hide only the button for the current view.
+        if (newBtn) newBtn.style.display = (activeView === 'new') ? 'none' : '';
+        if (histBtn) histBtn.style.display = (activeView === 'history') ? 'none' : '';
+        if (dashBtn) dashBtn.style.display = (activeView === 'dashboard') ? 'none' : '';
+    }
+    window.setFiatNavVisibility = setFiatNavVisibility;
+
+    function initFiatDashboardDefaults() {
+        const startEl = document.getElementById('dashStart');
+        const endEl = document.getElementById('dashEnd');
+        if (!startEl || !endEl) return;
+
+        // Only set defaults if empty
+        const hasStart = !!String(startEl.value || '').trim();
+        const hasEnd = !!String(endEl.value || '').trim();
+        if (hasStart && hasEnd) return;
+
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+        if (startEl._flatpickr) startEl._flatpickr.setDate(start, false, "Y-m-d\\TH:i");
+        else startEl.value = formatLocalDateTime(start);
+
+        if (endEl._flatpickr) endEl._flatpickr.setDate(end, false, "Y-m-d\\TH:i");
+        else endEl.value = formatLocalDateTime(end);
+    }
+    window.initFiatDashboardDefaults = initFiatDashboardDefaults;
+
+    function setDashRangeForMonth(year, monthIndex) {
+        const startEl = document.getElementById('dashStart');
+        const endEl = document.getElementById('dashEnd');
+        if (!startEl || !endEl) return;
+
+        const start = new Date(year, monthIndex, 1, 0, 0, 0);
+        const end = new Date(year, monthIndex + 1, 0, 23, 59, 59);
+
+        if (startEl._flatpickr) startEl._flatpickr.setDate(start, false, "Y-m-d\\TH:i");
+        else startEl.value = formatLocalDateTime(start);
+
+        if (endEl._flatpickr) endEl._flatpickr.setDate(end, false, "Y-m-d\\TH:i");
+        else endEl.value = formatLocalDateTime(end);
+    }
+
+    function shiftFiatDashboardMonth(delta) {
+        const startVal = document.getElementById('dashStart')?.value || '';
+        const anchor = parseLocalDateTime(startVal) || new Date();
+        const y = anchor.getFullYear();
+        const m = anchor.getMonth();
+        const target = new Date(y, m + Number(delta || 0), 1, 0, 0, 0);
+        setDashRangeForMonth(target.getFullYear(), target.getMonth());
+        renderFiatDashboard();
+    }
+    window.shiftFiatDashboardMonth = shiftFiatDashboardMonth;
+
+    function resetFiatDashboardDates() {
+        const startEl = document.getElementById('dashStart');
+        const endEl = document.getElementById('dashEnd');
+        if (!startEl || !endEl) return;
+        startEl.value = '';
+        endEl.value = '';
+        if (startEl._flatpickr) startEl._flatpickr.clear();
+        if (endEl._flatpickr) endEl._flatpickr.clear();
+        initFiatDashboardDefaults();
+        renderFiatDashboard();
+    }
+    window.resetFiatDashboardDates = resetFiatDashboardDates;
+
+    function renderFiatDashboard() {
+        const list = document.getElementById('transList');
+        if (!list) return;
+
+        const startVal = document.getElementById('dashStart')?.value || '';
+        const endVal = document.getElementById('dashEnd')?.value || '';
+        const startDt = parseLocalDateTime(startVal);
+        const endDt = parseLocalDateTime(endVal);
+
+        const items = Array.from(list.querySelectorAll('li[data-tdate]'));
+        const incomeByCat = {};
+        const expenseByCat = {};
+        let incomeTotal = 0;
+        let expenseTotal = 0;
+
+        items.forEach(li => {
+            const tdate = parseTxDate(li.getAttribute('data-tdate'));
+            if ((startDt || endDt) && !tdate) return;
+            if (startDt && tdate && tdate < startDt) return;
+            if (endDt && tdate && tdate > endDt) return;
+
+            const type = String(li.getAttribute('data-type') || '').trim().toLowerCase();
+            if (type !== 'income' && type !== 'expense') return;
+
+            const cat = String(li.getAttribute('data-cat') || '').trim() || 'Other';
+            const amount = parseFloat(String(li.getAttribute('data-amount') || '0')) || 0;
+            if (!amount) return;
+
+            const bucket = (type === 'income') ? incomeByCat : expenseByCat;
+            bucket[cat] = (bucket[cat] || 0) + amount;
+
+            if (type === 'income') incomeTotal += amount;
+            else expenseTotal += amount;
+        });
+
+        const fmt = (n) => {
+            try {
+                return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+            } catch (e) {
+                return String(Number(n || 0));
+            }
+        };
+
+        const incTotalEl = document.getElementById('dashIncomeTotal');
+        const expTotalEl = document.getElementById('dashExpenseTotal');
+        if (incTotalEl) incTotalEl.textContent = fmt(incomeTotal);
+        if (expTotalEl) expTotalEl.textContent = fmt(expenseTotal);
+
+        function toSortedDataset(mapObj) {
+            const entries = Object.entries(mapObj || {}).sort((a, b) => (b[1] || 0) - (a[1] || 0));
+            return {
+                labels: entries.map(e => e[0]),
+                values: entries.map(e => Number(e[1] || 0)),
+            };
+        }
+
+        const income = toSortedDataset(incomeByCat);
+        const expense = toSortedDataset(expenseByCat);
+
+        const emptyIncome = document.getElementById('incomeChartEmpty');
+        const emptyExpense = document.getElementById('expenseChartEmpty');
+        if (emptyIncome) emptyIncome.style.display = income.labels.length ? 'none' : '';
+        if (emptyExpense) emptyExpense.style.display = expense.labels.length ? 'none' : '';
+
+        // Charts
+        if (window.Chart) {
+            if (window.__fiatIncomeChart) { try { window.__fiatIncomeChart.destroy(); } catch(e) {} }
+            if (window.__fiatExpenseChart) { try { window.__fiatExpenseChart.destroy(); } catch(e) {} }
+            if (window.__fiatIncomeBarChart) { try { window.__fiatIncomeBarChart.destroy(); } catch(e) {} }
+            if (window.__fiatExpenseBarChart) { try { window.__fiatExpenseBarChart.destroy(); } catch(e) {} }
+
+            const ic = document.getElementById('incomeChart');
+            const ec = document.getElementById('expenseChart');
+            const ib = document.getElementById('incomeBarChart');
+            const eb = document.getElementById('expenseBarChart');
+
+            if (ic) {
+                window.__fiatIncomeChart = new Chart(ic, {
+                    type: 'pie',
+                    data: {
+                        labels: income.labels,
+                        datasets: [{
+                            label: 'Income',
+                            data: income.values,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top' },
+                        }
+                    }
+                });
+            }
+            if (ec) {
+                window.__fiatExpenseChart = new Chart(ec, {
+                    type: 'pie',
+                    data: {
+                        labels: expense.labels,
+                        datasets: [{
+                            label: 'Expense',
+                            data: expense.values,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top' },
+                        }
+                    }
+                });
+            }
+
+            if (ib) {
+                window.__fiatIncomeBarChart = new Chart(ib, {
+                    type: 'bar',
+                    data: {
+                        labels: income.labels,
+                        datasets: [{
+                            label: 'Income',
+                            data: income.values,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        indexAxis: 'y',
+                        plugins: {
+                            legend: { display: false },
+                        },
+                        scales: {
+                            x: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+
+            if (eb) {
+                window.__fiatExpenseBarChart = new Chart(eb, {
+                    type: 'bar',
+                    data: {
+                        labels: expense.labels,
+                        datasets: [{
+                            label: 'Expense',
+                            data: expense.values,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        indexAxis: 'y',
+                        plugins: {
+                            legend: { display: false },
+                        },
+                        scales: {
+                            x: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+        }
+    }
+    window.renderFiatDashboard = renderFiatDashboard;
+
     // Utilities for client-side filtering
+    function formatLocalDateTime(dt) {
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, '0');
+        const d = String(dt.getDate()).padStart(2, '0');
+        const hh = String(dt.getHours()).padStart(2, '0');
+        const mm = String(dt.getMinutes()).padStart(2, '0');
+        return `${y}-${m}-${d}T${hh}:${mm}`;
+    }
+
     function parseLocalDateTime(val) {
         if (!val) return null;
-        try { return new Date(val); } catch(e) { return null; }
+        const s = String(val).trim();
+        // Parse as local time: YYYY-MM-DDTHH:MM (or with space instead of T)
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+        if (m) {
+            const y = Number(m[1]);
+            const mo = Number(m[2]) - 1;
+            const d = Number(m[3]);
+            const hh = Number(m[4] || '0');
+            const mm = Number(m[5] || '0');
+            const dt = new Date(y, mo, d, hh, mm, 0);
+            return isNaN(dt) ? null : dt;
+        }
+
+        try {
+            const dt = new Date(s);
+            return isNaN(dt) ? null : dt;
+        } catch(e) {
+            return null;
+        }
     }
 
     function parseTxDate(val) {
@@ -434,10 +830,78 @@
 </script>
 
 <div class="crypto-page-header">
-    <h1 id="transPageTitle" class="crypto-page-title">Fiat Transactions</h1>
+    <h1 id="transPageTitle" class="crypto-page-title">Fiat Dashboard</h1>
     <div class="crypto-page-actions">
         <button id="newTransB" class="btn-insert pct-positive" onclick="newTransDiv()">New Transaction</button>
         <button id="TransHistoryB" class="btn-insert" onclick="transHistoryDiv()">Transactions History</button>
+        <button id="FiatDashB" class="btn-insert" onclick="showFiatDashboard()">Transaction Dashboard</button>
+    </div>
+</div>
+
+<div id="fiatDashboardDiv" class="form-container">
+    <h2 class="crypto-section-title">Dashboard</h2>
+    <div id="dashFilters" class="history-filters">
+        <form class="filters-grid" onsubmit="renderFiatDashboard(); return false;">
+            <div>
+                <button type="button" class="btn-insert" onclick="shiftFiatDashboardMonth(-1)">&lt;&lt;</button>
+            </div>
+            <div>
+                <label for="dashStart">From Date:</label>
+                <input type="text" id="dashStart" name="dashStart" data-dt-picker="1">
+            </div>
+            <div>
+                <label for="dashEnd">To Date:</label>
+                <input type="text" id="dashEnd" name="dashEnd" data-dt-picker="1">
+            </div>
+            <div>
+                <button type="button" class="btn-insert" onclick="shiftFiatDashboardMonth(1)">&gt;&gt;</button>
+            </div>
+            <div class="filters-actions">
+                <button type="button" class="btn-clear" onclick="resetFiatDashboardDates()">Reset</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="totals-grid fiat-dashboard-grid" style="margin-top:12px;">
+        <div class="totals-card fiat-dashboard-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-size:1rem;font-weight:700">Income by Category</div>
+            </div>
+            <div id="incomeChartEmpty" class="small-muted" style="display:none;margin:6px 0;">No income in this date range.</div>
+            <canvas id="incomeChart" height="320"></canvas>
+            <div class="totals-meta" style="margin-top:6px;">
+                <div class="totals-row">
+                    <div class="totals-label">Total Income</div>
+                    <div class="totals-value pct-positive" id="dashIncomeTotal">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="totals-card fiat-dashboard-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-size:1rem;font-weight:700">Expense by Category</div>
+            </div>
+            <div id="expenseChartEmpty" class="small-muted" style="display:none;margin:6px 0;">No expenses in this date range.</div>
+            <canvas id="expenseChart" height="320"></canvas>
+            <div class="totals-meta" style="margin-top:6px;">
+                <div class="totals-row">
+                    <div class="totals-label">Total Expense</div>
+                    <div class="totals-value pct-negative" id="dashExpenseTotal">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="totals-card fiat-dashboard-bar-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-size:1rem;font-weight:700">Income (Bar)</div>
+            </div>
+            <canvas id="incomeBarChart" height="220"></canvas>
+        </div>
+        <div class="totals-card fiat-dashboard-bar-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-size:1rem;font-weight:700">Expense (Bar)</div>
+            </div>
+            <canvas id="expenseBarChart" height="220"></canvas>
+        </div>
     </div>
 </div>
 
@@ -454,9 +918,11 @@
         <option value="Transfer">Transfer</option>
     </select>
     </div>
-    <div>
+    <div id="createMainCatRow">
     <label for="mainCat">Category:</label>
-    <input type="text" name="mainCat">
+    <select id="mainCat" name="mainCat" required>
+        <option value="">-- Select --</option>
+    </select>
     </div>
     <!-- <input type="text" name="subCat" placeholder="subCat"> -->
     <!-- <input type="datetime-local" name="tdate" placeholder="date"> -->
@@ -514,7 +980,7 @@
     <div class="small-muted" style="margin-bottom:10px">{{ fd }}</div>
 {% endif %}
 
-<div id="transListDiv" class="form-container">
+<div id="transListDiv" class="form-container" style="display:none;">
     <h2 class="crypto-section-title">Transactions History</h2>
     <div id="filters" class="history-filters">
         <form class="filters-grid" onsubmit="applyTransFilters(); return false;">
@@ -579,7 +1045,7 @@
 {% if transactions %}
 <ul id="transList">
     {% for transaction in transactions %}
-        <li data-id="{{ transaction.transId }}" data-tdate="{{ transaction.tdate }}" data-type="{{ transaction.transType|default('') }}" data-cat="{{ transaction.mainCat|default('') }}" data-note="{{ transaction.note|default('') }}" data-from="{{ transaction.fromWallet|default('') }}" data-to="{{ transaction.toWallet|default('') }}" data-currency="{{ transaction.currency|default('') }}">
+        <li data-id="{{ transaction.transId }}" data-tdate="{{ transaction.tdate }}" data-type="{{ transaction.transType|default('') }}" data-cat="{{ transaction.mainCat|default('') }}" data-note="{{ transaction.note|default('') }}" data-from="{{ transaction.fromWallet|default('') }}" data-to="{{ transaction.toWallet|default('') }}" data-currency="{{ transaction.currency|default('') }}" data-amount="{{ transaction.amount|default(0) }}">
             <div class="crypto-history-row">
                 <div class="crypto-history-left">
                     <div class="crypto-history-title">{{ transaction.transType }}</div>
@@ -623,9 +1089,11 @@
                     <option value="Transfer">Transfer</option>
                 </select>
             </div>
-            <div>
+            <div id="updateMainCatRow">
                 <label>Main Category:</label>
-                <input type="text" id="updateMainCat" name="mainCat" required>
+                <select id="updateMainCat" name="mainCat" required>
+                    <option value="">-- Select --</option>
+                </select>
             </div>
             <div>
                 <label>Date:</label>
