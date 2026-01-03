@@ -5,11 +5,472 @@
 
 {% block content %}
 
+<!-- stocks data provided to JS via data attribute to avoid inline template tags in scripts -->
+<div id="stocks-data" style="display:none" data-stocks='{{ stocks|tojson | safe }}'></div>
+
 <script>
+    function setStockNavVisibility(activeView) {
+        const btns = Array.from(document.querySelectorAll('[data-stock-nav]'));
+        btns.forEach(btn => {
+            const v = String(btn.getAttribute('data-stock-nav') || '').trim();
+            const isActive = (v && v === String(activeView || ''));
+            if (isActive) btn.setAttribute('aria-current', 'page');
+            else btn.removeAttribute('aria-current');
+            btn.classList.toggle('is-active', isActive);
+        });
+    }
+
+    function getStocksData() {
+        try {
+            const el = document.getElementById('stocks-data');
+            if (!el || !el.dataset || !el.dataset.stocks) return [];
+            const arr = JSON.parse(el.dataset.stocks);
+            return Array.isArray(arr) ? arr : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function formatNumber(value, maxDigits) {
+        const v = Number(value);
+        if (!isFinite(v)) return '0';
+        const opts = { maximumFractionDigits: (typeof maxDigits === 'number' ? maxDigits : 6) };
+        try {
+            return new Intl.NumberFormat(undefined, opts).format(v);
+        } catch (e) {
+            return String(v);
+        }
+    }
+
+    function buildStockPortfolio() {
+        const container = document.getElementById('stockPortfolioCards');
+        const emptyMsg = document.getElementById('stockPortfolioEmpty');
+        if (!container) return;
+
+        const stocks = getStocksData();
+        if (!stocks.length) {
+            container.innerHTML = '';
+            if (emptyMsg) emptyMsg.style.display = '';
+            return;
+        }
+
+        const groups = new Map();
+
+        function toNum(x) {
+            const n = parseFloat(String(x ?? '').replace(',', '.'));
+            return isFinite(n) ? n : 0;
+        }
+
+        stocks.forEach(s => {
+            const stockSymbol = String(s.stockName || '').trim() || 'UNKNOWN';
+            const currency = String(s.currency || '').trim();
+            const qty = toNum(s.quantity);
+            const price = toNum(s.price);
+            const fee = toNum(s.fee);
+
+            // Group by stock + currency (keeps numbers honest if user mixes currencies).
+            const key = `${stockSymbol}||${currency}`;
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    stockSymbol,
+                    currency,
+                    totalQty: 0,
+                    totalValuePaid: 0,
+                    totalFee: 0,
+                    txCount: 0,
+                });
+            }
+            const g = groups.get(key);
+            g.totalQty += qty;
+            g.totalFee += fee;
+            g.totalValuePaid += (qty * price) + fee;
+            g.txCount += 1;
+        });
+
+        const list = Array.from(groups.values());
+        list.sort((a, b) => (b.totalValuePaid - a.totalValuePaid));
+
+        container.innerHTML = list.map(g => {
+            const avgBuy = g.totalQty ? ((g.totalValuePaid - g.totalFee) / g.totalQty) : 0;
+            const cur = g.currency ? ` ${g.currency}` : '';
+            const symbol = String(g.stockSymbol || '').toUpperCase();
+            return `
+                <div class="totals-card" data-stock-symbol="${symbol}" data-stock-qty="${g.totalQty}" data-stock-paid="${g.totalValuePaid}">
+                    <div class="totals-header">
+                        <div>
+                            <div style="font-size:1rem;font-weight:700">
+                                <span class="stock-symbol">${symbol}</span>
+                                <span class="stock-name small-muted" style="margin-left:8px; font-weight:600;"></span>
+                            </div>
+                            <div class="small-muted">${g.txCount} tx${cur}</div>
+                        </div>
+                        <div class="pct-badge pct-neutral" data-stock-pct>—</div>
+                    </div>
+
+                    <div class="totals-meta">
+                        <div class="totals-row">
+                            <span class="totals-label small-muted">Total Quantity:</span>
+                            <span class="totals-value">${formatNumber(g.totalQty, 6)}</span>
+                        </div>
+                        <div class="totals-row">
+                            <span class="totals-label small-muted">Total Value Now:</span>
+                            <span class="totals-value" data-stock-now>—</span>
+                        </div>
+                        <div class="totals-row">
+                            <span class="totals-label small-muted">Total Value Paid:</span>
+                            <span class="totals-value">${formatNumber(g.totalValuePaid, 2)}${cur}</span>
+                        </div>
+                        <div class="totals-row">
+                            <span class="totals-label small-muted">Unit price now:</span>
+                            <span class="totals-value" data-stock-live>—</span>
+                        </div>
+                        <div class="totals-row">
+                            <span class="totals-label small-muted">Avg Buy Price:</span>
+                            <span class="totals-value">${formatNumber(avgBuy, 4)}${cur}</span>
+                        </div>
+                        <div class="totals-row">
+                            <span class="totals-label small-muted">Fees paid:</span>
+                            <span class="totals-value">${formatNumber(g.totalFee, 2)}${cur}</span>
+                        </div>
+                        <div class="totals-row">
+                            <span class="totals-label small-muted">Gain / Loss:</span>
+                            <span class="totals-value" data-stock-gl>—</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        if (emptyMsg) emptyMsg.style.display = 'none';
+
+        // Fill live quote fields asynchronously.
+        hydrateStockPortfolioLiveQuotes();
+    }
+
+    function showStockPortfolio() {
+        const title = document.getElementById('stockPageTitle');
+        const panel = document.getElementById('stockPanel');
+        const newDiv = document.getElementById('newStock');
+        const listDiv = document.getElementById('stockListDiv');
+        const updateDiv = document.getElementById('updateStockDiv');
+
+        if (title) title.innerText = 'Stock Portfolio';
+        if (panel) panel.style.display = 'block';
+        if (newDiv) newDiv.style.display = 'none';
+        if (listDiv) listDiv.style.display = 'none';
+        if (updateDiv) updateDiv.style.display = 'none';
+
+        buildStockPortfolio();
+        setStockNavVisibility('portfolio');
+    }
+
+    let stockQuoteInFlight = new Set();
+    async function hydrateStockPortfolioLiveQuotes() {
+        const cards = Array.from(document.querySelectorAll('#stockPortfolioCards [data-stock-symbol]'));
+        for (const card of cards) {
+            const symbol = String(card.getAttribute('data-stock-symbol') || '').trim();
+            if (!symbol) continue;
+            if (stockQuoteInFlight.has(symbol)) continue;
+            stockQuoteInFlight.add(symbol);
+
+            try {
+                const res = await fetch(`/stock/quote?symbol=${encodeURIComponent(symbol)}`);
+                const data = await res.json();
+                const price = (data && typeof data.price === 'number') ? data.price : null;
+
+                const qty = parseFloat(card.getAttribute('data-stock-qty') || '0') || 0;
+                const paid = parseFloat(card.getAttribute('data-stock-paid') || '0') || 0;
+
+                const liveEl = card.querySelector('[data-stock-live]');
+                const nowEl = card.querySelector('[data-stock-now]');
+                const glEl = card.querySelector('[data-stock-gl]');
+                const pctEl = card.querySelector('[data-stock-pct]');
+                const nameEl = card.querySelector('.stock-name');
+
+                const cur = (data && data.currency) ? ` ${data.currency}` : '';
+                if (nameEl && data && data.name) nameEl.textContent = data.name;
+
+                if (price === null) {
+                    if (liveEl) liveEl.textContent = '—';
+                    if (nowEl) nowEl.textContent = '—';
+                    if (glEl) glEl.textContent = '—';
+                    if (pctEl) {
+                        pctEl.textContent = '—';
+                        pctEl.classList.remove('pct-positive','pct-negative');
+                        pctEl.classList.add('pct-neutral');
+                    }
+                    continue;
+                }
+
+                const valueNow = qty * price;
+                const gl = valueNow - paid;
+                const pct = paid ? (gl / paid) * 100 : 0;
+
+                if (liveEl) liveEl.textContent = `${formatNumber(price, 4)}${cur}`;
+                if (nowEl) nowEl.textContent = `${formatNumber(valueNow, 2)}${cur}`;
+
+                if (glEl) {
+                    const sign = gl >= 0 ? '+' : '';
+                    glEl.textContent = `${sign}${formatNumber(gl, 2)}${cur}`;
+                    glEl.classList.remove('pct-positive','pct-negative','pct-neutral');
+                    glEl.classList.add(gl >= 0 ? 'pct-positive' : 'pct-negative');
+                }
+
+                if (pctEl) {
+                    pctEl.textContent = `${pct >= 0 ? '+' : ''}${formatNumber(pct, 2)}%`;
+                    pctEl.classList.remove('pct-positive','pct-negative','pct-neutral');
+                    pctEl.classList.add(pct >= 0 ? 'pct-positive' : 'pct-negative');
+                }
+            } catch (e) {
+                // Keep placeholders
+            } finally {
+                stockQuoteInFlight.delete(symbol);
+            }
+        }
+    }
+
+    // Crypto-like autocomplete powered by Alpha Vantage proxy endpoints.
+    // - User can type symbol or name
+    // - Dropdown suggests "SYMBOL - Company Name"
+    // - Hidden input stores the symbol
+    // - Optionally auto-fills price/currency from /stock/quote
+    function initStockAutocomplete(inputId, listWrapId, hiddenId, opts) {
+        const input = document.getElementById(inputId);
+        const listWrap = document.getElementById(listWrapId);
+        const hidden = document.getElementById(hiddenId);
+        const priceEl = (opts && opts.priceId) ? document.getElementById(opts.priceId) : null;
+        const currencyEl = (opts && opts.currencyId) ? document.getElementById(opts.currencyId) : null;
+        if (!input || !listWrap || !hidden) return;
+
+        let currentFocus = -1;
+        let lastController = null;
+        let lastQuotedSymbol = '';
+
+        function extractSymbol(raw) {
+            const txt = String(raw || '').trim();
+            if (!txt) return '';
+            const first = txt.split(' - ')[0].trim();
+            return first.replace(/\(.+\)$/, '').trim().toUpperCase();
+        }
+
+        function setHiddenFromInput() {
+            hidden.value = extractSymbol(input.value);
+        }
+
+        function closeAllLists(elmnt) {
+            const x = document.getElementsByClassName('autocomplete-items');
+            for (let i = x.length - 1; i >= 0; i--) {
+                if (elmnt !== x[i] && elmnt !== input) {
+                    x[i].parentNode && x[i].parentNode.removeChild(x[i]);
+                }
+            }
+        }
+
+        function addActive(x) {
+            if (!x) return false;
+            removeActive(x);
+            if (currentFocus >= x.length) currentFocus = 0;
+            if (currentFocus < 0) currentFocus = (x.length - 1);
+            x[currentFocus].classList.add('autocomplete-active');
+        }
+
+        function removeActive(x) {
+            for (let i = 0; i < x.length; i++) {
+                x[i].classList.remove('autocomplete-active');
+            }
+        }
+
+        async function fillQuote(symbol) {
+            const sym = String(symbol || '').trim().toUpperCase();
+            if (!sym) return;
+            if (lastQuotedSymbol === sym) return;
+            lastQuotedSymbol = sym;
+
+            try {
+                const res = await fetch(`/stock/quote?symbol=${encodeURIComponent(sym)}`);
+                const data = await res.json();
+                if (!res.ok) {
+                    console.warn('[stock] quote failed', res.status, data && data.error ? data.error : data);
+                }
+                if (data && data.name) {
+                    const curVal = String(input.value || '').trim();
+                    if (!curVal || curVal.toUpperCase() === sym || curVal.toUpperCase().startsWith(sym + ' -')) {
+                        input.value = `${sym} - ${data.name}`;
+                    }
+                }
+                if (priceEl && (String(priceEl.value || '').trim() === '') && data && typeof data.price === 'number') {
+                    priceEl.value = String(data.price);
+                }
+                if (currencyEl && (String(currencyEl.value || '').trim() === '') && data && data.currency) {
+                    currencyEl.value = String(data.currency);
+                }
+            } catch (e) {
+                console.warn('[stock] quote exception', e);
+            }
+        }
+
+        function commitSelection(symbol, name) {
+            const sym = String(symbol || '').trim().toUpperCase();
+            const nm = String(name || '').trim();
+            if (!sym) return;
+            input.value = nm ? `${sym} - ${nm}` : sym;
+            hidden.value = sym;
+            closeAllLists();
+            fillQuote(sym);
+        }
+
+        input.addEventListener('input', async function () {
+            const q = String(input.value || '').trim();
+            setHiddenFromInput();
+            closeAllLists();
+            currentFocus = -1;
+            if (!q || q.length < 2) return;
+
+            const list = document.createElement('div');
+            list.setAttribute('class', 'autocomplete-items');
+            if (!listWrap.style.position) listWrap.style.position = 'relative';
+            list.style.position = 'absolute';
+            list.style.zIndex = 1000;
+            list.style.left = '0px';
+            list.style.right = '0px';
+            list.style.top = '4px';
+            list.style.maxHeight = '260px';
+            list.style.overflowY = 'auto';
+            listWrap.appendChild(list);
+
+            try {
+                if (lastController) lastController.abort();
+                lastController = new AbortController();
+                const res = await fetch(`/stock/search?q=${encodeURIComponent(q)}`, { signal: lastController.signal });
+                const data = await res.json();
+                if (!res.ok) {
+                    console.warn('[stock] search failed', res.status, data && data.error ? data.error : data);
+                }
+                const results = Array.isArray(data && data.results) ? data.results : [];
+
+                results.slice(0, 20).forEach(r => {
+                    const sym = String(r.symbol || '').trim().toUpperCase();
+                    const nm = String(r.name || '').trim();
+                    const region = String(r.region || '').trim();
+                    const cur = String(r.currency || '').trim();
+
+                    if (!sym) return;
+
+                    const item = document.createElement('div');
+                    const meta = [region, cur].filter(Boolean).join(' / ');
+                    item.innerHTML = `<strong>${sym}</strong>${nm ? ` - ${nm}` : ''}${meta ? ` <span class="small-muted">(${meta})</span>` : ''}`;
+                    item.addEventListener('click', function () {
+                        commitSelection(sym, nm);
+                    });
+                    item.addEventListener('touchstart', function (e) {
+                        e.preventDefault();
+                        commitSelection(sym, nm);
+                    });
+                    // Prefer committing selection before input blur fires.
+                    item.addEventListener('mousedown', function () {
+                        commitSelection(sym, nm);
+                    });
+                    list.appendChild(item);
+                });
+            } catch (e) {
+                if (!(e && e.name === 'AbortError')) {
+                    console.warn('[stock] search exception', e);
+                }
+            }
+        });
+
+        input.addEventListener('keydown', function (e) {
+            let x = document.getElementsByClassName('autocomplete-items');
+            if (x.length) x = x[0].getElementsByTagName('div');
+            if (e.keyCode === 40) {
+                currentFocus++;
+                addActive(x);
+            } else if (e.keyCode === 38) {
+                currentFocus--;
+                addActive(x);
+            } else if (e.keyCode === 13) {
+                if (currentFocus > -1) {
+                    e.preventDefault();
+                    if (x && x[currentFocus]) x[currentFocus].click();
+                }
+            }
+        });
+
+        input.addEventListener('blur', function () {
+            setHiddenFromInput();
+            const sym = hidden.value;
+            if (sym && /^[A-Z0-9.\-]+$/.test(sym)) fillQuote(sym);
+        });
+
+        const form = input.closest('form');
+        if (form) {
+            form.addEventListener('submit', function () {
+                setHiddenFromInput();
+            });
+        }
+
+        document.addEventListener('click', function (e) {
+            closeAllLists(e.target);
+        });
+    }
+
+    function showStockNew() {
+        const title = document.getElementById('stockPageTitle');
+        const panel = document.getElementById('stockPanel');
+        const newDiv = document.getElementById('newStock');
+        const listDiv = document.getElementById('stockListDiv');
+        const updateDiv = document.getElementById('updateStockDiv');
+
+        if (title) title.innerText = 'New Stock Transaction';
+        if (panel) panel.style.display = 'none';
+        if (newDiv) newDiv.style.display = 'block';
+        if (listDiv) listDiv.style.display = 'none';
+        if (updateDiv) updateDiv.style.display = 'none';
+        setStockNavVisibility('new');
+    }
+
+    function showStockHistory() {
+        const title = document.getElementById('stockPageTitle');
+        const panel = document.getElementById('stockPanel');
+        const newDiv = document.getElementById('newStock');
+        const listDiv = document.getElementById('stockListDiv');
+        const updateDiv = document.getElementById('updateStockDiv');
+
+        if (title) title.innerText = 'Stocks Transactions History';
+        if (panel) panel.style.display = 'none';
+        if (listDiv) listDiv.style.display = 'block';
+        if (newDiv) newDiv.style.display = 'none';
+        if (updateDiv) updateDiv.style.display = 'none';
+        setStockNavVisibility('history');
+
+        if (typeof applyStockFilters === 'function') { applyStockFilters(); }
+    }
+
+    function showStockUpdate() {
+        const title = document.getElementById('stockPageTitle');
+        const panel = document.getElementById('stockPanel');
+        const newDiv = document.getElementById('newStock');
+        const listDiv = document.getElementById('stockListDiv');
+        const updateDiv = document.getElementById('updateStockDiv');
+
+        if (title) title.innerText = 'Update Stock Transaction';
+        if (panel) panel.style.display = 'none';
+        if (updateDiv) updateDiv.style.display = 'block';
+        if (newDiv) newDiv.style.display = 'none';
+        if (listDiv) listDiv.style.display = 'none';
+
+        // Update view doesn't have its own nav button.
+        setStockNavVisibility('update');
+    }
+
     function editStock(stockId, userId, stockName, tdate, fromWallet, toWallet, quantity, price, currency, fee, note) {
         document.getElementById("updateStockId").value = stockId;
         document.getElementById("updateUserId").value = userId;
-        document.getElementById("updateStockName").value = stockName;
+        const hidden = document.getElementById("updateStockName");
+        const visible = document.getElementById("updateStockSearch");
+        const sym = (stockName || '').toUpperCase();
+        if (hidden) hidden.value = sym;
+        if (visible) visible.value = sym;
         {
             const el = document.getElementById("updateTdate");
             if (el && el._flatpickr) {
@@ -25,54 +486,203 @@
         document.getElementById("updateCurrency").value = currency;
         document.getElementById("updateFee").value = fee;
         document.getElementById("updateNote").value = note;
-        document.getElementById("updateStockDiv").style.display = "block";
-        document.getElementById("stockListDiv").style.display = "none";
-        document.getElementById("newStockB").style.display = "none"; 
-        document.getElementById("deleteForm").action = `/deleteStock/${stockId}/${userId}`;
+        showStockUpdate();
+        // Route is lowercase in the blueprint: /deletestock/<stock_id>/<user_id>
+        document.getElementById("deleteForm").action = `/deletestock/${stockId}/${userId}`;
+
+        // Best-effort: resolve and show company name (does not affect stored symbol).
+        if (visible && sym) {
+            fetch(`/stock/quote?symbol=${encodeURIComponent(sym)}`)
+                .then(r => r.json())
+                .then(d => {
+                    if (d && d.name) visible.value = `${sym} - ${d.name}`;
+                })
+                .catch(() => {});
+        }
     }  
+
+    function parseLocalDateTime(dateStr) {
+        // Accepts: YYYY-MM-DDTHH:mm from flatpickr config; parse as local.
+        const s = String(dateStr || '').trim();
+        if (!s) return null;
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+        if (!m) return null;
+        return new Date(
+            parseInt(m[1], 10),
+            parseInt(m[2], 10) - 1,
+            parseInt(m[3], 10),
+            parseInt(m[4], 10),
+            parseInt(m[5], 10),
+            0,
+            0
+        );
+    }
+
+    function parseTxDate(dateStr) {
+        // Most tx dates are ISO-like without timezone; parse as local.
+        const d = parseLocalDateTime(dateStr);
+        if (d) return d;
+        if (!dateStr) return null;
+        const fallback = new Date(dateStr);
+        return isNaN(fallback) ? null : fallback;
+    }
+
+    function applyStockFilters() {
+        const list = document.getElementById('stockList');
+        if (!list) return;
+        const items = Array.from(list.querySelectorAll('li[data-tdate]'));
+
+        const startVal = document.getElementById('stockFilterStart')?.value || '';
+        const endVal = document.getElementById('stockFilterEnd')?.value || '';
+        const stockVal = (document.getElementById('stockFilterSymbol')?.value || '').trim().toLowerCase();
+        const noteVal = (document.getElementById('stockFilterNote')?.value || '').trim().toLowerCase();
+        const fromVal = (document.getElementById('stockFilterFromWallet')?.value || '').trim().toLowerCase();
+        const toVal = (document.getElementById('stockFilterToWallet')?.value || '').trim().toLowerCase();
+
+        const startDt = parseLocalDateTime(startVal);
+        const endDt = parseLocalDateTime(endVal);
+
+        if (window.stockPageSize == null) window.stockPageSize = 20;
+        if (window.stockCurrentPage == null) window.stockCurrentPage = 1;
+
+        function itemMatches(li) {
+            let show = true;
+            const tdate = parseTxDate(li.getAttribute('data-tdate'));
+            if (startDt && tdate && tdate < startDt) show = false;
+            if (endDt && tdate && tdate > endDt) show = false;
+            if ((startDt || endDt) && !tdate) show = false;
+
+            if (show && stockVal) {
+                const sym = (li.getAttribute('data-stock') || '').toLowerCase();
+                if (!sym.includes(stockVal)) show = false;
+            }
+            if (show && noteVal) {
+                const noteAttr = (li.getAttribute('data-note') || '').toLowerCase();
+                if (!noteAttr.includes(noteVal)) show = false;
+            }
+            if (show && fromVal) {
+                const fromAttr = (li.getAttribute('data-from') || '').toLowerCase();
+                if (!fromAttr.includes(fromVal)) show = false;
+            }
+            if (show && toVal) {
+                const toAttr = (li.getAttribute('data-to') || '').toLowerCase();
+                if (!toAttr.includes(toVal)) show = false;
+            }
+            return show;
+        }
+
+        const matching = items.filter(itemMatches);
+        const total = matching.length;
+        const pageSize = Number(window.stockPageSize) || 20;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        window.stockCurrentPage = Math.min(Math.max(1, Number(window.stockCurrentPage) || 1), totalPages);
+
+        items.forEach(li => { li.style.display = 'none'; });
+
+        const startIdx = (window.stockCurrentPage - 1) * pageSize;
+        const endIdx = startIdx + pageSize;
+        matching.slice(startIdx, endIdx).forEach(li => { li.style.display = ''; });
+
+        const emptyMsg = document.getElementById('stockFilterEmptyMsg');
+        if (emptyMsg) emptyMsg.style.display = total ? 'none' : '';
+
+        const pager = document.getElementById('stockPagination');
+        const pageInfo = document.getElementById('stockPageInfo');
+        const prevBtn = document.getElementById('stockPrevPage');
+        const nextBtn = document.getElementById('stockNextPage');
+        if (pager) pager.style.display = total ? '' : 'none';
+        if (pageInfo) pageInfo.textContent = `Page ${window.stockCurrentPage} of ${totalPages}`;
+        if (prevBtn) prevBtn.disabled = window.stockCurrentPage <= 1;
+        if (nextBtn) nextBtn.disabled = window.stockCurrentPage >= totalPages;
+    }
+
+    function resetStockFilters() {
+        ['stockFilterStart','stockFilterEnd','stockFilterSymbol','stockFilterNote','stockFilterFromWallet','stockFilterToWallet'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (el._flatpickr) {
+                el._flatpickr.clear();
+                return;
+            }
+            el.value = '';
+        });
+        window.stockCurrentPage = 1;
+        applyStockFilters();
+    }
+
+    function stockGoToPrevPage() {
+        window.stockCurrentPage = Math.max(1, (Number(window.stockCurrentPage) || 1) - 1);
+        applyStockFilters();
+    }
+
+    function stockGoToNextPage() {
+        window.stockCurrentPage = (Number(window.stockCurrentPage) || 1) + 1;
+        applyStockFilters();
+    }
 
 document.addEventListener("DOMContentLoaded", function() {
     let list = document.getElementById("stockList");
-    let items = Array.from(list.children);
+    let items = (list && list.children) ? Array.from(list.children) : [];
 
     items.sort((a, b) => {
-        let dateA = new Date(a.getAttribute("data-tdate"));
-        let dateB = new Date(b.getAttribute("data-tdate"));
+        let dateA = parseTxDate(a.getAttribute("data-tdate")) || new Date(0);
+        let dateB = parseTxDate(b.getAttribute("data-tdate")) || new Date(0);
         return dateB - dateA;  // Sort descending
     });
 
     items.forEach(item => list.appendChild(item));
+
+    // Default view: Portfolio.
+    showStockPortfolio();
+
+    initStockAutocomplete('stockSearch', 'stockSearchList', 'stockName', { priceId: 'stockPrice', currencyId: 'stockCurrency' });
+    initStockAutocomplete('updateStockSearch', 'updateStockSearchList', 'updateStockName', { priceId: 'updatePrice', currencyId: 'updateCurrency' });
+
+    // Wire filter events (if filters exist)
+    ['stockFilterStart','stockFilterEnd','stockFilterSymbol','stockFilterNote','stockFilterFromWallet','stockFilterToWallet'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        ['input','change'].forEach(evt => {
+            el.addEventListener(evt, function () {
+                window.stockCurrentPage = 1;
+                applyStockFilters();
+            });
+        });
+    });
 });
 
-function newStockDiv() {
-    let div = document.getElementById("newStock");
-    let button = document.getElementById("newStockB");
-
-    if (div.style.display === "none" || div.style.display === "") {
-        div.style.display = "block";
-        document.getElementById("stockListDiv").style.display = "none";
-        button.style.display = "none" ;
-    } else {
-        div.style.display = "none";
-        document.getElementById("stockListDiv").style.display = "block";
-        button.innerText = "Add New stock" ;
-    }
-}
+// Keep these names for menu/sidebar compatibility.
+function newStockDiv() { showStockNew(); }
+function stockHistoryDiv() { showStockHistory(); }
 </script>
 
+<div class="crypto-page-header">
+    <h1 class="crypto-page-title" id="stockPageTitle">Stock Portfolio</h1>
+</div>
 
-<h1 class="page-title">Stocks Manager</h1>
+<!-- Mobile-only subnav (sidebar is hidden on small screens) -->
+<div class="app-subnav app-subnav-mobile" aria-label="Stock sections">
+    <button type="button" class="app-subnav-link" data-stock-nav="new" onclick="newStockDiv()">New</button>
+    <button type="button" class="app-subnav-link" data-stock-nav="portfolio" onclick="showStockPortfolio()">Portfolio</button>
+    <button type="button" class="app-subnav-link" data-stock-nav="history" onclick="stockHistoryDiv()">History</button>
+</div>
 
-<button id="newStockB" class="btn-insert" onclick="newStockDiv()">Add New Stock</button>
+
+<div id="stockPanel" class="panel" style="padding:12px;margin-bottom:12px;">
+    <div id="stockPortfolioEmpty" style="display:none;">No stock transactions to summarize.</div>
+    <div id="stockPortfolioCards" class="totals-grid"></div>
+</div>
 
 <div id="newStock" class="block-new" style="display: none;">
-    <h2 class="center-text">Add New Stock Transaction</h2>
+    <!-- <h2 class="center-text">Add New Stock Transaction</h2> -->
     <div class="form-container">
 
     <form action="/stock" method="POST">
         <div>
-        <label for="stockName">stock:</label>
-        <input type="text" name="stockName" required>
+        <label for="stockName">Stock:</label>
+        <input type="text" id="stockSearch" autocomplete="off" required>
+        <div id="stockSearchList"></div>
+        <input type="hidden" name="stockName" id="stockName">
         </div>
         <div>
         <label for="tdate">Date:</label>
@@ -92,11 +702,11 @@ function newStockDiv() {
         </div>
         <div>
         <label for="price">Price:</label>
-        <input type="text" name="price" required>
+        <input type="text" id="stockPrice" name="price" required>
         </div>
         <div>
         <label for="currency">Currency:</label>
-        <input type="text" name="currency" required>
+        <input type="text" id="stockCurrency" name="currency" required>
         </div>
         <div>
         <label for="fee">Fee:</label>
@@ -117,41 +727,64 @@ function newStockDiv() {
 </div>
     
 
-<div id="stockListDiv" class="form-container">
-    <h2 class="center-text">Stocks Transactions History</h2>
+<div id="stockListDiv" class="form-container" style="display:none;">
+    <!-- <h2 class="crypto-section-title">Stocks Transactions History</h2> -->
+    <div id="stockFilters" class="history-filters">
+        <form class="filters-grid" onsubmit="applyStockFilters(); return false;">
+            <div>
+                <label for="stockFilterStart">From Date:</label>
+                <input type="text" id="stockFilterStart" name="start" data-dt-picker="1">
+            </div>
+            <div>
+                <label for="stockFilterEnd">To Date:</label>
+                <input type="text" id="stockFilterEnd" name="end" data-dt-picker="1">
+            </div>
+            <div>
+                <label for="stockFilterSymbol">Stock:</label>
+                <input type="text" id="stockFilterSymbol" name="stock" placeholder="Symbol" autocomplete="off" />
+            </div>
+            <div>
+                <label for="stockFilterNote">Note:</label>
+                <input type="text" id="stockFilterNote" name="note" placeholder="Contains..." autocomplete="off" />
+            </div>
+            <div>
+                <label for="stockFilterFromWallet">From Wallet:</label>
+                <input type="text" id="stockFilterFromWallet" name="fromWallet" placeholder="Contains..." autocomplete="off" />
+            </div>
+            <div>
+                <label for="stockFilterToWallet">To Wallet:</label>
+                <input type="text" id="stockFilterToWallet" name="toWallet" placeholder="Contains..." autocomplete="off" />
+            </div>
+            <div class="filters-actions">
+                <button type="button" class="btn-clear" onclick="resetStockFilters()">Clear</button>
+            </div>
+        </form>
+        <div id="stockFilterEmptyMsg" class="small-muted" style="display:none;margin-top:8px">No matching transactions.</div>
+        <div id="stockPagination" class="pagination-controls" style="display:none;margin-top:10px">
+            <button id="stockPrevPage" type="button" class="btn-clear" onclick="stockGoToPrevPage()">Prev</button>
+            <div id="stockPageInfo" class="small-muted" style="min-width:140px;text-align:center">Page 1 of 1</div>
+            <button id="stockNextPage" type="button" class="btn-clear" onclick="stockGoToNextPage()">Next</button>
+        </div>
+    </div>
 {% if stocks %}
 <ul id="stockList">
     {% for stock in stocks %}
-    <li data-tdate="{{ stock.tdate }}">
-        <div class="record-grid">
-            <div>
-                <strong>Stock:</strong> {{ stock.stockName }}
+    <li data-id="{{ stock.stockId }}" data-tdate="{{ stock.tdate }}" data-stock="{{ stock.stockName }}" data-qty="{{ stock.quantity }}" data-price="{{ stock.price }}" data-currency="{{ stock.currency }}" data-fee="{{ stock.fee|default(0, true) }}" data-note="{{ stock.note|default('') }}" data-from="{{ stock.fromWallet }}" data-to="{{ stock.toWallet }}">
+        <div class="crypto-history-row">
+            <div class="crypto-history-left">
+                <div class="crypto-history-title">{{ stock.stockName }}</div>
+                <div class="crypto-history-sub">{{ stock.fromWallet }} → {{ stock.toWallet }}</div>
+                {% if stock.note %}
+                <div class="crypto-history-sub">{{ stock.note }}</div>
+                {% endif %}
             </div>
-            <div>
-                <strong>Date:</strong> {{ stock.tdate | replace("T", " ") }}
+
+            <div class="crypto-history-right">
+                <div class="crypto-history-amount">{{ stock.quantity }}</div>
+                <div class="crypto-history-sub">{{ stock.price }}{% if stock.currency %} {{ stock.currency }}{% endif %}</div>
             </div>
-            <div>
-                <strong>From Wallet:</strong> {{ stock.fromWallet }}
-            </div>
-            <div>
-                <strong>To Wallet:</strong> {{ stock.toWallet }}
-            </div>
-            <div>
-                <strong>Quantity:</strong> {{ stock.quantity }}
-            </div>
-            <div>
-                <strong>Price:</strong> {{ stock.price }}
-            </div>
-            <div>
-                <strong>Currency:</strong> {{ stock.currency }}
-            </div>
-            <div>
-                <strong>Fee:</strong> {{ stock.fee }}
-            </div>
-            <div>
-                <strong>Note:</strong> {{ stock.note }}
-            </div>
-            <div>
+
+            <div class="crypto-history-actions">
                 <button class="btn-insert" onclick="editStock('{{ stock.stockId }}','{{ stock.userId }}','{{ stock.stockName }}','{{ stock.tdate }}','{{ stock.fromWallet }}',
                 '{{ stock.toWallet }}','{{ stock.quantity }}','{{ stock.price }}','{{ stock.currency }}','{{ stock.fee }}','{{ stock.note }}')">Edit</button>
             </div>
@@ -174,7 +807,9 @@ function newStockDiv() {
             <input type="hidden" id="updateUserId" name="userId">
             <div>
                 <label>Stock:</label>
-                <input type="text" id="updateStockName" name="stockName">
+                <input type="text" id="updateStockSearch" autocomplete="off" required>
+                <div id="updateStockSearchList"></div>
+                <input type="hidden" id="updateStockName" name="stockName">
             </div>
             <div>
                 <label>Date:</label>

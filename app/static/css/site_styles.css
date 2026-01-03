@@ -41,6 +41,83 @@
     gap: 4px;
 }
 
+.app-subnav {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.10);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Submenu that sits directly under a main nav item */
+.app-subnav-inline {
+    margin-top: 4px;
+    padding-top: 0;
+    border-top: none;
+}
+
+.app-subnav-inline .app-subnav-title {
+    display: none;
+}
+
+.app-subnav-inline .app-subnav-link {
+    padding: 8px 12px 8px 34px;
+    font-size: 0.95rem;
+}
+
+.app-subnav-title {
+    color: rgba(255,255,255,0.75);
+    font-weight: 700;
+    font-size: 12px;
+    padding: 8px 12px 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.app-subnav-link {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #fff;
+    text-align: left;
+    padding: 9px 12px 9px 28px;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+    position: relative;
+}
+
+.app-subnav-link:hover {
+    background: rgba(255,255,255,0.10);
+    border-color: rgba(255,255,255,0.10);
+}
+
+.app-subnav-link.is-active,
+.app-subnav-link[aria-current="page"] {
+    background: rgba(255,255,255,0.14);
+    border-color: rgba(255,255,255,0.14);
+    font-weight: 700;
+}
+
+.app-subnav-link.is-active::before,
+.app-subnav-link[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 16px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.95);
+}
+
+.app-subnav-mobile {
+    display: none;
+}
+
 .app-nav-link {
     display: flex;
     align-items: center;
@@ -117,6 +194,70 @@
     .app-shell { display: block; }
     .app-sidebar { display: none; }
     .app-content { padding: 16px 14px 88px; }
+
+    .app-subnav-mobile {
+        display: flex;
+        margin: 0 0 12px;
+        padding: 10px 10px;
+        border-radius: 12px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+    }
+
+    .app-subnav-mobile .app-subnav-title { display: none; }
+    .app-subnav-mobile {
+        flex-direction: row;
+        gap: 8px;
+        border-top: none;
+    }
+
+    .app-subnav-mobile .app-subnav-link {
+        flex: 1 1 0;
+        padding: 10px 10px;
+        text-align: center;
+        color: var(--muted);
+        border-color: transparent;
+        font-weight: 650;
+    }
+
+    .app-subnav-mobile .app-subnav-link::before { display: none; }
+
+    .app-subnav-mobile .app-subnav-link:hover {
+        background: rgba(0,0,0,0.05);
+        border-color: rgba(0,0,0,0.06);
+    }
+
+    html[data-theme="dark"] .app-subnav-mobile .app-subnav-link:hover {
+        background: rgba(255,255,255,0.06);
+        border-color: rgba(255,255,255,0.08);
+    }
+
+    .app-subnav-mobile .app-subnav-link.is-active,
+    .app-subnav-mobile .app-subnav-link[aria-current="page"] {
+        color: var(--text);
+        background: var(--surface);
+        border-color: var(--border);
+        font-weight: 800;
+        box-shadow: 0 1px 0 var(--shadow);
+    }
+
+    /* Extra indicator so active is obvious */
+    .app-subnav-mobile .app-subnav-link.is-active::after,
+    .app-subnav-mobile .app-subnav-link[aria-current="page"]::after {
+        content: "";
+        position: absolute;
+        left: 14px;
+        right: 14px;
+        bottom: 6px;
+        height: 2px;
+        border-radius: 999px;
+        background: rgba(0,0,0,0.35);
+    }
+
+    html[data-theme="dark"] .app-subnav-mobile .app-subnav-link.is-active::after,
+    html[data-theme="dark"] .app-subnav-mobile .app-subnav-link[aria-current="page"]::after {
+        background: rgba(255,255,255,0.75);
+    }
 
     .app-bottom-nav {
         display: flex;
@@ -251,6 +392,12 @@ html[data-theme="dark"] #transList li {
     box-shadow: 0 6px 18px var(--shadow);
 }
 
+html[data-theme="dark"] #stockList li {
+    background: var(--surface);
+    border-color: var(--border);
+    box-shadow: 0 6px 18px var(--shadow);
+}
+
 html[data-theme="dark"] #cryptoList li:hover {
     background: var(--surface-2);
 }
@@ -259,17 +406,24 @@ html[data-theme="dark"] #transList li:hover {
     background: var(--surface-2);
 }
 
+html[data-theme="dark"] #stockList li:hover {
+    background: var(--surface-2);
+}
+
 html[data-theme="dark"] #cryptoList .crypto-history-title,
 html[data-theme="dark"] #cryptoList .crypto-history-amount,
 html[data-theme="dark"] #transList .crypto-history-title,
-html[data-theme="dark"] #transList .crypto-history-amount {
+html[data-theme="dark"] #transList .crypto-history-amount,
+html[data-theme="dark"] #stockList .crypto-history-title,
+html[data-theme="dark"] #stockList .crypto-history-amount {
     color: var(--text);
 }
 
 html[data-theme="dark"] #cryptoList .crypto-history-sub,
 html[data-theme="dark"] #cryptoList li.crypto-group-header,
 html[data-theme="dark"] #transList .crypto-history-sub,
-html[data-theme="dark"] #transList li.crypto-group-header {
+html[data-theme="dark"] #transList li.crypto-group-header,
+html[data-theme="dark"] #stockList .crypto-history-sub {
     color: var(--muted);
 }
 
@@ -419,6 +573,14 @@ button.pct-positive:hover {
     margin-top: 10px;
 }
 
+/* Stock page: keep a little breathing room under header for all views */
+#stockPanel,
+#newStock,
+#stockListDiv,
+#updateStockDiv {
+    margin-top: 10px;
+}
+
 .crypto-page-title {
     margin: 0;
     font-size: 1.5rem;
@@ -525,6 +687,35 @@ button.pct-positive:hover {
 
 #cryptoList li.crypto-group-header:hover {
     background: transparent;
+}
+
+/* Stock transaction history: match crypto history (one full-width row per transaction) */
+#stockList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    column-gap: 0;
+}
+
+#stockList li {
+    list-style-type: none;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    box-sizing: border-box;
+}
+
+#stockList li:hover {
+    background: #f8f9fa;
 }
 
 /* Transactions history: match crypto history row layout */
@@ -671,6 +862,40 @@ button.pct-positive:hover {
     justify-content: flex-end;
 }
 
+/* Reuse the same row typography/layout for stock history rows */
+#stockList .crypto-history-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px 14px;
+    align-items: center;
+}
+
+#stockList .crypto-history-title {
+    font-weight: 800;
+    color: #222;
+}
+
+#stockList .crypto-history-right {
+    text-align: right;
+}
+
+#stockList .crypto-history-amount {
+    font-weight: 800;
+    color: #222;
+}
+
+#stockList .crypto-history-sub {
+    color: #666;
+    font-weight: 600;
+    font-size: 13px;
+    margin-top: 2px;
+}
+
+#stockList .crypto-history-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
 /* Reuse the same row typography/layout for wallet rows */
 #walletList .crypto-history-row {
     display: grid;
@@ -710,6 +935,14 @@ button.pct-positive:hover {
         grid-template-columns: 1fr auto;
     }
     #cryptoList .crypto-history-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+
+    #stockList .crypto-history-row {
+        grid-template-columns: 1fr auto;
+    }
+    #stockList .crypto-history-actions {
         grid-column: 1 / -1;
         justify-content: flex-start;
     }

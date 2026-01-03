@@ -9,6 +9,100 @@
 {% endblock %}
 
 <script>
+    function setCryptoNavVisibility(activeView) {
+        const btns = Array.from(document.querySelectorAll('[data-crypto-nav]'));
+        btns.forEach(btn => {
+            const v = String(btn.getAttribute('data-crypto-nav') || '').trim();
+            const isActive = (v && v === String(activeView || ''));
+            if (isActive) btn.setAttribute('aria-current', 'page');
+            else btn.removeAttribute('aria-current');
+            btn.classList.toggle('is-active', isActive);
+        });
+    }
+
+    function showCryptoPortfolio() {
+        const title = document.getElementById('cryptoPageTitle');
+        const panel = document.getElementById('panel');
+        const listDiv = document.getElementById('cryptoListDiv');
+        const newDiv = document.getElementById('newCrypto');
+        const updateDiv = document.getElementById('updateCryptoDiv');
+        const sectionTitle = document.querySelector('#cryptoListDiv .crypto-section-title');
+
+        document.body.classList.remove('crypto-mode-history');
+        if (title) title.innerText = 'Crypto Portfolio';
+        if (panel) panel.style.display = 'block';
+        if (listDiv) listDiv.style.display = 'none';
+        if (newDiv) newDiv.style.display = 'none';
+        if (updateDiv) updateDiv.style.display = 'none';
+        if (sectionTitle) sectionTitle.style.display = '';
+
+        setCryptoNavVisibility('portfolio');
+    }
+
+    function showCryptoNew() {
+        const title = document.getElementById('cryptoPageTitle');
+        const panel = document.getElementById('panel');
+        const listDiv = document.getElementById('cryptoListDiv');
+        const newDiv = document.getElementById('newCrypto');
+        const updateDiv = document.getElementById('updateCryptoDiv');
+        const sectionTitle = document.querySelector('#cryptoListDiv .crypto-section-title');
+
+        document.body.classList.remove('crypto-mode-history');
+        if (title) title.innerText = 'New Crypto Transaction';
+        if (newDiv) newDiv.style.display = 'block';
+        if (updateDiv) updateDiv.style.display = 'none';
+        if (panel) panel.style.display = 'none';
+        if (listDiv) listDiv.style.display = 'none';
+        if (sectionTitle) sectionTitle.style.display = '';
+
+        setCryptoNavVisibility('new');
+    }
+
+    function showCryptoHistory() {
+        const title = document.getElementById('cryptoPageTitle');
+        const panel = document.getElementById('panel');
+        const listDiv = document.getElementById('cryptoListDiv');
+        const newDiv = document.getElementById('newCrypto');
+        const updateDiv = document.getElementById('updateCryptoDiv');
+        const sectionTitle = document.querySelector('#cryptoListDiv .crypto-section-title');
+
+        document.body.classList.add('crypto-mode-history');
+        if (title) title.innerText = 'Cryptos Transactions History';
+        if (listDiv) listDiv.style.display = 'block';
+        if (newDiv) newDiv.style.display = 'none';
+        if (updateDiv) updateDiv.style.display = 'none';
+        if (panel) panel.style.display = 'none';
+        if (sectionTitle) sectionTitle.style.display = 'none';
+
+        setCryptoNavVisibility('history');
+        if (typeof applyCryptoFilters === 'function') { applyCryptoFilters(); }
+    }
+
+    function showCryptoUpdate() {
+        const title = document.getElementById('cryptoPageTitle');
+        const panel = document.getElementById('panel');
+        const listDiv = document.getElementById('cryptoListDiv');
+        const newDiv = document.getElementById('newCrypto');
+        const updateDiv = document.getElementById('updateCryptoDiv');
+        const sectionTitle = document.querySelector('#cryptoListDiv .crypto-section-title');
+
+        document.body.classList.remove('crypto-mode-history');
+        if (title) title.innerText = 'Update Crypto Transaction';
+        if (updateDiv) updateDiv.style.display = 'block';
+        if (newDiv) newDiv.style.display = 'none';
+        if (listDiv) listDiv.style.display = 'none';
+        if (panel) panel.style.display = 'none';
+        if (sectionTitle) sectionTitle.style.display = '';
+
+        // Update view doesn't have its own nav button, so keep all visible.
+        setCryptoNavVisibility('update');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Default view is Portfolio; hide its button.
+        setCryptoNavVisibility('portfolio');
+    });
+
     function editCrypto(cryptoId, userId, cryptoName, tdate, fromWallet, toWallet, operation, quantity, price, currency, fee, note) {
         document.getElementById("updateCryptoId").value = cryptoId;
         document.getElementById("updateUserId").value = userId;
@@ -53,11 +147,7 @@
         document.getElementById("updateCurrency").value = currency;
         document.getElementById("updateFee").value = fee;
         document.getElementById("updateNote").value = note;
-        document.getElementById("updateCryptoDiv").style.display = "block";
-        document.getElementById("cryptoListDiv").style.display = "none";
-        document.getElementById("newCryptoB").style.display = "none"; 
-        document.getElementById("CryptoTransB").style.display = "none"; 
-        document.getElementById("panel").style.display = "none";
+        showCryptoUpdate();
         document.getElementById("deleteForm").action = `/deleteCrypto/${cryptoId}/${userId}`;
 
         // Match the New Crypto Transaction layout: use the header title for consistent spacing.
@@ -571,97 +661,11 @@
     }
 
     function newCryptoDiv() {
-        let div = document.getElementById("newCrypto");
-        let button = document.getElementById("newCryptoB");
-        const title = document.getElementById('cryptoPageTitle');
-        const toggleBtn = document.getElementById('CryptoTransB');
-        const wasHistory = document.body.classList.contains('crypto-mode-history');
-        // leaving history mode if user starts creating a transaction
-        document.body.classList.remove('crypto-mode-history');
-        if (title) {
-            title.innerText = 'New Crypto Transaction';
-            title.style.display = '';
-        }
-        if (toggleBtn) toggleBtn.innerText = 'Cryptos Transactions History';
-        const sectionTitle = document.querySelector('#cryptoListDiv .crypto-section-title');
-        if (sectionTitle) sectionTitle.style.display = '';
-
-        if (div.style.display === "none" || div.style.display === "") {
-            // remember where we came from so cancel/close could restore if needed
-            div.dataset.returnView = wasHistory ? 'history' : 'manager';
-            div.style.display = "block";  
-            const updateDiv = document.getElementById('updateCryptoDiv');
-            if (updateDiv) updateDiv.style.display = 'none';
-            document.getElementById("cryptoListDiv").style.display = "none";
-            document.getElementById("panel").style.display = "none";
-            document.getElementById("CryptoTransB").style.display = "none";
-            button.style.display = "none";
-        } else {
-            div.style.display = "none"; 
-            // Restore whichever view the user was on before opening the form
-            const backTo = div.dataset.returnView || 'manager';
-            if (backTo === 'history') {
-                cryptoHistoryDiv();
-                return;
-            }
-
-            document.getElementById("cryptoListDiv").style.display = "block";
-            document.getElementById("panel").style.display = "block";
-            if (title) {
-                title.innerText = 'Crypto Portfolio';
-                title.style.display = '';
-            }
-            if (toggleBtn) {
-                toggleBtn.style.display = '';
-                toggleBtn.innerText = 'Cryptos Transactions History';
-            }
-            if (button) {
-                button.style.display = '';
-                button.innerText = "New Crypto Transaction";
-            }
-        }
+        showCryptoNew();
     }
 
     function cryptoHistoryDiv() {
-        let div = document.getElementById("cryptoListDiv");
-        let button = document.getElementById("CryptoTransB");
-        const title = document.getElementById('cryptoPageTitle');
-        const addBtn = document.getElementById('newCryptoB');
-        const sectionTitle = document.querySelector('#cryptoListDiv .crypto-section-title');
-
-        if (div.style.display === "none" || div.style.display === "") {
-            div.style.display = "block";  
-            document.getElementById("panel").style.display = "none";
-            // If coming from create/update view, hide them.
-            const newDiv = document.getElementById('newCrypto');
-            const updateDiv = document.getElementById('updateCryptoDiv');
-            if (newDiv) newDiv.style.display = 'none';
-            if (updateDiv) updateDiv.style.display = 'none';
-
-            // Keep Add New Crypto available in history view.
-            if (addBtn) addBtn.style.display = "";
-            if (button) button.style.display = "";
-            if (button) button.innerText = "Crypto Portfolio";
-            document.body.classList.add('crypto-mode-history');
-            if (title) {
-                title.innerText = 'Cryptos Transactions History';
-                title.style.display = '';
-            }
-            if (sectionTitle) sectionTitle.style.display = 'none';
-            if (typeof applyCryptoFilters === 'function') { applyCryptoFilters(); }
-        } else {
-            div.style.display = "none"; 
-            document.getElementById("newCrypto").style.display = "none";
-            document.getElementById("panel").style.display = "block";
-            if (addBtn) addBtn.style.display = "";
-            if (button) button.innerText = "Cryptos Transactions History";
-            document.body.classList.remove('crypto-mode-history');
-            if (title) {
-                title.innerText = 'Crypto Portfolio';
-                title.style.display = '';
-            }
-            if (sectionTitle) sectionTitle.style.display = '';
-        }
+        showCryptoHistory();
     }
 </script>
 
@@ -872,10 +876,12 @@
 
 <div class="crypto-page-header">
     <h1 id="cryptoPageTitle" class="crypto-page-title">Crypto Portfolio</h1>
-    <div class="crypto-page-actions">
-        <button id="newCryptoB" class="btn-insert pct-positive" onclick="newCryptoDiv()">New Crypto Transaction</button>
-        <button id="CryptoTransB" class="btn-insert" onclick="cryptoHistoryDiv()">Cryptos Transactions History</button>
-    </div>
+</div>
+
+<div class="app-subnav app-subnav-mobile" aria-label="Crypto sections">
+    <button type="button" class="app-subnav-link" data-crypto-nav="new" onclick="newCryptoDiv()">New</button>
+    <button type="button" class="app-subnav-link" data-crypto-nav="portfolio" onclick="showCryptoPortfolio()">Portfolio</button>
+    <button type="button" class="app-subnav-link" data-crypto-nav="history" onclick="cryptoHistoryDiv()">History</button>
 </div>
 
 

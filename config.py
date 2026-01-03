@@ -11,6 +11,11 @@ AWS_SERVICE = "execute-api"
 API_URL = "https://e31gpskeu0.execute-api.eu-north-1.amazonaws.com/PROD"
 aws_auth = AWS4Auth(AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION, AWS_SERVICE)
 
+# Alpha Vantage (stocks)
+# Preferred env var: ALPHA_VANTAGE_API_KEY
+# Backward compatible env var: AV_API_KEY
+ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY") or os.getenv("AV_API_KEY")
+
 AUTHORITY  = "https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_vGqk3w4TZ"
 SERVER_METADATA_URL = "https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_vGqk3w4TZ/.well-known/openid-configuration"
 URL = "https://jubilant-meme-jgxqwvqxpjh9wr-5000.app.github.dev"

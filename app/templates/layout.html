@@ -37,9 +37,33 @@
                 {% if session.get('user') %}
                     <a class="app-nav-link" href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>Home</a>
                     <a class="app-nav-link" href="/wallet" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>Wallets</a>
-                    <a class="app-nav-link" href="/fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>Fiat Transactions</a>
-                    <a class="app-nav-link" href="/crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>Crypto Portfolio</a>
-                    <a class="app-nav-link" href="/stock" {% if request.path.startswith('/stock') %}aria-current="page"{% endif %}>Stock Portfolio</a>
+
+                    <a class="app-nav-link" href="/fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>Fiat</a>
+                    {% if request.path.startswith('/fiat') %}
+                        <div class="app-subnav app-subnav-inline" aria-label="Fiat sections">
+                            <button type="button" class="app-subnav-link" data-fiat-nav="dashboard" onclick="showFiatDashboard()">Overview</button>
+                            <button type="button" class="app-subnav-link" data-fiat-nav="new" onclick="newTransDiv()">New Transaction</button>
+                            <button type="button" class="app-subnav-link" data-fiat-nav="history" onclick="transHistoryDiv()">Transactions History</button>
+                        </div>
+                    {% endif %}
+
+                    <a class="app-nav-link" href="/crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>Crypto</a>
+                    {% if request.path.startswith('/crypto') %}
+                        <div class="app-subnav app-subnav-inline" aria-label="Crypto sections">
+                            <button type="button" class="app-subnav-link" data-crypto-nav="portfolio" onclick="showCryptoPortfolio()">Portfolio</button>
+                            <button type="button" class="app-subnav-link" data-crypto-nav="new" onclick="newCryptoDiv()">New Crypto Transaction</button>
+                            <button type="button" class="app-subnav-link" data-crypto-nav="history" onclick="cryptoHistoryDiv()">Transactions History</button>
+                        </div>
+                    {% endif %}
+
+                    <a class="app-nav-link" href="/stock" {% if request.path.startswith('/stock') %}aria-current="page"{% endif %}>Stock</a>
+                    {% if request.path.startswith('/stock') %}
+                        <div class="app-subnav app-subnav-inline" aria-label="Stock sections">
+                            <button type="button" class="app-subnav-link" data-stock-nav="portfolio" onclick="showStockPortfolio()">Portfolio</button>
+                            <button type="button" class="app-subnav-link" data-stock-nav="new" onclick="newStockDiv()">New Stock Transaction</button>
+                            <button type="button" class="app-subnav-link" data-stock-nav="history" onclick="stockHistoryDiv()">Transactions History</button>
+                        </div>
+                    {% endif %}
                     <a class="app-nav-link" href="/settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>Settings</a>
                     <a class="app-nav-link app-nav-link-logout" href="/logout">Logout</a>
                 {% else %}

@@ -214,11 +214,6 @@
             setFiatNavVisibility('update');
         }
 
-        const addBtn = document.getElementById("newTransB");
-        if (addBtn) addBtn.style.display = "none";
-        const historyBtn = document.getElementById("TransHistoryB");
-        if (historyBtn) historyBtn.style.display = "none";
-
         const title = document.getElementById('transPageTitle');
         if (title) title.innerText = 'Update Transaction';
         document.getElementById("deleteForm").action = `/deleteFiat/${transId}/${userId}`;
@@ -362,7 +357,7 @@
         if (list) list.style.display = "none";
         if (newDiv) newDiv.style.display = "none";
         if (updateDiv) updateDiv.style.display = "none";
-        if (title) title.innerText = 'Fiat Dashboard';
+        if (title) title.innerText = 'Income & Expense Overview';
         setFiatNavVisibility('dashboard');
 
         if (typeof initFiatDashboardDefaults === 'function') {
@@ -375,14 +370,14 @@
     window.showFiatDashboard = showFiatDashboard;
 
     function setFiatNavVisibility(activeView) {
-        const newBtn = document.getElementById('newTransB');
-        const histBtn = document.getElementById('TransHistoryB');
-        const dashBtn = document.getElementById('FiatDashB');
-
-        // Hide only the button for the current view.
-        if (newBtn) newBtn.style.display = (activeView === 'new') ? 'none' : '';
-        if (histBtn) histBtn.style.display = (activeView === 'history') ? 'none' : '';
-        if (dashBtn) dashBtn.style.display = (activeView === 'dashboard') ? 'none' : '';
+        const btns = Array.from(document.querySelectorAll('[data-fiat-nav]'));
+        btns.forEach(btn => {
+            const v = String(btn.getAttribute('data-fiat-nav') || '').trim();
+            const isActive = (v && v === String(activeView || ''));
+            if (isActive) btn.setAttribute('aria-current', 'page');
+            else btn.removeAttribute('aria-current');
+            btn.classList.toggle('is-active', isActive);
+        });
     }
     window.setFiatNavVisibility = setFiatNavVisibility;
 
@@ -603,13 +598,36 @@
     window.resetFiatDashboardDates = resetFiatDashboardDates;
 
     function renderFiatDashboard() {
+        const baseCurrency = document.getElementById('fiatBaseCurrency')?.value || 'EUR';
+
         const list = document.getElementById('transList');
-        if (!list) return;
+        // When there are no transactions, the template may not render #transList at all.
+        // In that case, still collapse charts and show a compact empty state.
+        if (!list) {
+            const incTotalEl = document.getElementById('dashIncomeTotal');
+            const expTotalEl = document.getElementById('dashExpenseTotal');
+            if (incTotalEl) incTotalEl.textContent = `0 ${baseCurrency}`;
+            if (expTotalEl) expTotalEl.textContent = `0 ${baseCurrency}`;
+
+            const emptyIncome = document.getElementById('incomeChartEmpty');
+            const emptyExpense = document.getElementById('expenseChartEmpty');
+            if (emptyIncome) emptyIncome.style.display = '';
+            if (emptyExpense) emptyExpense.style.display = '';
+
+            const incomeChartsBlock = document.getElementById('incomeChartsBlock');
+            const expenseChartsBlock = document.getElementById('expenseChartsBlock');
+            if (incomeChartsBlock) incomeChartsBlock.style.display = 'none';
+            if (expenseChartsBlock) expenseChartsBlock.style.display = 'none';
+
+            if (window.__fiatIncomeChart) { try { window.__fiatIncomeChart.destroy(); } catch(e) {} window.__fiatIncomeChart = null; }
+            if (window.__fiatExpenseChart) { try { window.__fiatExpenseChart.destroy(); } catch(e) {} window.__fiatExpenseChart = null; }
+            if (window.__fiatIncomeBarChart) { try { window.__fiatIncomeBarChart.destroy(); } catch(e) {} window.__fiatIncomeBarChart = null; }
+            if (window.__fiatExpenseBarChart) { try { window.__fiatExpenseBarChart.destroy(); } catch(e) {} window.__fiatExpenseBarChart = null; }
+            return;
+        }
 
         // Keep month dropdown in sync with the currently selected range.
         syncDashMonthYearDropdownsFromDates();
-
-        const baseCurrency = document.getElementById('fiatBaseCurrency')?.value || 'EUR';
 
         const startVal = document.getElementById('dashStart')?.value || '';
         const endVal = document.getElementById('dashEnd')?.value || '';
@@ -676,14 +694,21 @@
             return h;
         }
 
-        function colorForLabel(label) {
-            const hue = Math.abs(hashString(label)) % 360;
-            // Muted ("matte") palette: lower saturation + a bit of alpha.
-            return `hsla(${hue}, 55%, 55%, 0.85)`;
-        }
-
         function colorsForLabels(labels) {
-            return (labels || []).map(l => colorForLabel(l));
+            const usedHues = new Set();
+            const goldenStep = 137; // spreads hues evenly; helps avoid collisions
+
+            return (labels || []).map(label => {
+                let hue = Math.abs(hashString(label)) % 360;
+                let guard = 0;
+                while (usedHues.has(hue) && guard < 360) {
+                    hue = (hue + goldenStep) % 360;
+                    guard += 1;
+                }
+                usedHues.add(hue);
+                // Muted ("matte") palette: lower saturation + a bit of alpha.
+                return `hsla(${hue}, 55%, 55%, 0.85)`;
+            });
         }
 
         const incomeColors = colorsForLabels(income.labels);
@@ -693,6 +718,12 @@
         const emptyExpense = document.getElementById('expenseChartEmpty');
         if (emptyIncome) emptyIncome.style.display = income.labels.length ? 'none' : '';
         if (emptyExpense) emptyExpense.style.display = expense.labels.length ? 'none' : '';
+
+        // When there is no data, hide chart canvases so cards don't become tall empty boxes.
+        const incomeChartsBlock = document.getElementById('incomeChartsBlock');
+        const expenseChartsBlock = document.getElementById('expenseChartsBlock');
+        if (incomeChartsBlock) incomeChartsBlock.style.display = income.labels.length ? '' : 'none';
+        if (expenseChartsBlock) expenseChartsBlock.style.display = expense.labels.length ? '' : 'none';
 
         // Charts
         if (window.Chart) {
@@ -714,7 +745,8 @@
             const ib = document.getElementById('incomeBarChart');
             const eb = document.getElementById('expenseBarChart');
 
-            if (ic) {
+            // Only render charts when we have data for them.
+            if (ic && income.labels.length) {
                 window.__fiatIncomeChart = new Chart(ic, {
                     type: 'pie',
                     data: {
@@ -754,7 +786,7 @@
                     }
                 });
             }
-            if (ec) {
+            if (ec && expense.labels.length) {
                 window.__fiatExpenseChart = new Chart(ec, {
                     type: 'pie',
                     data: {
@@ -795,7 +827,7 @@
                 });
             }
 
-            if (ib) {
+            if (ib && income.labels.length) {
                 window.__fiatIncomeBarChart = new Chart(ib, {
                     type: 'bar',
                     data: {
@@ -837,7 +869,7 @@
                 });
             }
 
-            if (eb) {
+            if (eb && expense.labels.length) {
                 window.__fiatExpenseBarChart = new Chart(eb, {
                     type: 'bar',
                     data: {
@@ -1138,12 +1170,13 @@
 </script>
 
 <div class="crypto-page-header">
-    <h1 id="transPageTitle" class="crypto-page-title">Fiat Dashboard</h1>
-    <div class="crypto-page-actions">
-        <button id="newTransB" class="btn-insert pct-positive" onclick="newTransDiv()">New Transaction</button>
-        <button id="TransHistoryB" class="btn-insert" onclick="transHistoryDiv()">Transactions History</button>
-        <button id="FiatDashB" class="btn-insert" onclick="showFiatDashboard()">Transaction Dashboard</button>
-    </div>
+    <h1 id="transPageTitle" class="crypto-page-title">Income & Expense Overview</h1>
+</div>
+
+<div class="app-subnav app-subnav-mobile" aria-label="Fiat sections">
+    <button type="button" class="app-subnav-link" data-fiat-nav="dashboard" onclick="showFiatDashboard()">Overview</button>
+    <button type="button" class="app-subnav-link" data-fiat-nav="new" onclick="newTransDiv()">New</button>
+    <button type="button" class="app-subnav-link" data-fiat-nav="history" onclick="transHistoryDiv()">History</button>
 </div>
 
 <div id="fiatDashboardDiv" class="form-container">
@@ -1190,28 +1223,34 @@
 
     <div class="totals-grid fiat-dashboard-grid" style="margin-top:12px;">
         <div class="totals-card fiat-dashboard-card">
-            <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px;gap:10px;">
-                <div>
-                    <div class="small-muted" style="margin-bottom:2px;">Total Income</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px;">
+                <div style="font-weight:700;">Income</div>
+                <div style="text-align:right;">
+                    <div class="small-muted" style="margin-top:2px;">Total Income</div>
                     <div class="totals-value" id="dashIncomeTotal" style="font-size:1.25rem;line-height:1.1;">0</div>
                 </div>
             </div>
             <div id="incomeChartEmpty" class="small-muted" style="display:none;margin:6px 0;">No income in this date range.</div>
-            <canvas id="incomeChart" height="280"></canvas>
-            <div style="height:10px;"></div>
-            <canvas id="incomeBarChart" height="200"></canvas>
+            <div id="incomeChartsBlock">
+                <canvas id="incomeChart" height="280"></canvas>
+                <div style="height:10px;"></div>
+                <canvas id="incomeBarChart" height="200"></canvas>
+            </div>
         </div>
         <div class="totals-card fiat-dashboard-card">
-            <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px;gap:10px;">
-                <div>
-                    <div class="small-muted" style="margin-bottom:2px;">Total Expense</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px;">
+                <div style="font-weight:700;">Expense</div>
+                <div style="text-align:right;">
+                    <div class="small-muted" style="margin-top:2px;">Total Expense</div>
                     <div class="totals-value" id="dashExpenseTotal" style="font-size:1.25rem;line-height:1.1;">0</div>
                 </div>
             </div>
             <div id="expenseChartEmpty" class="small-muted" style="display:none;margin:6px 0;">No expenses in this date range.</div>
-            <canvas id="expenseChart" height="280"></canvas>
-            <div style="height:10px;"></div>
-            <canvas id="expenseBarChart" height="200"></canvas>
+            <div id="expenseChartsBlock">
+                <canvas id="expenseChart" height="280"></canvas>
+                <div style="height:10px;"></div>
+                <canvas id="expenseBarChart" height="200"></canvas>
+            </div>
         </div>
     </div>
 </div>
