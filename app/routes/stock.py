@@ -160,7 +160,16 @@ def stock_page():
         except Exception as e:
             print(f"Error fetching stocks: {e}")
             stocks = []
-        return render_template("stock.html", stocks=stocks, userId=userId)
+
+        # --- Fetch Wallets (for From/To dropdowns) ---
+        try:
+            response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
+            wallets = response.json().get("wallets", []) if response.status_code == 200 else []
+        except Exception as e:
+            print(f"Error fetching wallets: {e}")
+            wallets = []
+
+        return render_template("stock.html", stocks=stocks, wallets=wallets, userId=userId)
     else:
         return render_template("home.html")
     

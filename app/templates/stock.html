@@ -690,27 +690,40 @@ function stockHistoryDiv() { showStockHistory(); }
         </div>
         <div>
         <label for="fromWallet">From Wallet:</label>
-        <input type="text" name="fromWallet" required>
+        <select name="fromWallet" id="fromWallet" required>
+            <option value="">-- Select Wallet --</option>
+            {% for wallet in wallets %}
+            <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+            {% endfor %}
+        </select>
         </div>
         <div>
         <label for="toWallet">To Wallet:</label>
-        <input type="text" name="toWallet" required>
+        <select name="toWallet" id="toWallet" required>
+            <option value="">-- Select Wallet --</option>
+            {% for wallet in wallets %}
+            <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+            {% endfor %}
+        </select>
         </div>
         <div>
         <label for="quantity">Quantity:</label>
-        <input type="text" name="quantity" required>
+        <input type="number" id="quantity" name="quantity" step="any" inputmode="decimal" required>
         </div>
         <div>
         <label for="price">Price:</label>
-        <input type="text" id="stockPrice" name="price" required>
+        <input type="number" id="stockPrice" name="price" step="any" inputmode="decimal" required>
         </div>
         <div>
         <label for="currency">Currency:</label>
-        <input type="text" id="stockCurrency" name="currency" required>
+        <select id="stockCurrency" name="currency" required>
+            <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
+        </select>
         </div>
         <div>
         <label for="fee">Fee:</label>
-        <input type="number" name="fee" step="any" inputmode="decimal">
+        <input type="number" id="fee" name="fee" step="any" inputmode="decimal">
         </div>
         <div>
         <label for="note">Note:</label>
@@ -817,23 +830,36 @@ function stockHistoryDiv() { showStockHistory(); }
             </div>
             <div>
                 <label>From Wallet:</label>
-                <input type="text" id="updateFromWallet" name="fromWallet">
+                <select id="updateFromWallet" name="fromWallet" required>
+                    <option value="">-- Select Wallet --</option>
+                    {% for wallet in wallets %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div>
                 <label>To Wallet:</label>
-                <input type="text" id="updateToWallet" name="toWallet">
+                <select id="updateToWallet" name="toWallet" required>
+                    <option value="">-- Select Wallet --</option>
+                    {% for wallet in wallets %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div>
                 <label>Quantity:</label>
-                <input type="text" id="updateQuantity" name="quantity">
+                <input type="number" id="updateQuantity" name="quantity" step="any" inputmode="decimal" required>
             </div>
             <div>
                 <label>Price:</label>
-                <input type="text" id="updatePrice" name="price">
+                <input type="number" id="updatePrice" name="price" step="any" inputmode="decimal" required>
             </div>
             <div>
                 <label>Currency:</label>
-                <input type="text" id="updateCurrency" name="currency">
+                <select id="updateCurrency" name="currency" required>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                </select>
             </div>
             <div>
                 <label>Fee:</label>
