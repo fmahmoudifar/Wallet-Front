@@ -6,6 +6,47 @@
 {% block content %}
 
 <script>
+    function setWalletNavVisibility(activeView) {
+        const btns = Array.from(document.querySelectorAll('[data-wallet-nav]'));
+        btns.forEach(btn => {
+            const v = String(btn.getAttribute('data-wallet-nav') || '').trim();
+            const isActive = (v && v === String(activeView || ''));
+            if (isActive) btn.setAttribute('aria-current', 'page');
+            else btn.removeAttribute('aria-current');
+            btn.classList.toggle('is-active', isActive);
+        });
+    }
+
+    function showWalletList() {
+        const title = document.getElementById('walletPageTitle');
+        const newDiv = document.getElementById('newWallet');
+        const listDiv = document.getElementById('walletListDiv');
+        const updateDiv = document.getElementById('updateWalletDiv');
+
+        if (title) title.innerText = 'Wallets';
+        if (listDiv) listDiv.style.display = 'block';
+        if (newDiv) newDiv.style.display = 'none';
+        if (updateDiv) updateDiv.style.display = 'none';
+        setWalletNavVisibility('list');
+    }
+
+    function showWalletNew() {
+        const title = document.getElementById('walletPageTitle');
+        const newDiv = document.getElementById('newWallet');
+        const listDiv = document.getElementById('walletListDiv');
+        const updateDiv = document.getElementById('updateWalletDiv');
+
+        if (title) title.innerText = 'New Wallet';
+        if (newDiv) newDiv.style.display = 'block';
+        if (listDiv) listDiv.style.display = 'none';
+        if (updateDiv) updateDiv.style.display = 'none';
+        setWalletNavVisibility('new');
+    }
+
+    // Keep these names for sidebar menu compatibility.
+    function newWalletDiv() { showWalletNew(); }
+    function walletListDiv() { showWalletList(); }
+
     function editWallet(userId, walletName, walletType, currency, accountNumber, note, walletId) {
         document.getElementById("updateUserId").value = userId;
         document.getElementById("updateWalletName").value = walletName;
@@ -16,8 +57,8 @@
         document.getElementById("updateWalletId").value = walletId;
         document.getElementById("updateWalletDiv").style.display = "block";
         document.getElementById("walletListDiv").style.display = "none";
-        document.getElementById("newWalletB").style.display = "none"; 
         document.getElementById("deleteForm").action = `/deleteWallet/${walletId}/${userId}`;
+        setWalletNavVisibility('update');
     }    
     
 // document.addEventListener("DOMContentLoaded", function() {
@@ -44,30 +85,20 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     items.forEach(item => list.appendChild(item));
+
+    // Default view: Wallets list.
+    showWalletList();
 });
-
-function newWalletDive(){
-    let div = document.getElementById("newWallet");
-    let button = document.getElementById("newWalletB");
-
-    if (div.style.display === "none" || div.style.display === ""){
-        div.style.display = "block";
-        document.getElementById("walletListDiv").style.display = "none";
-        button.style.display = "none" ;
-        // button.innerText = "Cancel";
-    } else {
-        div.style.display = "none";
-        document.getElementById("walletListDiv").style.display = "block";
-        button.innerText = "Add New Wallet";
-    }
-}
 </script>
 
 <div class="crypto-page-header">
-    <!-- <h1 class="crypto-page-title">Wallet Manager</h1> -->
-    <div class="crypto-page-actions">
-        <button id="newWalletB" class="btn-insert pct-positive" onclick="newWalletDive()">Add New Wallet</button>
-    </div>
+    <h1 class="crypto-page-title" id="walletPageTitle">Wallets</h1>
+</div>
+
+<!-- Mobile-only subnav (sidebar is hidden on small screens) -->
+<div class="app-subnav app-subnav-mobile" aria-label="Wallet sections">
+    <button type="button" class="app-subnav-link" data-wallet-nav="list" onclick="walletListDiv()">Wallets</button>
+    <button type="button" class="app-subnav-link" data-wallet-nav="new" onclick="newWalletDiv()">New Wallet</button>
 </div>
 
 <div id="newWallet" class="block-new" style="display: none;">

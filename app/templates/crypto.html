@@ -969,7 +969,7 @@
                 <label for="fromWallet">From Wallet:</label>
                 <select name="fromWallet" id="fromWallet">
                     <option value="">-- Select Wallet --</option> 
-                    {% for wallet in wallets %}
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
                     {% endfor %}
                 </select>
@@ -980,7 +980,7 @@
                 <label for="toWallet">To Wallet:</label>
                 <select name="toWallet" id="toWallet" required>
                     <option value="">-- Select Wallet --</option> 
-                    {% for wallet in wallets %}
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
                     {% endfor %}
                 </select>
@@ -1053,7 +1053,7 @@
                 <label for="filterFromWallet">From Wallet:</label>
                 <select id="filterFromWallet" name="fromWallet">
                     <option value="">-- Any --</option>
-                    {% for wallet in wallets %}
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
                     {% endfor %}
                 </select>
@@ -1062,7 +1062,7 @@
                 <label for="filterToWallet">To Wallet:</label>
                 <select id="filterToWallet" name="toWallet">
                     <option value="">-- Any --</option>
-                    {% for wallet in wallets %}
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
                     {% endfor %}
                 </select>
@@ -1131,7 +1131,7 @@
                 <label for="updateFromWallet">From Wallet:</label>
                 <select name="fromWallet" id="updateFromWallet">
                     <option value="">-- Select Wallet --</option>
-                    {% for wallet in wallets %}
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
                     {% endfor %}
                 </select>
@@ -1140,7 +1140,7 @@
                 <label for="updateToWallet">To Wallet:</label>
                 <select name="toWallet" id="updateToWallet" required>
                     <option value="">-- Select Wallet --</option>
-                    {% for wallet in wallets %}
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
                     {% endfor %}
                 </select>

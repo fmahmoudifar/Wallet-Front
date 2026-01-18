@@ -7,6 +7,7 @@
 
 <!-- stocks data provided to JS via data attribute to avoid inline template tags in scripts -->
 <div id="stocks-data" style="display:none" data-stocks='{{ stocks|tojson | safe }}'></div>
+<input type="hidden" id="stockBaseCurrency" value="{{ base_currency|default('EUR') }}">
 
 <script>
     function setStockNavVisibility(activeView) {
@@ -47,6 +48,8 @@
         const emptyMsg = document.getElementById('stockPortfolioEmpty');
         if (!container) return;
 
+        const baseCurrency = (document.getElementById('stockBaseCurrency')?.value || 'EUR').trim().toUpperCase();
+
         const stocks = getStocksData();
         if (!stocks.length) {
             container.innerHTML = '';
@@ -63,10 +66,10 @@
 
         stocks.forEach(s => {
             const stockSymbol = String(s.stockName || '').trim() || 'UNKNOWN';
-            const currency = String(s.currency || '').trim();
+            const currency = String((s.currencyBase || s.currency || '')).trim();
             const qty = toNum(s.quantity);
-            const price = toNum(s.price);
-            const fee = toNum(s.fee);
+            const price = toNum((s.priceBase != null ? s.priceBase : s.price));
+            const fee = toNum((s.feeBase != null ? s.feeBase : s.fee));
 
             // Group by stock + currency (keeps numbers honest if user mixes currencies).
             const key = `${stockSymbol}||${currency}`;
@@ -92,7 +95,7 @@
 
         container.innerHTML = list.map(g => {
             const avgBuy = g.totalQty ? ((g.totalValuePaid - g.totalFee) / g.totalQty) : 0;
-            const cur = g.currency ? ` ${g.currency}` : '';
+            const cur = g.currency ? ` ${g.currency}` : (baseCurrency ? ` ${baseCurrency}` : '');
             const symbol = String(g.stockSymbol || '').toUpperCase();
             return `
                 <div class="totals-card" data-stock-symbol="${symbol}" data-stock-qty="${g.totalQty}" data-stock-paid="${g.totalValuePaid}">
@@ -102,7 +105,6 @@
                                 <span class="stock-symbol">${symbol}</span>
                                 <span class="stock-name small-muted" style="margin-left:8px; font-weight:600;"></span>
                             </div>
-                            <div class="small-muted">${g.txCount} tx${cur}</div>
                         </div>
                         <div class="pct-badge pct-neutral" data-stock-pct>—</div>
                     </div>
@@ -176,7 +178,7 @@
             try {
                 const res = await fetch(`/stock/quote?symbol=${encodeURIComponent(symbol)}`);
                 const data = await res.json();
-                const price = (data && typeof data.price === 'number') ? data.price : null;
+                const price = (data && typeof data.priceBase === 'number') ? data.priceBase : ((data && typeof data.price === 'number') ? data.price : null);
 
                 const qty = parseFloat(card.getAttribute('data-stock-qty') || '0') || 0;
                 const paid = parseFloat(card.getAttribute('data-stock-paid') || '0') || 0;
@@ -187,7 +189,8 @@
                 const pctEl = card.querySelector('[data-stock-pct]');
                 const nameEl = card.querySelector('.stock-name');
 
-                const cur = (data && data.currency) ? ` ${data.currency}` : '';
+                const curCode = (data && data.currencyBase) ? data.currencyBase : (data && data.currency ? data.currency : '');
+                const cur = curCode ? ` ${curCode}` : '';
                 if (nameEl && data && data.name) nameEl.textContent = data.name;
 
                 if (price === null) {
@@ -280,6 +283,19 @@
             }
         }
 
+        function ensureSelectHasOption(selectEl, value) {
+            if (!selectEl || !value) return;
+            if (String(selectEl.tagName || '').toUpperCase() !== 'SELECT') return;
+            const v = String(value).trim().toUpperCase();
+            if (!v) return;
+            const exists = Array.from(selectEl.options || []).some(o => String(o.value || '').toUpperCase() === v);
+            if (exists) return;
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = v;
+            selectEl.appendChild(opt);
+        }
+
         async function fillQuote(symbol) {
             const sym = String(symbol || '').trim().toUpperCase();
             if (!sym) return;
@@ -299,10 +315,14 @@
                     }
                 }
                 if (priceEl && (String(priceEl.value || '').trim() === '') && data && typeof data.price === 'number') {
-                    priceEl.value = String(data.price);
+                    // Prefer website/base currency quote if available.
+                    if (typeof data.priceBase === 'number') priceEl.value = String(data.priceBase);
+                    else priceEl.value = String(data.price);
                 }
                 if (currencyEl && (String(currencyEl.value || '').trim() === '') && data && data.currency) {
-                    currencyEl.value = String(data.currency);
+                    const desired = data.currencyBase ? String(data.currencyBase) : String(data.currency);
+                    ensureSelectHasOption(currencyEl, desired);
+                    currencyEl.value = String(desired);
                 }
             } catch (e) {
                 console.warn('[stock] quote exception', e);
@@ -463,7 +483,7 @@
         setStockNavVisibility('update');
     }
 
-    function editStock(stockId, userId, stockName, tdate, fromWallet, toWallet, quantity, price, currency, fee, note) {
+    function editStock(stockId, userId, stockName, tdate, fromWallet, toWallet, operation, quantity, price, currency, fee, note) {
         document.getElementById("updateStockId").value = stockId;
         document.getElementById("updateUserId").value = userId;
         const hidden = document.getElementById("updateStockName");
@@ -481,6 +501,10 @@
         }
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
+        {
+            const opEl = document.getElementById("updateOperation");
+            if (opEl) opEl.value = operation || '';
+        }
         document.getElementById("updateQuantity").value = quantity;
         document.getElementById("updatePrice").value = price;
         document.getElementById("updateCurrency").value = currency;
@@ -500,6 +524,25 @@
                 .catch(() => {});
         }
     }  
+
+    function editStockFromRow(buttonEl) {
+        const li = buttonEl?.closest('li[data-id]');
+        if (!li) return;
+        editStock(
+            li.dataset.id,
+            li.dataset.userid,
+            li.dataset.stock,
+            li.dataset.tdate,
+            li.dataset.from,
+            li.dataset.to,
+            li.dataset.operation,
+            li.dataset.qty,
+            li.dataset.price,
+            li.dataset.currency,
+            li.dataset.fee,
+            li.dataset.note
+        );
+    }
 
     function parseLocalDateTime(dateStr) {
         // Accepts: YYYY-MM-DDTHH:mm from flatpickr config; parse as local.
@@ -536,8 +579,8 @@
         const endVal = document.getElementById('stockFilterEnd')?.value || '';
         const stockVal = (document.getElementById('stockFilterSymbol')?.value || '').trim().toLowerCase();
         const noteVal = (document.getElementById('stockFilterNote')?.value || '').trim().toLowerCase();
-        const fromVal = (document.getElementById('stockFilterFromWallet')?.value || '').trim().toLowerCase();
-        const toVal = (document.getElementById('stockFilterToWallet')?.value || '').trim().toLowerCase();
+        const fromVal = String(document.getElementById('stockFilterFromWallet')?.value || '').trim();
+        const toVal = String(document.getElementById('stockFilterToWallet')?.value || '').trim();
 
         const startDt = parseLocalDateTime(startVal);
         const endDt = parseLocalDateTime(endVal);
@@ -561,12 +604,17 @@
                 if (!noteAttr.includes(noteVal)) show = false;
             }
             if (show && fromVal) {
-                const fromAttr = (li.getAttribute('data-from') || '').toLowerCase();
-                if (!fromAttr.includes(fromVal)) show = false;
+                const fromAttrRaw = String(li.getAttribute('data-from') || '').trim();
+                const fromAttr = fromAttrRaw.toLowerCase();
+                const needle = fromVal.toLowerCase();
+                // Prefer exact match (wallet id), fall back to substring match for older records.
+                if (fromAttrRaw !== fromVal && !fromAttr.includes(needle)) show = false;
             }
             if (show && toVal) {
-                const toAttr = (li.getAttribute('data-to') || '').toLowerCase();
-                if (!toAttr.includes(toVal)) show = false;
+                const toAttrRaw = String(li.getAttribute('data-to') || '').trim();
+                const toAttr = toAttrRaw.toLowerCase();
+                const needle = toVal.toLowerCase();
+                if (toAttrRaw !== toVal && !toAttr.includes(needle)) show = false;
             }
             return show;
         }
@@ -670,6 +718,11 @@ function stockHistoryDiv() { showStockHistory(); }
 
 <div id="stockPanel" class="panel" style="padding:12px;margin-bottom:12px;">
     <div id="stockPortfolioEmpty" style="display:none;">No stock transactions to summarize.</div>
+    {% if fx_warning %}
+    <div class="small-muted" style="margin-bottom:8px;">
+        Some transactions could not be converted to {{ base_currency|default('EUR') }} (FX unavailable). Portfolio values may be approximate.
+    </div>
+    {% endif %}
     <div id="stockPortfolioCards" class="totals-grid"></div>
 </div>
 
@@ -690,9 +743,9 @@ function stockHistoryDiv() { showStockHistory(); }
         </div>
         <div>
         <label for="fromWallet">From Wallet:</label>
-        <select name="fromWallet" id="fromWallet" required>
+        <select name="fromWallet" id="fromWallet" >
             <option value="">-- Select Wallet --</option>
-            {% for wallet in wallets %}
+            {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
             <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
             {% endfor %}
         </select>
@@ -701,9 +754,17 @@ function stockHistoryDiv() { showStockHistory(); }
         <label for="toWallet">To Wallet:</label>
         <select name="toWallet" id="toWallet" required>
             <option value="">-- Select Wallet --</option>
-            {% for wallet in wallets %}
+            {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
             <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
             {% endfor %}
+        </select>
+        </div>
+        <div>
+        <label for="operation">Side:</label>
+        <select name="operation" id="operation" required>
+            <option value="">-- Select Side --</option>
+            <option value="Buy">Buy</option>
+            <option value="Sell">Sell</option>
         </select>
         </div>
         <div>
@@ -719,6 +780,15 @@ function stockHistoryDiv() { showStockHistory(); }
         <select id="stockCurrency" name="currency" required>
             <option value="EUR">EUR</option>
             <option value="USD">USD</option>
+            <option value="GBP">GBP</option>
+            <option value="GBX">GBX</option>
+            <option value="CHF">CHF</option>
+            <option value="CAD">CAD</option>
+            <option value="AUD">AUD</option>
+            <option value="JPY">JPY</option>
+            <option value="SEK">SEK</option>
+            <option value="NOK">NOK</option>
+            <option value="DKK">DKK</option>
         </select>
         </div>
         <div>
@@ -762,11 +832,21 @@ function stockHistoryDiv() { showStockHistory(); }
             </div>
             <div>
                 <label for="stockFilterFromWallet">From Wallet:</label>
-                <input type="text" id="stockFilterFromWallet" name="fromWallet" placeholder="Contains..." autocomplete="off" />
+                <select id="stockFilterFromWallet" name="fromWallet">
+                    <option value="">All</option>
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div>
                 <label for="stockFilterToWallet">To Wallet:</label>
-                <input type="text" id="stockFilterToWallet" name="toWallet" placeholder="Contains..." autocomplete="off" />
+                <select id="stockFilterToWallet" name="toWallet">
+                    <option value="">All</option>
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="filters-actions">
                 <button type="button" class="btn-clear" onclick="resetStockFilters()">Clear</button>
@@ -782,13 +862,17 @@ function stockHistoryDiv() { showStockHistory(); }
 {% if stocks %}
 <ul id="stockList">
     {% for stock in stocks %}
-    <li data-id="{{ stock.stockId }}" data-tdate="{{ stock.tdate }}" data-stock="{{ stock.stockName }}" data-qty="{{ stock.quantity }}" data-price="{{ stock.price }}" data-currency="{{ stock.currency }}" data-fee="{{ stock.fee|default(0, true) }}" data-note="{{ stock.note|default('') }}" data-from="{{ stock.fromWallet }}" data-to="{{ stock.toWallet }}">
+    {% set _op = stock.operation|default(stock.side, true)|default('', true) %}
+    {% set _note = stock.note|default('', true) %}
+    <li data-id="{{ stock.stockId }}" data-userid="{{ stock.userId }}" data-tdate="{{ stock.tdate }}" data-stock="{{ stock.stockName }}" data-operation="{{ '' if _op == 'None' else _op }}" data-qty="{{ stock.quantity }}" data-price="{{ stock.price }}" data-currency="{{ stock.currency }}" data-fee="{{ stock.fee|default(0, true) }}" data-note="{{ '' if _note == 'None' else _note }}" data-from="{{ stock.fromWallet }}" data-to="{{ stock.toWallet }}">
         <div class="crypto-history-row">
             <div class="crypto-history-left">
                 <div class="crypto-history-title">{{ stock.stockName }}</div>
-                <div class="crypto-history-sub">{{ stock.fromWallet }} → {{ stock.toWallet }}</div>
-                {% if stock.note %}
-                <div class="crypto-history-sub">{{ stock.note }}</div>
+                {% if _op and _op != 'None' %}
+                <div class="crypto-history-sub">{{ _op }}</div>
+                {% endif %}
+                {% if _note and _note != 'None' %}
+                <div class="crypto-history-sub">{{ _note }}</div>
                 {% endif %}
             </div>
 
@@ -798,8 +882,7 @@ function stockHistoryDiv() { showStockHistory(); }
             </div>
 
             <div class="crypto-history-actions">
-                <button class="btn-insert" onclick="editStock('{{ stock.stockId }}','{{ stock.userId }}','{{ stock.stockName }}','{{ stock.tdate }}','{{ stock.fromWallet }}',
-                '{{ stock.toWallet }}','{{ stock.quantity }}','{{ stock.price }}','{{ stock.currency }}','{{ stock.fee }}','{{ stock.note }}')">Edit</button>
+                <button class="btn-insert" type="button" onclick="editStockFromRow(this)">Edit</button>
             </div>
         </div>
     </li>
@@ -813,7 +896,7 @@ function stockHistoryDiv() { showStockHistory(); }
 {% endif %}
 
 <div id="updateStockDiv" class="block-update" style="display: none;">
-    <h2 class="center-text">Update Stock Transaction</h2>
+    <!-- <h2 class="center-text">Update Stock Transaction</h2> -->
     <div class="form-container">
         <form id="updateForm" action="/updateStock" method="POST">
             <input type="hidden" id="updateStockId" name="stockId">
@@ -830,9 +913,9 @@ function stockHistoryDiv() { showStockHistory(); }
             </div>
             <div>
                 <label>From Wallet:</label>
-                <select id="updateFromWallet" name="fromWallet" required>
+                <select id="updateFromWallet" name="fromWallet">
                     <option value="">-- Select Wallet --</option>
-                    {% for wallet in wallets %}
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
                     {% endfor %}
                 </select>
@@ -841,9 +924,17 @@ function stockHistoryDiv() { showStockHistory(); }
                 <label>To Wallet:</label>
                 <select id="updateToWallet" name="toWallet" required>
                     <option value="">-- Select Wallet --</option>
-                    {% for wallet in wallets %}
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
                     {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="updateOperation">Side:</label>
+                <select name="operation" id="updateOperation" required>
+                    <option value="">-- Select Side --</option>
+                    <option value="Buy">Buy</option>
+                    <option value="Sell">Sell</option>
                 </select>
             </div>
             <div>
@@ -859,6 +950,15 @@ function stockHistoryDiv() { showStockHistory(); }
                 <select id="updateCurrency" name="currency" required>
                     <option value="EUR">EUR</option>
                     <option value="USD">USD</option>
+                    <option value="GBP">GBP</option>
+                    <option value="GBX">GBX</option>
+                    <option value="CHF">CHF</option>
+                    <option value="CAD">CAD</option>
+                    <option value="AUD">AUD</option>
+                    <option value="JPY">JPY</option>
+                    <option value="SEK">SEK</option>
+                    <option value="NOK">NOK</option>
+                    <option value="DKK">DKK</option>
                 </select>
             </div>
             <div>

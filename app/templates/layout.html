@@ -64,6 +64,12 @@
                     </div>
                     {% endif %}
                     <a class="app-nav-link" href="/wallet" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>Wallets</a>
+                    {% if request.path.startswith('/wallet') %}
+                    <div class="app-subnav app-subnav-inline" aria-label="Wallet sections">
+                        <button type="button" class="app-subnav-link" data-wallet-nav="list" onclick="walletListDiv()">Wallets</button>
+                        <button type="button" class="app-subnav-link" data-wallet-nav="new" onclick="newWalletDiv()">New Wallet</button>
+                    </div>
+                    {% endif %}
                     <a class="app-nav-link" href="/settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>Settings</a>
                     <a class="app-nav-link app-nav-link-logout" href="/logout">Logout</a>
                 {% else %}
