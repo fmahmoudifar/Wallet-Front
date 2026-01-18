@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template,session, request, redirect, url_for, jsonify
 import requests
 import uuid
-from config import API_URL, aws_auth, ALPHA_VANTAGE_API_KEY
+from config import API_URL, aws_auth, ALPHA_VANTAGE_API_KEY, STOCK_DATA_PROVIDER
 from decimal import Decimal
 from datetime import datetime
 import time
@@ -17,11 +17,20 @@ stock_bp = Blueprint('stock', __name__)
 
 ALPHAVANTAGE_BASE_URL = "https://www.alphavantage.co/query"
 
+# Yahoo Finance endpoints (public)
+YAHOO_SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search"
+YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
+
 # In-process caches (same approach as crypto.py)
 _AV_SEARCH_CACHE = {}
 _AV_SEARCH_TTL_SECONDS = 900
 _AV_QUOTE_CACHE = {}
 _AV_QUOTE_TTL_SECONDS = 120
+
+_YH_SEARCH_CACHE = {}
+_YH_SEARCH_TTL_SECONDS = 900
+_YH_QUOTE_CACHE = {}
+_YH_QUOTE_TTL_SECONDS = 120
 
 
 def _to_decimal(val) -> Decimal:
@@ -80,6 +89,132 @@ def _av_get(params):
     return data
 
 
+def _is_rate_limit_error(msg: str) -> bool:
+    m = str(msg or '').lower()
+    return (
+        m.startswith('thank you for using alpha vantage')
+        or 'rate limit' in m
+        or 'frequency' in m
+        or 'standard api call frequency' in m
+    )
+
+
+def _yh_get(url: str, params: dict):
+    headers = {
+        'Accept': 'application/json',
+        'User-Agent': 'Wallet-Front/1.0'
+    }
+    r = requests.get(url, params=params, headers=headers, timeout=12)
+    r.raise_for_status()
+    return r.json() if r.content else {}
+
+
+def _yh_search(keywords: str, limit: int = 8):
+    q = (keywords or '').strip()
+    if not q:
+        return []
+    now = time.time()
+    cached = _YH_SEARCH_CACHE.get(q.lower())
+    if cached and (now - cached.get('ts', 0.0) < _YH_SEARCH_TTL_SECONDS):
+        return cached.get('data') or []
+
+    data = _yh_get(YAHOO_SEARCH_URL, {
+        'q': q,
+        'quotesCount': max(1, int(limit)),
+        'newsCount': 0,
+        'enableFuzzyQuery': True,
+        'lang': 'en-US',
+        'region': 'US',
+    })
+
+    out = []
+    for item in (data.get('quotes') or []):
+        sym = (item.get('symbol') or '').strip()
+        name = (item.get('shortname') or item.get('longname') or item.get('quoteType') or '').strip()
+        region = (item.get('exchange') or item.get('fullExchangeName') or item.get('exchDisp') or '').strip()
+        currency_raw = (item.get('currency') or '').strip()
+        # Yahoo sometimes returns GBp for LSE quotes (pence). Treat as GBX so we can scale.
+        if currency_raw and currency_raw.upper() == 'GBP' and currency_raw != currency_raw.upper():
+            currency = 'GBX'
+        else:
+            currency = currency_raw
+        # Keep results consistent with Alpha Vantage response
+        if sym and name:
+            out.append({"symbol": sym, "name": name, "region": region, "currency": currency})
+        if len(out) >= max(1, int(limit)):
+            break
+
+    _YH_SEARCH_CACHE[q.lower()] = {"ts": now, "data": out}
+    return out
+
+
+def _yh_quote(symbol: str):
+    requested = (symbol or '').strip().upper()
+    if not requested:
+        return {"symbol": "", "name": "", "currency": "", "price": None, "asof": ""}
+
+    # Normalize some common provider suffixes for Yahoo.
+    # Alpha Vantage often uses .LON whereas Yahoo uses .L
+    yahoo_sym = requested
+    try:
+        if yahoo_sym.endswith('.LON'):
+            yahoo_sym = yahoo_sym[:-4] + '.L'
+    except Exception:
+        yahoo_sym = requested
+
+    now = time.time()
+    cached = _YH_QUOTE_CACHE.get(requested)
+    if cached and (now - cached.get('ts', 0.0) < _YH_QUOTE_TTL_SECONDS):
+        return cached.get('data') or {}
+
+    # NOTE: In this environment Yahoo's v7/finance/quote responds 401.
+    # The chart endpoint works and provides currency + regularMarketPrice in meta.
+    url = f"{YAHOO_CHART_URL}/{yahoo_sym}"
+    data = _yh_get(url, {"interval": "1d", "range": "1d"})
+    chart = (data.get('chart') or {})
+    results = (chart.get('result') or [])
+    meta = (results[0] or {}).get('meta') if results else {}
+
+    price = meta.get('regularMarketPrice')
+    if price is None:
+        price = meta.get('chartPreviousClose')
+
+    currency_raw = str(meta.get('currency') or '').strip()
+    # Yahoo sometimes returns GBp for LSE quotes (pence). Treat as GBX so we can scale.
+    if currency_raw and currency_raw.upper() == 'GBP' and currency_raw != currency_raw.upper():
+        currency = 'GBX'
+    else:
+        currency = _normalize_currency(currency_raw, '')
+
+    name = str(meta.get('shortName') or meta.get('longName') or '').strip()
+    asof = ''
+    try:
+        ts = meta.get('regularMarketTime')
+        if ts:
+            asof = datetime.utcfromtimestamp(int(ts)).strftime('%Y-%m-%d')
+    except Exception:
+        asof = ''
+
+    out = {
+        "symbol": requested,
+        "name": name,
+        "currency": currency,
+        "price": float(price) if isinstance(price, (int, float)) else None,
+        "asof": asof,
+    }
+    _YH_QUOTE_CACHE[requested] = {"ts": now, "data": out}
+    return out
+
+
+def _provider_mode() -> str:
+    m = (STOCK_DATA_PROVIDER or 'auto').strip().lower()
+    if m in ('alphavantage', 'av'):
+        return 'alphavantage'
+    if m in ('yahoo', 'yf', 'yahoofinance'):
+        return 'yahoo'
+    return 'auto'
+
+
 def _av_search(keywords: str, limit: int = 8):
     q = (keywords or '').strip()
     if not q:
@@ -128,17 +263,36 @@ def stock_search():
     if not q:
         return jsonify({"results": []})
 
+    mode = _provider_mode()
+
+    # Prefer Alpha Vantage unless configured otherwise; fall back to Yahoo on AV failures.
+    if mode in ('auto', 'alphavantage'):
+        try:
+            matches = _av_search(q, limit=8)
+            return jsonify({"results": matches, "provider": "alphavantage"})
+        except Exception as e:
+            msg = str(e)
+            # If AV is selected explicitly, don't fall back.
+            if mode == 'alphavantage':
+                if "Missing ALPHA_VANTAGE_API_KEY" in msg:
+                    return jsonify({"error": msg, "results": []}), 500
+                if _is_rate_limit_error(msg):
+                    return jsonify({"error": msg, "results": []}), 429
+                return jsonify({"error": "Failed to search", "details": msg, "results": []}), 500
+
+            # auto mode: fall back to Yahoo on rate-limit or any AV error
+            try:
+                matches = _yh_search(q, limit=8)
+                return jsonify({"results": matches, "provider": "yahoo", "fallbackFrom": "alphavantage"})
+            except Exception as e2:
+                return jsonify({"error": "Failed to search", "details": str(e2), "results": []}), 500
+
+    # Yahoo only
     try:
-        matches = _av_search(q, limit=8)
-        return jsonify({"results": matches})
+        matches = _yh_search(q, limit=8)
+        return jsonify({"results": matches, "provider": "yahoo"})
     except Exception as e:
-        msg = str(e)
-        if "Missing ALPHA_VANTAGE_API_KEY" in msg:
-            return jsonify({"error": msg, "results": []}), 500
-        # rate-limit/provider errors
-        if msg.startswith('Thank you for using Alpha Vantage') or 'rate limit' in msg.lower():
-            return jsonify({"error": msg, "results": []}), 429
-        return jsonify({"error": "Failed to search", "details": msg, "results": []}), 500
+        return jsonify({"error": "Failed to search", "details": str(e), "results": []}), 500
 
 
 @stock_bp.route('/stock/quote', methods=['GET'])
@@ -162,48 +316,33 @@ def stock_quote():
     if cached and (now - cached.get('ts', 0.0) < _AV_QUOTE_TTL_SECONDS):
         return jsonify(cached.get('data') or {})
 
-    try:
-        data = _av_get({"function": "GLOBAL_QUOTE", "symbol": sym})
-        gq = data.get('Global Quote') or {}
-        price_raw = (gq.get('05. price') or '').strip()
-        try:
-            price = float(price_raw)
-        except Exception:
-            price = None
+    mode = _provider_mode()
 
-        meta = _av_metadata_for_symbol(sym)
+    def _finalize_quote(symbol_out: str, name: str, currency_raw: str, price_num, asof: str, provider: str, region: str = ''):
+        quote_ccy_raw = _normalize_currency(currency_raw, '') or base_currency
 
-        region_txt = str((meta.get('region') or '')).strip().upper()
-        quote_ccy_raw = _normalize_currency(meta.get('currency'), '') or base_currency
-
-        # Heuristic: Many LSE instruments are quoted in pence (GBX). Alpha Vantage can
-        # return large numeric values (e.g. 6315) that should be interpreted as 63.15.
-        # We treat UK/LSE tickers as pence when the quote price is "too large" for GBP.
+        # For AV we apply a UK/GBX heuristic; for Yahoo we do NOT (Yahoo typically returns GBP).
         effective_ccy = quote_ccy_raw
         try:
-            is_uk = ('UNITED KINGDOM' in region_txt) or sym.endswith('.LON') or sym.endswith('.L')
-            if is_uk and price is not None:
-                p = float(price)
-                # Prices in GBP rarely exceed 1000; 1000+ is almost always pence.
-                if p >= 1000:
+            if provider == 'alphavantage' and price_num is not None:
+                region_txt = str(region or '').strip().upper()
+                is_uk = ('UNITED KINGDOM' in region_txt) or symbol_out.endswith('.LON') or symbol_out.endswith('.L')
+                if is_uk and float(price_num) >= 1000:
                     effective_ccy = 'GBX'
         except Exception:
             pass
 
         price_major, quote_ccy = _scale_minor_currency(
-            _to_decimal(price) if price is not None else Decimal(0),
+            _to_decimal(price_num) if price_num is not None else Decimal(0),
             effective_ccy,
         )
 
-        # Preserve original numeric price for reference; but if the quote currency was minor-unit,
-        # normalize the displayed price to major units.
         price_display = None
-        if price is not None:
+        if price_num is not None:
             try:
-                # If we normalized minor units, show the major-unit price.
-                price_display = float(price_major) if effective_ccy == 'GBX' else float(price)
+                price_display = float(price_major) if effective_ccy == 'GBX' else float(price_num)
             except Exception:
-                price_display = price
+                price_display = price_num
 
         price_base = None
         try:
@@ -211,27 +350,88 @@ def stock_quote():
                 fx = _get_fx_rate(quote_ccy, base_currency)
                 price_base = float(_to_decimal(price_display) * fx)
         except Exception:
-            # If FX conversion fails (unsupported currency / network), keep quote currency only.
             price_base = None
 
         out = {
-            "symbol": sym,
-            "name": meta.get('name') or '',
+            "symbol": symbol_out,
+            "name": name or '',
             "currency": quote_ccy,
             "price": price_display,
             "currencyBase": base_currency,
             "priceBase": price_base,
-            "asof": (gq.get('07. latest trading day') or ''),
+            "asof": asof or '',
+            "provider": provider,
         }
-        _AV_QUOTE_CACHE[cache_key] = {"ts": now, "data": out}
+        return out
+
+    # 1) Alpha Vantage path (cached)
+    if mode in ('auto', 'alphavantage'):
+        cached = _AV_QUOTE_CACHE.get(cache_key)
+        if cached and (now - cached.get('ts', 0.0) < _AV_QUOTE_TTL_SECONDS):
+            return jsonify(cached.get('data') or {})
+
+        try:
+            data = _av_get({"function": "GLOBAL_QUOTE", "symbol": sym})
+            gq = data.get('Global Quote') or {}
+            price_raw = (gq.get('05. price') or '').strip()
+            try:
+                price = float(price_raw)
+            except Exception:
+                price = None
+
+            meta = _av_metadata_for_symbol(sym)
+            out = _finalize_quote(
+                sym,
+                meta.get('name') or '',
+                meta.get('currency') or base_currency,
+                price,
+                (gq.get('07. latest trading day') or ''),
+                'alphavantage',
+                region=(meta.get('region') or ''),
+            )
+            _AV_QUOTE_CACHE[cache_key] = {"ts": now, "data": out}
+            return jsonify(out)
+        except Exception as e:
+            msg = str(e)
+            if mode == 'alphavantage':
+                if "Missing ALPHA_VANTAGE_API_KEY" in msg:
+                    return jsonify({"error": msg, "symbol": sym, "price": None}), 500
+                if _is_rate_limit_error(msg):
+                    return jsonify({"error": msg, "symbol": sym, "price": None}), 429
+                return jsonify({"error": "Failed to fetch quote", "details": msg, "symbol": sym, "price": None}), 500
+
+            # auto mode: fall back to Yahoo
+            try:
+                yh = _yh_quote(sym)
+                out = _finalize_quote(
+                    sym,
+                    yh.get('name') or '',
+                    yh.get('currency') or base_currency,
+                    yh.get('price'),
+                    yh.get('asof') or '',
+                    'yahoo',
+                )
+                # Cache in Yahoo cache too (best-effort)
+                _YH_QUOTE_CACHE[sym] = {"ts": now, "data": yh}
+                return jsonify(dict(out, fallbackFrom='alphavantage'))
+            except Exception as e2:
+                if _is_rate_limit_error(msg):
+                    return jsonify({"error": msg, "details": str(e2), "symbol": sym, "price": None}), 429
+                return jsonify({"error": "Failed to fetch quote", "details": str(e2), "symbol": sym, "price": None}), 500
+
+    # 2) Yahoo-only path
+    cached = _YH_QUOTE_CACHE.get(sym)
+    if cached and (now - cached.get('ts', 0.0) < _YH_QUOTE_TTL_SECONDS):
+        yh = cached.get('data') or {}
+        out = _finalize_quote(sym, yh.get('name') or '', yh.get('currency') or base_currency, yh.get('price'), yh.get('asof') or '', 'yahoo')
+        return jsonify(out)
+
+    try:
+        yh = _yh_quote(sym)
+        out = _finalize_quote(sym, yh.get('name') or '', yh.get('currency') or base_currency, yh.get('price'), yh.get('asof') or '', 'yahoo')
         return jsonify(out)
     except Exception as e:
-        msg = str(e)
-        if "Missing ALPHA_VANTAGE_API_KEY" in msg:
-            return jsonify({"error": msg, "symbol": sym, "price": None}), 500
-        if msg.startswith('Thank you for using Alpha Vantage') or 'rate limit' in msg.lower():
-            return jsonify({"error": msg, "symbol": sym, "price": None}), 429
-        return jsonify({"error": "Failed to fetch quote", "details": msg, "symbol": sym, "price": None}), 500
+        return jsonify({"error": "Failed to fetch quote", "details": str(e), "symbol": sym, "price": None}), 500
 
 @stock_bp.route('/stock', methods=['GET'])
 def stock_page():

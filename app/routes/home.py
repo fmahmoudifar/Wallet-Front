@@ -16,6 +16,16 @@ from .crypto import (
     _COINGECKO_MARKETS_TTL_SECONDS,
 )
 
+# Reuse stock quote + scaling helpers for the Home stock pie
+from .stock import (
+    _provider_mode,
+    _av_get,
+    _av_metadata_for_symbol,
+    _yh_quote,
+    _scale_minor_currency,
+    _to_decimal as _to_decimal_stock,
+)
+
 home_bp = Blueprint("home", __name__, url_prefix="/")
 
 @home_bp.route("/", methods=['GET'])
@@ -270,34 +280,115 @@ def users():
                     
             except Exception as e:
                 print(f"Error processing transaction {transaction}: {e}")
-                continue        # Fetch and process stock transactions  
+                continue
+
+        # Fetch stock transactions
         try:
             response = requests.get(f"{API_URL}/stocks", params={"userId": userId}, auth=aws_auth)
             stocks = response.json().get("stocks", []) if response.status_code == 200 else []
         except Exception as e:
             print(f"Error fetching stocks: {e}")
             stocks = []
-        # Process stocks
-        for stock in stocks:
-            try:
-                quantity = Decimal(str(stock.get('quantity', 0)))
-                price = Decimal(str(stock.get('price', 0)))
-                fee = Decimal(str(stock.get('fee', 0)))
-                side = stock.get('side', 'buy')
-                wallet = stock.get('wallet')
-                
-                # Calculate transaction value using quantity * price + fee
-                transaction_value = quantity * price + fee
-                
-                if wallet:
-                    if side.lower() == 'buy':
-                        wallet_balances[wallet] -= transaction_value  # Money spent (including fee)
-                    else:  # sell
-                        wallet_balances[wallet] += (quantity * price - fee)  # Money received (minus fee)
-                        
-            except Exception as e:
-                print(f"Error processing stock {stock}: {e}")
-                continue
+
+        # Track per-wallet stock quantities (for live valuation in Wallet Balances)
+        wallet_stock_qty = defaultdict(lambda: defaultdict(lambda: Decimal(0)))
+
+        # Stock portfolio totals (cost basis + realized revenue) for Home overview
+        stock_totals_map = {}
+        try:
+            stock_transactions = {}
+            for s in stocks:
+                sym = (s.get('stockName') or '').strip().upper() or 'UNKNOWN'
+                stock_transactions.setdefault(sym, []).append(s)
+
+            for sym in stock_transactions:
+                stock_transactions[sym].sort(key=lambda x: x.get('tdate', ''))
+
+            for sym, transactions in stock_transactions.items():
+                entry = {
+                    'stockName': sym,
+                    'total_qty': Decimal(0),
+                    'total_cost': Decimal(0),
+                    'total_fee': Decimal(0),
+                    'total_value_buy': Decimal(0),
+                    'total_value_sell': Decimal(0),
+                    'currency': base_currency,
+                }
+
+                for tx in transactions:
+                    try:
+                        qty = _to_decimal_stock(tx.get('quantity', 0))
+                        price_raw = _to_decimal_stock(tx.get('price', 0))
+                        fee_raw = _to_decimal_stock(tx.get('fee', 0))
+                        operation = str(tx.get('operation') or tx.get('side') or 'buy').lower()
+
+                        from_wallet = tx.get('fromWallet')
+                        to_wallet = tx.get('toWallet')
+
+                        tx_currency_raw = _normalize_currency(tx.get('currency'), base_currency)
+                        price_major, tx_ccy = _scale_minor_currency(price_raw, tx_currency_raw)
+                        fee_major, _ = _scale_minor_currency(fee_raw, tx_currency_raw)
+
+                        fx_rate = _get_fx_rate(tx_ccy, base_currency)
+                        tx_value_base = ((qty * price_major) + fee_major) * fx_rate
+                        fee_base = fee_major * fx_rate
+                        revenue_base = (qty * price_major) * fx_rate
+
+                        # Wallet holdings / cash-flow effects:
+                        # - buy: cash decreases in fromWallet, stock qty increases in toWallet
+                        # - sell: stock qty decreases in fromWallet, cash increases in toWallet
+                        # - transfer: move stock qty from fromWallet to toWallet
+                        if operation == 'buy':
+                            if to_wallet:
+                                wallet_stock_qty[to_wallet][sym] += qty
+                            if from_wallet:
+                                wallet_fiat_balances[from_wallet] -= tx_value_base
+                        elif operation == 'sell':
+                            if from_wallet:
+                                wallet_stock_qty[from_wallet][sym] -= qty
+                            if to_wallet:
+                                wallet_fiat_balances[to_wallet] += (revenue_base - fee_base)
+                        elif operation == 'transfer':
+                            if from_wallet:
+                                wallet_stock_qty[from_wallet][sym] -= qty
+                            if to_wallet:
+                                wallet_stock_qty[to_wallet][sym] += qty
+
+                        if operation == 'buy':
+                            entry['total_qty'] += qty
+                            entry['total_cost'] += tx_value_base
+                            entry['total_value_buy'] += tx_value_base
+                            entry['total_fee'] += fee_base
+                        elif operation == 'sell':
+                            if entry['total_qty'] > 0:
+                                avg_cost_per_unit = entry['total_cost'] / entry['total_qty']
+                                qty_to_sell = min(qty, entry['total_qty'])
+                                sold_cost = qty_to_sell * avg_cost_per_unit
+                                entry['total_qty'] -= qty_to_sell
+                                entry['total_cost'] -= sold_cost
+                                entry['total_value_sell'] += revenue_base
+                                entry['total_fee'] += fee_base
+
+                                excess_qty = qty - qty_to_sell
+                                if excess_qty > 0:
+                                    entry['total_qty'] -= excess_qty
+                            else:
+                                entry['total_qty'] -= qty
+                                entry['total_value_sell'] += revenue_base
+                                entry['total_fee'] += fee_base
+                        else:
+                            continue
+
+                    except Exception as e:
+                        print(f"Error processing stock tx for {sym}: {e} | Raw tx: {tx}")
+                        continue
+
+                entry['total_value'] = entry['total_cost']
+                stock_totals_map[sym] = entry
+
+        except Exception as e:
+            print(f"Error computing stock totals: {e}")
+            stock_totals_map = {}
 
         # Fetch wallet names
         try:
@@ -453,12 +544,112 @@ def users():
         total_paid_display = _format_number_trim(total_paid, 2)
         total_now_display = _format_number_trim(total_now, 2)
 
-        # Build wallet list with balances based on live crypto values per wallet
+        # Stock chart values for Home (per-symbol now/paid, summed client-side like crypto)
+        stock_chart_now = {}
+        stock_chart_paid = {}
+        price_base_by_symbol = {}
+        try:
+            mode = _provider_mode()
+
+            def _fetch_stock_quote(sym: str):
+                s = (sym or '').strip().upper()
+                if not s:
+                    return {"symbol": "", "name": "", "currency": base_currency, "price": None, "asof": ""}
+
+                if mode in ('auto', 'alphavantage'):
+                    try:
+                        data = _av_get({"function": "GLOBAL_QUOTE", "symbol": s})
+                        gq = data.get('Global Quote') or {}
+                        price_raw = (gq.get('05. price') or '').strip()
+                        try:
+                            price = float(price_raw)
+                        except Exception:
+                            price = None
+                        meta = _av_metadata_for_symbol(s)
+                        return {
+                            "symbol": s,
+                            "name": meta.get('name') or '',
+                            "currency": meta.get('currency') or base_currency,
+                            "price": price,
+                            "asof": (gq.get('07. latest trading day') or ''),
+                        }
+                    except Exception:
+                        if mode == 'alphavantage':
+                            raise
+                        return _yh_quote(s)
+
+                return _yh_quote(s)
+
+            for sym, entry in stock_totals_map.items():
+                quote = _fetch_stock_quote(sym)
+                q_price = quote.get('price')
+                q_currency_raw = quote.get('currency') or base_currency
+
+                # Convert quote price into base currency (and scale minor units like GBX)
+                price_major, q_ccy = _scale_minor_currency(_to_decimal_stock(q_price), q_currency_raw)
+                fx = _get_fx_rate(q_ccy, base_currency)
+                price_base = price_major * fx
+                price_base_by_symbol[sym] = price_base
+
+                total_value_live = (entry.get('total_qty') or Decimal(0)) * (price_base or Decimal(0))
+                stock_chart_now[sym] = float(total_value_live) if total_value_live > 0 else 0.0
+                stock_chart_paid[sym] = float(entry.get('total_value_buy') or Decimal(0))
+
+        except Exception as e:
+            print(f"Error fetching stock prices for Home: {e}")
+            for sym, entry in stock_totals_map.items():
+                stock_chart_now[sym] = 0.0
+                stock_chart_paid[sym] = float(entry.get('total_value_buy') or Decimal(0))
+
+        stockNowValues = list(stock_chart_now.values())
+        stockPaidValues = list(stock_chart_paid.values())
+
+        # Overall stock portfolio P&L (same logic as crypto)
+        stock_total_paid = Decimal(0)
+        stock_total_now = Decimal(0)
+        stock_total_revenue = Decimal(0)
+        for entry in stock_totals_map.values():
+            stock_total_paid += (entry.get('total_value_buy') or Decimal(0))
+            stock_total_revenue += (entry.get('total_value_sell') or Decimal(0))
+        for v in stock_chart_now.values():
+            try:
+                stock_total_now += Decimal(str(v))
+            except Exception:
+                pass
+
+        stock_total_current_worth = stock_total_now + stock_total_revenue
+        stock_gain_amount = stock_total_current_worth - stock_total_paid
+        if stock_total_paid and stock_total_paid != 0:
+            stock_gain_pct = (stock_gain_amount / stock_total_paid) * Decimal(100)
+            stock_gain_pct_display = f"{float(stock_gain_pct):.2f}%"
+        else:
+            stock_gain_pct_display = 'N/A'
+
+        stock_gain_amount_abs_display = _format_number_trim(abs(stock_gain_amount), 2)
+        stock_total_paid_display = _format_number_trim(stock_total_paid, 2)
+        stock_total_now_display = _format_number_trim(stock_total_now, 2)
+
+        # Compute per-wallet live stock values and build wallet list (fiat + crypto + stock)
+        wallet_stock_live_values = defaultdict(lambda: Decimal(0))
+        try:
+            for w_id, per_sym in wallet_stock_qty.items():
+                total_live = Decimal(0)
+                for sym, q in per_sym.items():
+                    p = price_base_by_symbol.get(sym, Decimal(0)) or Decimal(0)
+                    total_live += (q * p)
+                wallet_stock_live_values[w_id] = total_live
+        except Exception as e:
+            print(f"Error computing wallet stock live values: {e}")
+
         wallet_list = []
         for wallet in wallets:
             wallet_id = wallet.get('walletId')
             wallet_name = wallet.get('walletName')
-            balance = (wallet_live_values.get(wallet_id, Decimal(0)) or Decimal(0)) + (wallet_fiat_balances.get(wallet_id, Decimal(0)) or Decimal(0))
+            balance = (
+                (wallet_fiat_balances.get(wallet_id, Decimal(0)) or Decimal(0))
+                + (wallet_live_values.get(wallet_id, Decimal(0)) or Decimal(0))
+                + (wallet_stock_live_values.get(wallet_id, Decimal(0)) or Decimal(0))
+            )
             wallet_list.append({
                 'walletId': wallet_id,
                 'walletName': wallet_name,
@@ -470,12 +661,19 @@ def users():
             cryptoLabels=cryptoLabels,
             cryptoNowValues=cryptoNowValues,
             cryptoPaidValues=cryptoPaidValues,
+            stockNowValues=stockNowValues,
+            stockPaidValues=stockPaidValues,
             baseCurrency=base_currency,
             cryptoPortfolioPaidDisplay=total_paid_display,
             cryptoPortfolioNowDisplay=total_now_display,
             cryptoPortfolioGainAbsDisplay=gain_amount_abs_display,
             cryptoPortfolioGainIsPositive=(gain_amount >= 0),
             cryptoPortfolioGainPctDisplay=gain_pct_display,
+            stockPortfolioPaidDisplay=stock_total_paid_display,
+            stockPortfolioNowDisplay=stock_total_now_display,
+            stockPortfolioGainAbsDisplay=stock_gain_amount_abs_display,
+            stockPortfolioGainIsPositive=(stock_gain_amount >= 0),
+            stockPortfolioGainPctDisplay=stock_gain_pct_display,
             wallets=wallet_list,
             userId=userId
         )

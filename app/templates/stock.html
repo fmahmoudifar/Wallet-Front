@@ -178,6 +178,9 @@
             try {
                 const res = await fetch(`/stock/quote?symbol=${encodeURIComponent(symbol)}`);
                 const data = await res.json();
+                if (!res.ok) {
+                    console.warn('[stock] portfolio quote failed', symbol, res.status, data && (data.error || data.details) ? (data.error || data.details) : data);
+                }
                 const price = (data && typeof data.priceBase === 'number') ? data.priceBase : ((data && typeof data.price === 'number') ? data.price : null);
 
                 const qty = parseFloat(card.getAttribute('data-stock-qty') || '0') || 0;
@@ -194,6 +197,9 @@
                 if (nameEl && data && data.name) nameEl.textContent = data.name;
 
                 if (price === null) {
+                    if (data && data.provider) {
+                        console.warn('[stock] portfolio quote missing price', symbol, 'provider=', data.provider, data);
+                    }
                     if (liveEl) liveEl.textContent = '—';
                     if (nowEl) nowEl.textContent = '—';
                     if (glEl) glEl.textContent = '—';
@@ -232,7 +238,7 @@
         }
     }
 
-    // Crypto-like autocomplete powered by Alpha Vantage proxy endpoints.
+    // Crypto-like autocomplete powered by backend stock search/quote endpoints.
     // - User can type symbol or name
     // - Dropdown suggests "SYMBOL - Company Name"
     // - Hidden input stores the symbol
@@ -249,15 +255,81 @@
         let lastController = null;
         let lastQuotedSymbol = '';
 
+        function showError(inputElem, msg) {
+            if (!inputElem || !inputElem.parentNode) return;
+            clearError(inputElem);
+            const span = document.createElement('span');
+            span.className = 'field-error';
+            span.style.color = '#c62828';
+            span.style.fontSize = '12px';
+            span.style.display = 'block';
+            span.style.marginTop = '6px';
+            span.textContent = msg;
+
+            const label = inputElem.parentNode.querySelector('label');
+            if (label) {
+                label.appendChild(span);
+                return;
+            }
+            inputElem.parentNode.appendChild(span);
+        }
+
+        function clearError(inputElem) {
+            if (!inputElem || !inputElem.parentNode) return;
+            const existing = inputElem.parentNode.querySelector('.field-error');
+            if (existing) existing.parentNode.removeChild(existing);
+        }
+
         function extractSymbol(raw) {
             const txt = String(raw || '').trim();
             if (!txt) return '';
-            const first = txt.split(' - ')[0].trim();
-            return first.replace(/\(.+\)$/, '').trim().toUpperCase();
+            // If user selected an option, input can be "SYM - Name".
+            if (txt.includes(' - ')) {
+                const first = txt.split(' - ')[0].trim();
+                return first.replace(/\(.+\)$/, '').trim().toUpperCase();
+            }
+            // If user typed a raw symbol, accept only strict symbol-like strings.
+            // (Avoid treating company names as symbols.)
+            if (/\s/.test(txt)) return '';
+            if (!/^[A-Za-z0-9.\-]+$/.test(txt)) return '';
+            const upper = txt.toUpperCase();
+            // Most tickers are short; keep a conservative max to reduce false positives.
+            if (upper.length > 12) return '';
+            return upper;
         }
 
         function setHiddenFromInput() {
             hidden.value = extractSymbol(input.value);
+        }
+
+        async function tryMatchAndSetFromSearch() {
+            setHiddenFromInput();
+            const sym = String(hidden.value || '').trim().toUpperCase();
+            if (!sym) return false;
+            if (!/^[A-Z0-9.\-]+$/.test(sym)) return false;
+
+            // If it came from a list click, trust it (same spirit as crypto: must come from list).
+            if (String(hidden.dataset.fromList || '') === '1') {
+                // Keep whatever label the user selected (usually "SYM - Name").
+                hidden.value = sym;
+                return true;
+            }
+
+            // Otherwise, validate by checking that /stock/search can find this symbol.
+            try {
+                const res = await fetch(`/stock/search?q=${encodeURIComponent(sym)}`);
+                const data = await res.json();
+                if (!res.ok) return false;
+                const results = Array.isArray(data && data.results) ? data.results : [];
+                const match = results.find(r => String(r && r.symbol || '').trim().toUpperCase() === sym);
+                if (!match) return false;
+                const nm = String(match && match.name || '').trim();
+                input.value = nm ? `${sym} - ${nm}` : sym;
+                hidden.value = sym;
+                return true;
+            } catch (e) {
+                return false;
+            }
         }
 
         function closeAllLists(elmnt) {
@@ -308,12 +380,7 @@
                 if (!res.ok) {
                     console.warn('[stock] quote failed', res.status, data && data.error ? data.error : data);
                 }
-                if (data && data.name) {
-                    const curVal = String(input.value || '').trim();
-                    if (!curVal || curVal.toUpperCase() === sym || curVal.toUpperCase().startsWith(sym + ' -')) {
-                        input.value = `${sym} - ${data.name}`;
-                    }
-                }
+                // Keep input as the symbol only; name stays in the dropdown suggestions.
                 if (priceEl && (String(priceEl.value || '').trim() === '') && data && typeof data.price === 'number') {
                     // Prefer website/base currency quote if available.
                     if (typeof data.priceBase === 'number') priceEl.value = String(data.priceBase);
@@ -331,10 +398,13 @@
 
         function commitSelection(symbol, name) {
             const sym = String(symbol || '').trim().toUpperCase();
-            const nm = String(name || '').trim();
             if (!sym) return;
+            // Crypto-like: show a friendly label, but store only the symbol.
+            const nm = String(name || '').trim();
             input.value = nm ? `${sym} - ${nm}` : sym;
             hidden.value = sym;
+            hidden.dataset.fromList = '1';
+            clearError(input);
             closeAllLists();
             fillQuote(sym);
         }
@@ -342,6 +412,8 @@
         input.addEventListener('input', async function () {
             const q = String(input.value || '').trim();
             setHiddenFromInput();
+            hidden.dataset.fromList = '0';
+            clearError(input);
             closeAllLists();
             currentFocus = -1;
             if (!q || q.length < 2) return;
@@ -417,15 +489,40 @@
         });
 
         input.addEventListener('blur', function () {
-            setHiddenFromInput();
-            const sym = hidden.value;
-            if (sym && /^[A-Z0-9.\-]+$/.test(sym)) fillQuote(sym);
+            // Small timeout to allow click selection to commit first.
+            setTimeout(async () => {
+                const ok = await tryMatchAndSetFromSearch();
+                if (!ok) {
+                    // Clear free text and hidden value (crypto-like: must be a real item).
+                    input.value = '';
+                    hidden.value = '';
+                    hidden.dataset.fromList = '0';
+                    showError(input, 'Please select a stock from the suggestions.');
+                    return;
+                }
+                clearError(input);
+                const sym = String(hidden.value || '').trim().toUpperCase();
+                if (sym) fillQuote(sym);
+            }, 150);
         });
 
         const form = input.closest('form');
         if (form) {
-            form.addEventListener('submit', function () {
-                setHiddenFromInput();
+            form.addEventListener('submit', function (e) {
+                // Async validation (same end result as crypto): block submit unless the
+                // input matches an actual symbol.
+                e.preventDefault();
+                (async () => {
+                    const ok = await tryMatchAndSetFromSearch();
+                    if (!ok) {
+                        showError(input, 'You must choose a stock from the suggestions before submitting.');
+                        try { input.focus(); } catch (_) {}
+                        return;
+                    }
+                    clearError(input);
+                    form.submit();
+                })();
+                return false;
             });
         }
 
@@ -489,7 +586,12 @@
         const hidden = document.getElementById("updateStockName");
         const visible = document.getElementById("updateStockSearch");
         const sym = (stockName || '').toUpperCase();
-        if (hidden) hidden.value = sym;
+        if (hidden) {
+            hidden.value = sym;
+            // Treat the existing saved symbol as already-selected so blur/submit validators
+            // don't clear it just because we didn't pick it from today's autocomplete list.
+            hidden.dataset.fromList = sym ? '1' : '0';
+        }
         if (visible) visible.value = sym;
         {
             const el = document.getElementById("updateTdate");
@@ -514,12 +616,19 @@
         // Route is lowercase in the blueprint: /deletestock/<stock_id>/<user_id>
         document.getElementById("deleteForm").action = `/deletestock/${stockId}/${userId}`;
 
-        // Best-effort: resolve and show company name (does not affect stored symbol).
+        // Best-effort: resolve and show company name, but never overwrite if the user started editing.
         if (visible && sym) {
-            fetch(`/stock/quote?symbol=${encodeURIComponent(sym)}`)
+            const requestSym = sym;
+            fetch(`/stock/quote?symbol=${encodeURIComponent(requestSym)}`)
                 .then(r => r.json())
                 .then(d => {
-                    if (d && d.name) visible.value = `${sym} - ${d.name}`;
+                    if (!visible) return;
+                    // Only fill the label if the field still shows just the symbol.
+                    const current = String(visible.value || '').trim().toUpperCase();
+                    const hiddenSym = hidden ? String(hidden.value || '').trim().toUpperCase() : '';
+                    if (hiddenSym !== requestSym) return;
+                    if (current !== requestSym) return;
+                    if (d && d.name) visible.value = `${requestSym} - ${d.name}`;
                 })
                 .catch(() => {});
         }
@@ -570,9 +679,83 @@
         return isNaN(fallback) ? null : fallback;
     }
 
+    function monthKeyFromDate(d) {
+        if (!d || isNaN(d)) return 'unknown';
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+    }
+
+    function monthLabelFromDate(d) {
+        if (!d || isNaN(d)) return 'Unknown date';
+        try {
+            return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+        } catch (e) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        }
+    }
+
+    function buildStockMonthGroups() {
+        const list = document.getElementById('stockList');
+        if (!list) return;
+
+        // Remove existing headers
+        list.querySelectorAll('li.crypto-group-header').forEach(h => h.remove());
+
+        // Only group real transaction items
+        const txItems = Array.from(list.querySelectorAll('li[data-tdate]'));
+        if (!txItems.length) return;
+
+        let currentKey = null;
+        txItems.forEach(li => {
+            const d = parseTxDate(li.getAttribute('data-tdate'));
+            const key = monthKeyFromDate(d);
+            li.setAttribute('data-group', key);
+
+            if (key !== currentKey) {
+                const header = document.createElement('li');
+                header.className = 'crypto-group-header';
+                header.setAttribute('data-group', key);
+                header.textContent = monthLabelFromDate(d);
+                list.insertBefore(header, li);
+                currentKey = key;
+            }
+        });
+    }
+
+    function syncStockGroupHeaders() {
+        const list = document.getElementById('stockList');
+        if (!list) return;
+
+        const headers = Array.from(list.querySelectorAll('li.crypto-group-header'));
+        if (!headers.length) return;
+
+        const txItems = Array.from(list.querySelectorAll('li[data-tdate]'));
+        headers.forEach(h => {
+            const key = h.getAttribute('data-group') || '';
+            const anyVisible = txItems.some(li => {
+                if ((li.getAttribute('data-group') || '') !== key) return false;
+                return li.style.display !== 'none';
+            });
+            h.style.display = anyVisible ? '' : 'none';
+        });
+    }
+
+    function ensureStockGroupsBuilt(force) {
+        const list = document.getElementById('stockList');
+        if (!list) return;
+        const hasHeaders = !!list.querySelector('li.crypto-group-header');
+        if (force || !hasHeaders) {
+            buildStockMonthGroups();
+        }
+        syncStockGroupHeaders();
+    }
+
     function applyStockFilters() {
         const list = document.getElementById('stockList');
         if (!list) return;
+        // Ensure month/year grouping headers exist, but only filter real tx items
+        ensureStockGroupsBuilt(false);
         const items = Array.from(list.querySelectorAll('li[data-tdate]'));
 
         const startVal = document.getElementById('stockFilterStart')?.value || '';
@@ -631,6 +814,8 @@
         const endIdx = startIdx + pageSize;
         matching.slice(startIdx, endIdx).forEach(li => { li.style.display = ''; });
 
+        syncStockGroupHeaders();
+
         const emptyMsg = document.getElementById('stockFilterEmptyMsg');
         if (emptyMsg) emptyMsg.style.display = total ? 'none' : '';
 
@@ -670,15 +855,18 @@
 
 document.addEventListener("DOMContentLoaded", function() {
     let list = document.getElementById("stockList");
-    let items = (list && list.children) ? Array.from(list.children) : [];
+    if (list) {
+        let items = Array.from(list.querySelectorAll('li[data-tdate]'));
 
-    items.sort((a, b) => {
-        let dateA = parseTxDate(a.getAttribute("data-tdate")) || new Date(0);
-        let dateB = parseTxDate(b.getAttribute("data-tdate")) || new Date(0);
-        return dateB - dateA;  // Sort descending
-    });
+        items.sort((a, b) => {
+            let dateA = parseTxDate(a.getAttribute("data-tdate")) || new Date(0);
+            let dateB = parseTxDate(b.getAttribute("data-tdate")) || new Date(0);
+            return dateB - dateA;  // Sort descending
+        });
 
-    items.forEach(item => list.appendChild(item));
+        items.forEach(item => list.appendChild(item));
+        ensureStockGroupsBuilt(true);
+    }
 
     // Default view: Portfolio.
     showStockPortfolio();

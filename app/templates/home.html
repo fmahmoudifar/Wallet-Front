@@ -92,9 +92,38 @@
     </div>
 
     <div class="grid-item">
-        <div class="totals-card home-card" style="display: flex; flex-direction: column; justify-content: center;">
-            <div class="crypto-page-title" style="text-align: center; margin: 0; font-size: 1.1rem;">Stocks</div>
-            <div class="small-muted" style="text-align: center; margin-top: 8px;">Overview coming soon.</div>
+        <div class="totals-card home-card" style="display: flex; flex-direction: column;">
+            <div class="crypto-page-title" style="text-align: center; margin: 0 0 6px 0;">Stock Portfolio</div>
+            <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center;">
+                <div style="width: 100%; max-width: 440px; height: 260px;">
+                    <canvas id="stockChart"></canvas>
+                </div>
+            </div>
+            <div class="totals-meta" style="margin-top: 10px;">
+                <div class="totals-row">
+                    <div class="totals-label small-muted">Total value now</div>
+                    <div class="totals-value"><span class="pct-positive" id="stockSumNowText"></span></div>
+                </div>
+                <div class="totals-row">
+                    <div class="totals-label small-muted">Total value paid</div>
+                    <div class="totals-value"><span class="pct-negative" id="stockSumPaidText"></span></div>
+                </div>
+                <div class="totals-row">
+                    <div class="totals-label small-muted">Gain / loss</div>
+                    <div class="totals-value">
+                        <span class="{% if stockPortfolioGainIsPositive %}pct-positive{% else %}pct-negative{% endif %}">
+                            {% if stockPortfolioGainIsPositive %}+{% else %}-{% endif %}{{ stockPortfolioGainAbsDisplay|default('0') }} {{ baseCurrency }}
+                        </span>
+                        <span class="small-muted">
+                            {% if stockPortfolioGainPctDisplay and stockPortfolioGainPctDisplay != 'N/A' %}
+                                ({{ stockPortfolioGainPctDisplay }})
+                            {% else %}
+                                (N/A)
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -131,6 +160,8 @@
 
     const nowData = {{ cryptoNowValues | tojson }};
     const paidData = {{ cryptoPaidValues | tojson }};
+    const stockNowData = {{ (stockNowValues or []) | tojson }};
+    const stockPaidData = {{ (stockPaidValues or []) | tojson }};
     const baseCurrency = {{ (baseCurrency or 'EUR') | tojson }};
     const gainIsPositive = {{ (cryptoPortfolioGainIsPositive or false) | tojson }};
     const gainAbsDisplay = {{ (cryptoPortfolioGainAbsDisplay or '0') | tojson }};
@@ -242,6 +273,49 @@
             }
         }
     });
+
+    // Stock pie (same style as crypto)
+    const stockSumNow = (Array.isArray(stockNowData) ? stockNowData : []).reduce((acc, v) => acc + (Number(v) || 0), 0);
+    const stockSumPaid = (Array.isArray(stockPaidData) ? stockPaidData : []).reduce((acc, v) => acc + (Number(v) || 0), 0);
+
+    const stockSumNowEl = document.getElementById('stockSumNowText');
+    const stockSumPaidEl = document.getElementById('stockSumPaidText');
+    if (stockSumNowEl) stockSumNowEl.textContent = formatMoney(stockSumNow);
+    if (stockSumPaidEl) stockSumPaidEl.textContent = formatMoney(stockSumPaid);
+
+    const stockCanvas = document.getElementById('stockChart');
+    if (stockCanvas) {
+        new Chart(stockCanvas, {
+            type: 'pie',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: `Stock Portfolio (${baseCurrency})`,
+                        data: [stockSumNow, stockSumPaid],
+                        backgroundColor: [colorNow, colorPaid],
+                        borderColor: [borderNow, borderPaid],
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                radius: '95%',
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const v = Number(context.parsed || 0);
+                                return `${context.label}: ${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 </script>
 
 {% else %}

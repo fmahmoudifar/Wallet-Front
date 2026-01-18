@@ -103,15 +103,7 @@
 
 .app-subnav-link.is-active::before,
 .app-subnav-link[aria-current="page"]::before {
-    content: "";
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 16px;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.95);
+    display: none;
 }
 
 .app-subnav-mobile {
@@ -143,15 +135,7 @@
 }
 
 .app-nav-link[aria-current="page"]::before {
-    content: "";
-    position: absolute;
-    left: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 18px;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.95);
+    display: none;
 }
 
 .app-nav-link-logout {
@@ -398,6 +382,12 @@ html[data-theme="dark"] #stockList li {
     box-shadow: 0 6px 18px var(--shadow);
 }
 
+html[data-theme="dark"] #walletList li {
+    background: var(--surface);
+    border-color: var(--border);
+    box-shadow: 0 6px 18px var(--shadow);
+}
+
 html[data-theme="dark"] #cryptoList li:hover {
     background: var(--surface-2);
 }
@@ -410,6 +400,10 @@ html[data-theme="dark"] #stockList li:hover {
     background: var(--surface-2);
 }
 
+html[data-theme="dark"] #walletList li:hover {
+    background: var(--surface-2);
+}
+
 html[data-theme="dark"] #cryptoList .crypto-history-title,
 html[data-theme="dark"] #cryptoList .crypto-history-amount,
 html[data-theme="dark"] #transList .crypto-history-title,
@@ -419,11 +413,20 @@ html[data-theme="dark"] #stockList .crypto-history-amount {
     color: var(--text);
 }
 
+html[data-theme="dark"] #walletList .crypto-history-title,
+html[data-theme="dark"] #walletList .crypto-history-amount {
+    color: var(--text);
+}
+
 html[data-theme="dark"] #cryptoList .crypto-history-sub,
 html[data-theme="dark"] #cryptoList li.crypto-group-header,
 html[data-theme="dark"] #transList .crypto-history-sub,
 html[data-theme="dark"] #transList li.crypto-group-header,
 html[data-theme="dark"] #stockList .crypto-history-sub {
+    color: var(--muted);
+}
+
+html[data-theme="dark"] #walletList .crypto-history-sub {
     color: var(--muted);
 }
 
@@ -716,6 +719,24 @@ button.pct-positive:hover {
 
 #stockList li:hover {
     background: #f8f9fa;
+}
+
+#stockList li.crypto-group-header {
+    padding: 6px 4px;
+    margin: 8px 0 -4px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #666;
+    font-weight: 800;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+#stockList li.crypto-group-header:hover {
+    background: transparent;
 }
 
 /* Transactions history: match crypto history row layout */
