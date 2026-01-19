@@ -582,6 +582,7 @@ button.pct-positive:hover {
 
 /* Stock page: keep a little breathing room under header for all views */
 #stockPanel,
+#stockWalletsPanel,
 #newStock,
 #stockListDiv,
 #updateStockDiv {
@@ -630,13 +631,15 @@ button.pct-positive:hover {
 }
 
 /* Compact holdings list */
-.crypto-wallets-list {
+.crypto-wallets-list,
+.wallet-contents-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.crypto-wallets-row {
+.crypto-wallets-row,
+.wallet-contents-row {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
@@ -648,19 +651,22 @@ button.pct-positive:hover {
     transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
 }
 
-.crypto-wallets-row:hover {
+.crypto-wallets-row:hover,
+.wallet-contents-row:hover {
     background: var(--surface);
     transform: translateY(-1px);
 }
 
-.crypto-wallets-left {
+.crypto-wallets-left,
+.wallet-contents-left {
     display: flex;
     align-items: baseline;
     gap: 10px;
     min-width: 0;
 }
 
-.crypto-wallets-symbol {
+.crypto-wallets-symbol,
+.wallet-contents-symbol {
     font-weight: 800;
     color: var(--text);
     white-space: nowrap;
@@ -669,12 +675,21 @@ button.pct-positive:hover {
     text-overflow: ellipsis;
 }
 
-.crypto-wallets-qty {
+.crypto-wallets-qty,
+.wallet-contents-qty {
     white-space: nowrap;
 }
 
-.crypto-wallets-right {
+.crypto-wallets-right,
+.wallet-contents-right {
     text-align: right;
+    white-space: nowrap;
+}
+
+.wallet-contents-total-badge {
+    color: var(--title-accent);
+    font-size: 0.95rem;
+    font-weight: 800;
     white-space: nowrap;
 }
 

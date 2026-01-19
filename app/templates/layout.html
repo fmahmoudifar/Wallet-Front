@@ -60,6 +60,7 @@
                     {% if request.path.startswith('/stock') %}
                     <div class="app-subnav app-subnav-inline" aria-label="Stock sections">
                         <button type="button" class="app-subnav-link" data-stock-nav="portfolio" onclick="showStockPortfolio()">Portfolio</button>
+                        <button type="button" class="app-subnav-link" data-stock-nav="wallets" onclick="stockWalletsDiv()">Wallet Contents</button>
                         <button type="button" class="app-subnav-link" data-stock-nav="new" onclick="newStockDiv()">New Stock Transaction</button>
                         <button type="button" class="app-subnav-link" data-stock-nav="history" onclick="stockHistoryDiv()">Transactions History</button>
                     </div>

@@ -7,6 +7,7 @@
 
 <!-- stocks data provided to JS via data attribute to avoid inline template tags in scripts -->
 <div id="stocks-data" style="display:none" data-stocks='{{ stocks|tojson | safe }}'></div>
+<div id="stock-wallets-data" style="display:none" data-wallets='{{ wallets|tojson | safe }}'></div>
 <input type="hidden" id="stockBaseCurrency" value="{{ base_currency|default('EUR') }}">
 
 <script>
@@ -32,6 +33,17 @@
         }
     }
 
+    function getStockWalletsData() {
+        try {
+            const el = document.getElementById('stock-wallets-data');
+            if (!el || !el.dataset || !el.dataset.wallets) return [];
+            const arr = JSON.parse(el.dataset.wallets);
+            return Array.isArray(arr) ? arr : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
     function formatNumber(value, maxDigits) {
         const v = Number(value);
         if (!isFinite(v)) return '0';
@@ -41,6 +53,20 @@
         } catch (e) {
             return String(v);
         }
+    }
+
+    function escapeHtml(value) {
+        const s = String(value ?? '');
+        return s.replace(/[&<>"']/g, ch => {
+            switch (ch) {
+                case '&': return '&amp;';
+                case '<': return '&lt;';
+                case '>': return '&gt;';
+                case '"': return '&quot;';
+                case "'": return '&#39;';
+                default: return ch;
+            }
+        });
     }
 
     function buildStockPortfolio() {
@@ -152,18 +178,201 @@
     function showStockPortfolio() {
         const title = document.getElementById('stockPageTitle');
         const panel = document.getElementById('stockPanel');
+        const walletsPanel = document.getElementById('stockWalletsPanel');
         const newDiv = document.getElementById('newStock');
         const listDiv = document.getElementById('stockListDiv');
         const updateDiv = document.getElementById('updateStockDiv');
 
         if (title) title.innerText = 'Stock Portfolio';
         if (panel) panel.style.display = 'block';
+        if (walletsPanel) walletsPanel.style.display = 'none';
         if (newDiv) newDiv.style.display = 'none';
         if (listDiv) listDiv.style.display = 'none';
         if (updateDiv) updateDiv.style.display = 'none';
 
         buildStockPortfolio();
         setStockNavVisibility('portfolio');
+    }
+
+    function buildStockWalletContents() {
+        const container = document.getElementById('stockWalletsCards');
+        const emptyMsg = document.getElementById('stockWalletsEmpty');
+        if (!container) return;
+
+        const baseCurrency = (document.getElementById('stockBaseCurrency')?.value || 'EUR').trim().toUpperCase();
+        const stocks = getStocksData();
+        const wallets = getStockWalletsData();
+
+        const walletNameById = new Map();
+        wallets.forEach(w => {
+            const id = String(w.walletId || w.id || '').trim();
+            if (!id) return;
+            walletNameById.set(id, String(w.walletName || w.name || id));
+        });
+
+        function walletLabel(walletId) {
+            const id = String(walletId || '').trim();
+            if (!id) return 'Wallet';
+            return walletNameById.get(id) || id;
+        }
+
+        function toNum(x) {
+            const n = parseFloat(String(x ?? '').replace(',', '.'));
+            return isFinite(n) ? n : 0;
+        }
+
+        // walletId -> (symbol -> qty)
+        const qtyByWallet = new Map();
+        function addQty(walletId, symbol, delta) {
+            const wId = String(walletId || '').trim();
+            const sym = String(symbol || '').trim().toUpperCase();
+            if (!wId || !sym) return;
+            if (!qtyByWallet.has(wId)) qtyByWallet.set(wId, new Map());
+            const m = qtyByWallet.get(wId);
+            m.set(sym, (m.get(sym) || 0) + delta);
+        }
+
+        // Holdings logic based on transaction semantics:
+        // - Buy: shares land in toWallet
+        // - Sell: shares leave fromWallet
+        stocks.forEach(tx => {
+            const symbol = String(tx.stockName || '').trim().toUpperCase();
+            const op = String(tx.operation || tx.side || '').trim().toLowerCase();
+            const qty = toNum(tx.quantity);
+            if (!symbol || !qty) return;
+
+            if (op === 'buy') {
+                addQty(tx.toWallet, symbol, qty);
+            } else if (op === 'sell') {
+                addQty(tx.fromWallet, symbol, -qty);
+            }
+        });
+
+        const walletCards = [];
+        for (const [walletId, symMap] of qtyByWallet.entries()) {
+            const rows = [];
+            for (const [sym, qty] of symMap.entries()) {
+                if (!(qty > 1e-12)) continue;
+                rows.push({ sym, qty });
+            }
+            if (!rows.length) continue;
+            rows.sort((a, b) => a.sym.localeCompare(b.sym));
+            walletCards.push({ walletId, walletName: walletLabel(walletId), rows });
+        }
+
+        walletCards.sort((a, b) => String(a.walletName).localeCompare(String(b.walletName)));
+
+        if (!walletCards.length) {
+            container.innerHTML = '';
+            if (emptyMsg) emptyMsg.style.display = '';
+            return;
+        }
+        if (emptyMsg) emptyMsg.style.display = 'none';
+
+        container.innerHTML = walletCards.map(w => {
+            // Basic attribute escaping to keep HTML valid.
+            const walletIdAttr = escapeHtml(w.walletId);
+            return `
+                <div class="totals-card" data-stock-wallet-id="${walletIdAttr}">
+                    <div class="totals-header">
+                        <div style="font-size:1rem;font-weight:800;color:var(--title-accent);">${escapeHtml(w.walletName)}</div>
+                        <div class="wallet-contents-total-badge" data-stock-wallet-total>—</div>
+                    </div>
+                    <div class="wallet-contents-list">
+                        ${w.rows.map(r => {
+                            const sym = escapeHtml(r.sym);
+                            const qty = r.qty;
+                            return `
+                                <div class="wallet-contents-row" data-stock-wallet-symbol="${sym}" data-stock-wallet-qty="${qty}" data-stock-wallet-wallet="${walletIdAttr}">
+                                    <div class="wallet-contents-left">
+                                        <div class="wallet-contents-symbol">${sym}</div>
+                                        <div class="wallet-contents-qty small-muted">${formatNumber(qty, 6)}</div>
+                                    </div>
+                                    <div class="wallet-contents-right small-muted" data-stock-wallet-value>—</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        hydrateStockWalletContentsLiveQuotes(baseCurrency);
+    }
+
+    async function hydrateStockWalletContentsLiveQuotes(baseCurrency) {
+        const rows = Array.from(document.querySelectorAll('#stockWalletsCards [data-stock-wallet-symbol]'));
+        if (!rows.length) return;
+
+        const rowsBySymbol = new Map();
+        rows.forEach(r => {
+            const sym = String(r.getAttribute('data-stock-wallet-symbol') || '').trim().toUpperCase();
+            if (!sym) return;
+            if (!rowsBySymbol.has(sym)) rowsBySymbol.set(sym, []);
+            rowsBySymbol.get(sym).push(r);
+        });
+
+        const priceBySymbol = new Map();
+        for (const sym of rowsBySymbol.keys()) {
+            try {
+                const res = await fetch(`/stock/quote?symbol=${encodeURIComponent(sym)}`);
+                const data = await res.json();
+                const price = (data && typeof data.priceBase === 'number') ? data.priceBase : ((data && typeof data.price === 'number') ? data.price : null);
+                const curCode = (data && data.currencyBase) ? data.currencyBase : (baseCurrency || (data && data.currency ? data.currency : ''));
+                priceBySymbol.set(sym, { price, curCode });
+            } catch (e) {
+                priceBySymbol.set(sym, { price: null, curCode: baseCurrency || '' });
+            }
+        }
+
+        const totalsByWallet = new Map();
+        for (const [sym, symRows] of rowsBySymbol.entries()) {
+            const quote = priceBySymbol.get(sym) || { price: null, curCode: baseCurrency || '' };
+            for (const row of symRows) {
+                const qty = parseFloat(row.getAttribute('data-stock-wallet-qty') || '0') || 0;
+                const walletId = String(row.getAttribute('data-stock-wallet-wallet') || '').trim();
+                const valEl = row.querySelector('[data-stock-wallet-value]');
+
+                if (quote.price === null) {
+                    if (valEl) valEl.textContent = '—';
+                    continue;
+                }
+
+                const valueNow = qty * quote.price;
+                const cur = quote.curCode ? ` ${quote.curCode}` : '';
+                if (valEl) valEl.textContent = `${formatNumber(valueNow, 2)}${cur}`;
+
+                totalsByWallet.set(walletId, (totalsByWallet.get(walletId) || 0) + valueNow);
+            }
+        }
+
+        const cards = Array.from(document.querySelectorAll('#stockWalletsCards [data-stock-wallet-id]'));
+        cards.forEach(card => {
+            const walletId = String(card.getAttribute('data-stock-wallet-id') || '').trim();
+            const totalEl = card.querySelector('[data-stock-wallet-total]');
+            const total = totalsByWallet.get(walletId);
+            const cur = baseCurrency ? ` ${baseCurrency}` : '';
+            if (totalEl) totalEl.textContent = (typeof total === 'number') ? `${formatNumber(total, 2)}${cur}` : '—';
+        });
+    }
+
+    function showStockWallets() {
+        const title = document.getElementById('stockPageTitle');
+        const panel = document.getElementById('stockPanel');
+        const walletsPanel = document.getElementById('stockWalletsPanel');
+        const newDiv = document.getElementById('newStock');
+        const listDiv = document.getElementById('stockListDiv');
+        const updateDiv = document.getElementById('updateStockDiv');
+
+        if (title) title.innerText = 'Wallet Contents';
+        if (panel) panel.style.display = 'none';
+        if (walletsPanel) walletsPanel.style.display = 'block';
+        if (newDiv) newDiv.style.display = 'none';
+        if (listDiv) listDiv.style.display = 'none';
+        if (updateDiv) updateDiv.style.display = 'none';
+
+        buildStockWalletContents();
+        setStockNavVisibility('wallets');
     }
 
     let stockQuoteInFlight = new Set();
@@ -534,12 +743,14 @@
     function showStockNew() {
         const title = document.getElementById('stockPageTitle');
         const panel = document.getElementById('stockPanel');
+        const walletsPanel = document.getElementById('stockWalletsPanel');
         const newDiv = document.getElementById('newStock');
         const listDiv = document.getElementById('stockListDiv');
         const updateDiv = document.getElementById('updateStockDiv');
 
         if (title) title.innerText = 'New Stock Transaction';
         if (panel) panel.style.display = 'none';
+        if (walletsPanel) walletsPanel.style.display = 'none';
         if (newDiv) newDiv.style.display = 'block';
         if (listDiv) listDiv.style.display = 'none';
         if (updateDiv) updateDiv.style.display = 'none';
@@ -549,12 +760,14 @@
     function showStockHistory() {
         const title = document.getElementById('stockPageTitle');
         const panel = document.getElementById('stockPanel');
+        const walletsPanel = document.getElementById('stockWalletsPanel');
         const newDiv = document.getElementById('newStock');
         const listDiv = document.getElementById('stockListDiv');
         const updateDiv = document.getElementById('updateStockDiv');
 
         if (title) title.innerText = 'Stocks Transactions History';
         if (panel) panel.style.display = 'none';
+        if (walletsPanel) walletsPanel.style.display = 'none';
         if (listDiv) listDiv.style.display = 'block';
         if (newDiv) newDiv.style.display = 'none';
         if (updateDiv) updateDiv.style.display = 'none';
@@ -566,12 +779,14 @@
     function showStockUpdate() {
         const title = document.getElementById('stockPageTitle');
         const panel = document.getElementById('stockPanel');
+        const walletsPanel = document.getElementById('stockWalletsPanel');
         const newDiv = document.getElementById('newStock');
         const listDiv = document.getElementById('stockListDiv');
         const updateDiv = document.getElementById('updateStockDiv');
 
         if (title) title.innerText = 'Update Stock Transaction';
         if (panel) panel.style.display = 'none';
+        if (walletsPanel) walletsPanel.style.display = 'none';
         if (updateDiv) updateDiv.style.display = 'block';
         if (newDiv) newDiv.style.display = 'none';
         if (listDiv) listDiv.style.display = 'none';
@@ -890,6 +1105,7 @@ document.addEventListener("DOMContentLoaded", function() {
 // Keep these names for menu/sidebar compatibility.
 function newStockDiv() { showStockNew(); }
 function stockHistoryDiv() { showStockHistory(); }
+function stockWalletsDiv() { showStockWallets(); }
 </script>
 
 <div class="crypto-page-header">
@@ -898,8 +1114,9 @@ function stockHistoryDiv() { showStockHistory(); }
 
 <!-- Mobile-only subnav (sidebar is hidden on small screens) -->
 <div class="app-subnav app-subnav-mobile" aria-label="Stock sections">
-    <button type="button" class="app-subnav-link" data-stock-nav="new" onclick="newStockDiv()">New</button>
     <button type="button" class="app-subnav-link" data-stock-nav="portfolio" onclick="showStockPortfolio()">Portfolio</button>
+    <button type="button" class="app-subnav-link" data-stock-nav="wallets" onclick="stockWalletsDiv()">Wallet Contents</button>
+    <button type="button" class="app-subnav-link" data-stock-nav="new" onclick="newStockDiv()">New</button>
     <button type="button" class="app-subnav-link" data-stock-nav="history" onclick="stockHistoryDiv()">History</button>
 </div>
 
@@ -912,6 +1129,11 @@ function stockHistoryDiv() { showStockHistory(); }
     </div>
     {% endif %}
     <div id="stockPortfolioCards" class="totals-grid"></div>
+</div>
+
+<div id="stockWalletsPanel" class="panel" style="display:none;padding:12px;margin-bottom:12px;">
+    <div id="stockWalletsEmpty" style="display:none;">No stock holdings in wallets.</div>
+    <div id="stockWalletsCards" class="totals-grid"></div>
 </div>
 
 <div id="newStock" class="block-new" style="display: none;">
