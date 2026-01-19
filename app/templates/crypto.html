@@ -23,6 +23,7 @@
     function showCryptoPortfolio() {
         const title = document.getElementById('cryptoPageTitle');
         const panel = document.getElementById('panel');
+        const walletsPanel = document.getElementById('cryptoWalletsPanel');
         const listDiv = document.getElementById('cryptoListDiv');
         const newDiv = document.getElementById('newCrypto');
         const updateDiv = document.getElementById('updateCryptoDiv');
@@ -31,6 +32,7 @@
         document.body.classList.remove('crypto-mode-history');
         if (title) title.innerText = 'Crypto Portfolio';
         if (panel) panel.style.display = 'block';
+        if (walletsPanel) walletsPanel.style.display = 'none';
         if (listDiv) listDiv.style.display = 'none';
         if (newDiv) newDiv.style.display = 'none';
         if (updateDiv) updateDiv.style.display = 'none';
@@ -42,6 +44,7 @@
     function showCryptoNew() {
         const title = document.getElementById('cryptoPageTitle');
         const panel = document.getElementById('panel');
+        const walletsPanel = document.getElementById('cryptoWalletsPanel');
         const listDiv = document.getElementById('cryptoListDiv');
         const newDiv = document.getElementById('newCrypto');
         const updateDiv = document.getElementById('updateCryptoDiv');
@@ -52,6 +55,7 @@
         if (newDiv) newDiv.style.display = 'block';
         if (updateDiv) updateDiv.style.display = 'none';
         if (panel) panel.style.display = 'none';
+        if (walletsPanel) walletsPanel.style.display = 'none';
         if (listDiv) listDiv.style.display = 'none';
         if (sectionTitle) sectionTitle.style.display = '';
 
@@ -61,6 +65,7 @@
     function showCryptoHistory() {
         const title = document.getElementById('cryptoPageTitle');
         const panel = document.getElementById('panel');
+        const walletsPanel = document.getElementById('cryptoWalletsPanel');
         const listDiv = document.getElementById('cryptoListDiv');
         const newDiv = document.getElementById('newCrypto');
         const updateDiv = document.getElementById('updateCryptoDiv');
@@ -72,6 +77,7 @@
         if (newDiv) newDiv.style.display = 'none';
         if (updateDiv) updateDiv.style.display = 'none';
         if (panel) panel.style.display = 'none';
+        if (walletsPanel) walletsPanel.style.display = 'none';
         if (sectionTitle) sectionTitle.style.display = 'none';
 
         setCryptoNavVisibility('history');
@@ -81,6 +87,7 @@
     function showCryptoUpdate() {
         const title = document.getElementById('cryptoPageTitle');
         const panel = document.getElementById('panel');
+        const walletsPanel = document.getElementById('cryptoWalletsPanel');
         const listDiv = document.getElementById('cryptoListDiv');
         const newDiv = document.getElementById('newCrypto');
         const updateDiv = document.getElementById('updateCryptoDiv');
@@ -92,11 +99,34 @@
         if (newDiv) newDiv.style.display = 'none';
         if (listDiv) listDiv.style.display = 'none';
         if (panel) panel.style.display = 'none';
+        if (walletsPanel) walletsPanel.style.display = 'none';
         if (sectionTitle) sectionTitle.style.display = '';
 
         // Update view doesn't have its own nav button, so keep all visible.
         setCryptoNavVisibility('update');
     }
+
+    function showCryptoWallets() {
+        const title = document.getElementById('cryptoPageTitle');
+        const panel = document.getElementById('panel');
+        const walletsPanel = document.getElementById('cryptoWalletsPanel');
+        const listDiv = document.getElementById('cryptoListDiv');
+        const newDiv = document.getElementById('newCrypto');
+        const updateDiv = document.getElementById('updateCryptoDiv');
+        const sectionTitle = document.querySelector('#cryptoListDiv .crypto-section-title');
+
+        document.body.classList.remove('crypto-mode-history');
+        if (title) title.innerText = 'Wallet Contents';
+        if (walletsPanel) walletsPanel.style.display = 'block';
+        if (panel) panel.style.display = 'none';
+        if (listDiv) listDiv.style.display = 'none';
+        if (newDiv) newDiv.style.display = 'none';
+        if (updateDiv) updateDiv.style.display = 'none';
+        if (sectionTitle) sectionTitle.style.display = '';
+
+        setCryptoNavVisibility('wallets');
+    }
+    window.showCryptoWallets = showCryptoWallets;
 
     document.addEventListener('DOMContentLoaded', function() {
         // Default view is Portfolio; hide its button.
@@ -664,6 +694,10 @@
         showCryptoNew();
     }
 
+    function cryptoWalletsDiv() {
+        showCryptoWallets();
+    }
+
     function cryptoHistoryDiv() {
         showCryptoHistory();
     }
@@ -881,6 +915,7 @@
 <div class="app-subnav app-subnav-mobile" aria-label="Crypto sections">
     <button type="button" class="app-subnav-link" data-crypto-nav="new" onclick="newCryptoDiv()">New</button>
     <button type="button" class="app-subnav-link" data-crypto-nav="portfolio" onclick="showCryptoPortfolio()">Portfolio</button>
+    <button type="button" class="app-subnav-link" data-crypto-nav="wallets" onclick="cryptoWalletsDiv()">Wallets</button>
     <button type="button" class="app-subnav-link" data-crypto-nav="history" onclick="cryptoHistoryDiv()">History</button>
 </div>
 
@@ -947,6 +982,39 @@
         </div>
     {% else %}
         <p>No crypto transactions to summarize.</p>
+    {% endif %}
+</div>
+
+<div id="cryptoWalletsPanel" class="panel crypto-wallets-panel" style="display:none;">
+    {% if walletHoldings and walletHoldings|length > 0 %}
+        <div class="totals-grid">
+            {% for w in walletHoldings %}
+                <div class="totals-card">
+                    <div class="totals-header">
+                        <div class="crypto-wallets-header-title">{{ w.walletName|default(w.walletId) }}</div>
+                        <div class="pct-badge pct-neutral crypto-wallets-total-badge">{{ w.total_value_live_display|default('0') }} {{ baseCurrency|default('EUR') }}</div>
+                    </div>
+
+                    <div class="totals-meta crypto-wallets-list">
+                        {% if w.holdings and w.holdings|length > 0 %}
+                            {% for h in w.holdings %}
+                                <div class="crypto-wallets-row">
+                                    <div class="crypto-wallets-left">
+                                        <span class="crypto-wallets-symbol">{{ h.cryptoName }}</span>
+                                        <span class="crypto-wallets-qty small-muted">{{ h.qty_display }}</span>
+                                    </div>
+                                    <div class="crypto-wallets-right small-muted">{{ h.value_live_display }} {{ baseCurrency|default('EUR') }}</div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="small-muted">No current holdings.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="small-muted">No wallets with crypto transactions yet.</div>
     {% endif %}
 </div>
 

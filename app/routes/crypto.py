@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, session, request, redirect, url_fo
 import requests
 import uuid
 from config import API_URL, aws_auth
+from collections import defaultdict
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
 import math
@@ -151,6 +152,29 @@ def crypto_page():
             print(f"Error fetching wallets: {e}")
             wallets = []
 
+        # Map wallet names to ids to handle APIs that store walletName in fromWallet/toWallet.
+        wallet_ids_set = set()
+        wallet_id_by_name = {}
+        try:
+            for w in (wallets or []):
+                wid = (w.get('walletId') or '').strip()
+                wname = (w.get('walletName') or '').strip()
+                if wid:
+                    wallet_ids_set.add(wid)
+                if wid and wname:
+                    wallet_id_by_name[wname] = wid
+        except Exception:
+            wallet_ids_set = set()
+            wallet_id_by_name = {}
+
+        def _resolve_wallet_ref(val):
+            s = (str(val) if val is not None else '').strip()
+            if not s:
+                return ''
+            if s in wallet_ids_set:
+                return s
+            return wallet_id_by_name.get(s, s)
+
         # --- Fetch top coins from CoinGecko (markets) to populate dropdown ---
         coins = []
         try:
@@ -190,6 +214,8 @@ def crypto_page():
 
         # --- Compute totals per crypto using weighted average price method ---
         totals_map = {}
+        wallet_crypto_qty = defaultdict(lambda: defaultdict(lambda: Decimal(0)))
+        wallet_ids_seen = set()
         try:
             # Group transactions by crypto and sort by date to process chronologically
             crypto_transactions = {}
@@ -210,6 +236,20 @@ def crypto_page():
                     return Decimal(s)
                 except Exception:
                     return Decimal(0)
+
+            def norm_crypto_key(raw_name):
+                """Normalize stored cryptoName to a stable key for wallet holdings.
+                Prefers the leading symbol in patterns like 'BTC - Bitcoin'; otherwise uses the trimmed upper string.
+                """
+                s = (str(raw_name) if raw_name is not None else '').strip()
+                if not s:
+                    return 'UNKNOWN'
+                if ' - ' in s:
+                    s = s.split(' - ', 1)[0].strip()
+                # Remove common wrappers
+                s = s.replace('(', ' ').replace(')', ' ')
+                s = ' '.join(s.split())
+                return s.upper()
             
             # Sort each crypto's transactions by date
             for name in crypto_transactions:
@@ -233,6 +273,8 @@ def crypto_page():
                         price = to_decimal(tx.get('price', 0))
                         fee = to_decimal(tx.get('fee', 0))
                         operation = str(tx.get('operation') or tx.get('side') or 'buy').lower()
+                        fee_unit = str(tx.get('feeUnit') or '').strip().lower()
+                        ckey = norm_crypto_key(tx.get('cryptoName') or name)
 
                         # TRANSFER: fee is a crypto quantity.
                         # Net received quantity = max(0, qty - fee).
@@ -240,13 +282,27 @@ def crypto_page():
                         # - To wallet receives (qty - fee) (net)
                         # Portfolio delta = (+net if toWallet else 0) - (qty if fromWallet else 0)
                         if operation == 'transfer':
-                            from_wallet = tx.get('fromWallet')
-                            to_wallet = tx.get('toWallet')
-                            fee_qty = fee
+                            from_wallet = _resolve_wallet_ref(tx.get('fromWallet'))
+                            to_wallet = _resolve_wallet_ref(tx.get('toWallet'))
+
+                            # Transfer fee is expected to be a crypto quantity when feeUnit == 'crypto'.
+                            # If older records have feeUnit missing or set differently, treat fee as 0 for qty math.
+                            fee_qty = fee if (fee_unit == 'crypto' or fee_unit == '') else Decimal(0)
                             qty_total = qty
                             qty_net = qty_total - fee_qty
                             if qty_net < 0:
                                 qty_net = Decimal(0)
+
+                            if from_wallet:
+                                wallet_ids_seen.add(from_wallet)
+                            if to_wallet:
+                                wallet_ids_seen.add(to_wallet)
+
+                            # Track per-wallet holdings (wallet-level quantities)
+                            if from_wallet:
+                                wallet_crypto_qty[from_wallet][ckey] -= qty_total
+                            if to_wallet:
+                                wallet_crypto_qty[to_wallet][ckey] += qty_net
 
                             qty_in = qty_net if to_wallet else Decimal(0)
                             qty_out = qty_total if from_wallet else Decimal(0)
@@ -286,6 +342,18 @@ def crypto_page():
                             entry['total_cost'] += tx_value_base
                             entry['total_value_buy'] += tx_value_base
                             entry['total_fee'] += fee_base
+
+                            # Wallet holdings: buys land in toWallet
+                            from_wallet = _resolve_wallet_ref(tx.get('fromWallet'))
+                            to_wallet = _resolve_wallet_ref(tx.get('toWallet'))
+                            hold_wallet = to_wallet or from_wallet
+                            if from_wallet:
+                                wallet_ids_seen.add(from_wallet)
+                            if to_wallet:
+                                wallet_ids_seen.add(to_wallet)
+                            # If user didn't provide toWallet, fall back to fromWallet so wallet contents still updates.
+                            if hold_wallet:
+                                wallet_crypto_qty[hold_wallet][ckey] += qty
                             
                         elif operation == 'sell':
                             # SELL: Use weighted average to calculate cost of sold portion
@@ -317,6 +385,18 @@ def crypto_page():
                                 entry['total_qty'] -= qty
                                 entry['total_value_sell'] += revenue_base
                                 entry['total_fee'] += fee_base
+
+                            # Wallet holdings: sells leave fromWallet
+                            from_wallet = _resolve_wallet_ref(tx.get('fromWallet'))
+                            to_wallet = _resolve_wallet_ref(tx.get('toWallet'))
+                            hold_wallet = from_wallet or to_wallet
+                            if from_wallet:
+                                wallet_ids_seen.add(from_wallet)
+                            if to_wallet:
+                                wallet_ids_seen.add(to_wallet)
+                            # If user didn't provide fromWallet, fall back to toWallet so wallet contents still updates.
+                            if hold_wallet:
+                                wallet_crypto_qty[hold_wallet][ckey] -= qty
                             
                     except Exception as e:
                         print(f"Error processing transaction for {name}: {e} | Raw tx: {tx}")
@@ -416,6 +496,72 @@ def crypto_page():
                         v['value_change_amount'] = Decimal(0)
         except Exception as e:
             print(f"Error computing live prices: {e}")
+
+        # --- Compute holdings by wallet (qty + live value) ---
+        wallet_holdings = []
+        try:
+            # Map SYMBOL -> latest unit price in base currency (CoinGecko vs_currency)
+            latest_price_by_symbol = {}
+            for coin in (coins or []):
+                try:
+                    sym = (coin.get('symbol') or '').strip().upper()
+                    cp = coin.get('current_price', None)
+                    if sym and cp is not None:
+                        latest_price_by_symbol[sym] = Decimal(str(cp))
+                except Exception:
+                    continue
+
+            # Wallet id -> wallet name
+            wallet_name_by_id = {}
+            for w in (wallets or []):
+                wid = (w.get('walletId') or '').strip()
+                if wid:
+                    wallet_name_by_id[wid] = (w.get('walletName') or wid)
+
+            # Build an ordered list of wallets so UI is stable
+            ordered_wallet_ids = [w.get('walletId') for w in (wallets or []) if w.get('walletId')]
+            for wid in ordered_wallet_ids:
+                if wallet_ids_seen and wid not in wallet_ids_seen:
+                    continue
+                per_crypto = wallet_crypto_qty.get(wid) or {}
+                holdings_rows = []
+                for cname, qty in per_crypto.items():
+                    try:
+                        q = qty or Decimal(0)
+                        if q == 0:
+                            continue
+                        # cname is a normalized symbol key
+                        p = latest_price_by_symbol.get(str(cname).upper(), Decimal(0)) or Decimal(0)
+                        live_val = q * p
+                        holdings_rows.append({
+                            'cryptoName': cname,
+                            'qty': float(q),
+                            'qty_display': _format_number_trim(q, 8),
+                            'value_live': float(live_val),
+                            'value_live_display': _format_number_trim(live_val, 2),
+                        })
+                    except Exception:
+                        continue
+
+                # Sort holdings by live value desc (fallback: qty)
+                holdings_rows.sort(key=lambda r: (r.get('value_live', 0.0), r.get('qty', 0.0)), reverse=True)
+
+                wallet_total_live = Decimal(0)
+                for r in holdings_rows:
+                    try:
+                        wallet_total_live += Decimal(str(r.get('value_live', 0.0) or 0.0))
+                    except Exception:
+                        pass
+                wallet_holdings.append({
+                    'walletId': wid,
+                    'walletName': wallet_name_by_id.get(wid, wid),
+                    'total_value_live': float(wallet_total_live),
+                    'total_value_live_display': _format_number_trim(wallet_total_live, 2),
+                    'holdings': holdings_rows,
+                })
+        except Exception as e:
+            print(f"Error computing wallet holdings: {e}")
+            wallet_holdings = []
 
         # Convert Decimal values to floats for template rendering
         totals = []
@@ -552,7 +698,16 @@ def crypto_page():
             })
 
         # Send both to template (include coin list and totals)
-        return render_template("crypto.html", cryptos=cryptos, wallets=wallets, coins=coins, totals=totals, userId=userId)
+        return render_template(
+            "crypto.html",
+            cryptos=cryptos,
+            wallets=wallets,
+            coins=coins,
+            totals=totals,
+            walletHoldings=wallet_holdings,
+            baseCurrency=base_currency,
+            userId=userId,
+        )
     else:
         return render_template("home.html")
 

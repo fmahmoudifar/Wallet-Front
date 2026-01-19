@@ -370,6 +370,7 @@ html[data-theme="dark"] #cryptoList li {
     box-shadow: 0 6px 18px var(--shadow);
 }
 
+
 html[data-theme="dark"] #transList li {
     background: var(--surface);
     border-color: var(--border);
@@ -392,6 +393,7 @@ html[data-theme="dark"] #cryptoList li:hover {
     background: var(--surface-2);
 }
 
+
 html[data-theme="dark"] #transList li:hover {
     background: var(--surface-2);
 }
@@ -413,6 +415,7 @@ html[data-theme="dark"] #stockList .crypto-history-amount {
     color: var(--text);
 }
 
+
 html[data-theme="dark"] #walletList .crypto-history-title,
 html[data-theme="dark"] #walletList .crypto-history-amount {
     color: var(--text);
@@ -425,6 +428,7 @@ html[data-theme="dark"] #transList li.crypto-group-header,
 html[data-theme="dark"] #stockList .crypto-history-sub {
     color: var(--muted);
 }
+
 
 html[data-theme="dark"] #walletList .crypto-history-sub {
     color: var(--muted);
@@ -603,6 +607,75 @@ button.pct-positive:hover {
     height: 40px;
     padding: 8px 14px;
     border-radius: 10px;
+}
+
+/* Crypto: Wallet Contents panel */
+.crypto-wallets-panel {
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.crypto-wallets-header-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--title-accent);
+}
+
+/* Make the total feel like the portfolio % badge, but with accent color */
+.crypto-wallets-total-badge {
+    color: var(--title-accent);
+    font-size: 0.95rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+/* Compact holdings list */
+.crypto-wallets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.crypto-wallets-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.crypto-wallets-row:hover {
+    background: var(--surface);
+    transform: translateY(-1px);
+}
+
+.crypto-wallets-left {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+
+.crypto-wallets-symbol {
+    font-weight: 800;
+    color: var(--text);
+    white-space: nowrap;
+    max-width: 12ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.crypto-wallets-qty {
+    white-space: nowrap;
+}
+
+.crypto-wallets-right {
+    text-align: right;
+    white-space: nowrap;
 }
 
 @media (max-width: 768px) {
@@ -796,6 +869,7 @@ button.pct-positive:hover {
 #walletList li:hover {
     background: #f8f9fa;
 }
+
 
 #transList li.crypto-group-header {
     padding: 6px 4px;
