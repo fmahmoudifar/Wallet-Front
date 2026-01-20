@@ -429,6 +429,21 @@ html[data-theme="dark"] #stockList .crypto-history-sub {
     color: var(--muted);
 }
 
+/* Dark mode: date/month headers in history should not look like cards */
+html[data-theme="dark"] #cryptoList li.crypto-group-header,
+html[data-theme="dark"] #stockList li.crypto-group-header,
+html[data-theme="dark"] #transList li.crypto-group-header {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+html[data-theme="dark"] #cryptoList li.crypto-group-header:hover,
+html[data-theme="dark"] #stockList li.crypto-group-header:hover,
+html[data-theme="dark"] #transList li.crypto-group-header:hover {
+    background: transparent !important;
+}
+
 
 html[data-theme="dark"] #walletList .crypto-history-sub {
     color: var(--muted);
@@ -469,6 +484,94 @@ html[data-theme="dark"] select option:checked {
     /* Ensure selected item is readable (typically white text on highlight). */
     color: HighlightText;
     background: Highlight;
+}
+
+/* Flatpickr: dark-mode readability (month dropdown + year input + days)
+   Flatpickr lives outside our forms, but our global dark input/select rules still apply.
+   These overrides ensure the calendar UI stays readable in dark mode for ALL date inputs. */
+html[data-theme="dark"] .flatpickr-calendar {
+    background: var(--surface);
+    border-color: var(--border);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    color: var(--text);
+}
+
+html[data-theme="dark"] .flatpickr-months .flatpickr-month,
+html[data-theme="dark"] .flatpickr-weekdays,
+html[data-theme="dark"] .flatpickr-time {
+    background: var(--surface);
+}
+
+html[data-theme="dark"] .flatpickr-current-month,
+html[data-theme="dark"] .flatpickr-current-month .cur-month,
+html[data-theme="dark"] .flatpickr-current-month input.cur-year,
+html[data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months {
+    color: var(--text);
+}
+
+/* Month dropdown options: browsers may render a LIGHT dropdown menu even in dark mode.
+   Do NOT use CanvasText here (can be white on some dark system themes); instead force a light scheme. */
+html[data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months {
+    color-scheme: light;
+}
+
+html[data-theme="dark"] .flatpickr-monthDropdown-months option,
+html[data-theme="dark"] .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
+    color: #111;
+    background: #fff;
+}
+
+html[data-theme="dark"] .flatpickr-weekday {
+    color: var(--muted);
+}
+
+html[data-theme="dark"] .flatpickr-day {
+    color: var(--text);
+}
+
+html[data-theme="dark"] .flatpickr-day.prevMonthDay,
+html[data-theme="dark"] .flatpickr-day.nextMonthDay,
+html[data-theme="dark"] .flatpickr-day.disabled,
+html[data-theme="dark"] .flatpickr-day.notAllowed {
+    color: rgba(229,231,235,0.45);
+}
+
+html[data-theme="dark"] .flatpickr-day.today {
+    border-color: var(--title-accent);
+}
+
+html[data-theme="dark"] .flatpickr-day.selected,
+html[data-theme="dark"] .flatpickr-day.startRange,
+html[data-theme="dark"] .flatpickr-day.endRange,
+html[data-theme="dark"] .flatpickr-day.selected:hover,
+html[data-theme="dark"] .flatpickr-day.startRange:hover,
+html[data-theme="dark"] .flatpickr-day.endRange:hover {
+    background: var(--title-accent);
+    border-color: var(--title-accent);
+    color: #fff;
+}
+
+html[data-theme="dark"] .flatpickr-day:hover {
+    background: var(--surface-2);
+}
+
+/* Flatpickr: prevent global form input sizing from breaking the time picker UI */
+.flatpickr-calendar input[type="text"],
+.flatpickr-calendar input[type="number"],
+.flatpickr-calendar select {
+    width: auto;
+    max-width: none;
+    padding: 0;
+    box-sizing: content-box;
+}
+
+.flatpickr-time input[type="number"] {
+    width: 44px;
+    padding: 0;
+}
+
+.flatpickr-time .numInputWrapper {
+    width: auto;
 }
 
 html[data-theme="dark"] input::placeholder {
@@ -909,7 +1012,7 @@ button.pct-positive:hover {
     display: grid;
     grid-template-columns: 1fr auto auto;
     gap: 10px 14px;
-    align-items: center;
+    align-items: start;
 }
 
 #cryptoList .crypto-history-title {
@@ -936,6 +1039,7 @@ button.pct-positive:hover {
 #cryptoList .crypto-history-actions {
     display: flex;
     justify-content: flex-end;
+    align-self: center;
 }
 
 /* Reuse the same row typography/layout for transaction history rows */
@@ -943,7 +1047,7 @@ button.pct-positive:hover {
     display: grid;
     grid-template-columns: 1fr auto auto;
     gap: 10px 14px;
-    align-items: center;
+    align-items: start;
 }
 
 #transList .crypto-history-title {
@@ -970,6 +1074,7 @@ button.pct-positive:hover {
 #transList .crypto-history-actions {
     display: flex;
     justify-content: flex-end;
+    align-self: center;
 }
 
 /* Reuse the same row typography/layout for stock history rows */
@@ -977,7 +1082,7 @@ button.pct-positive:hover {
     display: grid;
     grid-template-columns: 1fr auto auto;
     gap: 10px 14px;
-    align-items: center;
+    align-items: start;
 }
 
 #stockList .crypto-history-title {
@@ -1004,6 +1109,7 @@ button.pct-positive:hover {
 #stockList .crypto-history-actions {
     display: flex;
     justify-content: flex-end;
+    align-self: center;
 }
 
 /* Reuse the same row typography/layout for wallet rows */
@@ -1011,7 +1117,7 @@ button.pct-positive:hover {
     display: grid;
     grid-template-columns: 1fr auto auto;
     gap: 10px 14px;
-    align-items: center;
+    align-items: start;
 }
 
 #walletList .crypto-history-title {
@@ -1038,6 +1144,7 @@ button.pct-positive:hover {
 #walletList .crypto-history-actions {
     display: flex;
     justify-content: flex-end;
+    align-self: center;
 }
 
 @media (max-width: 768px) {

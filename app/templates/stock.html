@@ -1270,6 +1270,12 @@ function stockWalletsDiv() { showStockWallets(); }
         </div>
     </div>
 {% if stocks %}
+{% set walletNameById = {} %}
+{% for w in wallets %}
+    {% if w['walletId'] is defined %}
+        {% set _ = walletNameById.update({ w['walletId']: (w['walletName']|default(w['walletId'])) }) %}
+    {% endif %}
+{% endfor %}
 <ul id="stockList">
     {% for stock in stocks %}
     {% set _op = stock.operation|default(stock.side, true)|default('', true) %}
@@ -1281,14 +1287,23 @@ function stockWalletsDiv() { showStockWallets(); }
                 {% if _op and _op != 'None' %}
                 <div class="crypto-history-sub">{{ _op }}</div>
                 {% endif %}
-                {% if _note and _note != 'None' %}
-                <div class="crypto-history-sub">{{ _note }}</div>
+                {% set _from = '' if (stock.fromWallet|default('', true)) == 'None' else (stock.fromWallet|default('', true)) %}
+                {% set _to = '' if (stock.toWallet|default('', true)) == 'None' else (stock.toWallet|default('', true)) %}
+                {% set fromName = walletNameById.get(_from, _from) %}
+                {% set toName = walletNameById.get(_to, _to) %}
+                {% if fromName or toName %}
+                <div class="crypto-history-sub">{% if fromName and toName %}{{ fromName }} - {{ toName }}{% else %}{{ fromName or toName }}{% endif %}</div>
                 {% endif %}
             </div>
 
             <div class="crypto-history-right">
                 <div class="crypto-history-amount">{{ stock.quantity }}</div>
-                <div class="crypto-history-sub">{{ stock.price }}{% if stock.currency %} {{ stock.currency }}{% endif %}</div>
+                <div class="crypto-history-sub">
+                    {{ stock.price }}{% if stock.currency %} {{ stock.currency }}{% endif %}
+                </div>
+                {% if _note and _note != 'None' %}
+                <div class="crypto-history-sub">{{ _note }}</div>
+                {% endif %}
             </div>
 
             <div class="crypto-history-actions">

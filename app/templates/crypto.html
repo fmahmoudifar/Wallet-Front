@@ -1147,6 +1147,12 @@
         </div>
     </div>
 {% if cryptos %}
+{% set walletNameById = {} %}
+{% for w in wallets %}
+    {% if w['walletId'] is defined %}
+        {% set _ = walletNameById.update({ w['walletId']: (w['walletName']|default(w['walletId'])) }) %}
+    {% endif %}
+{% endfor %}
 <ul id="cryptoList">
     {% for crypto in cryptos %}
     <li data-id="{{ crypto.cryptoId }}" data-tdate="{{ crypto.tdate }}" data-crypto="{{ crypto.cryptoName }}" data-operation="{{ crypto.operation|default(crypto.side) }}" data-qty="{{ crypto.quantity }}" data-fee="{{ crypto.fee|default(0, true) }}" data-note="{{ crypto.note|default('') }}" data-from="{{ crypto.fromWallet }}" data-to="{{ crypto.toWallet }}">
@@ -1154,14 +1160,23 @@
             <div class="crypto-history-left">
                 <div class="crypto-history-title">{{ crypto.cryptoName }}</div>
                 <div class="crypto-history-sub">{{ crypto.operation|default(crypto.side) }}</div>
-                {% if crypto.note %}
-                <div class="crypto-history-sub">{{ crypto.note }}</div>
+                {% set _from = crypto.fromWallet|default('', true) %}
+                {% set _to = crypto.toWallet|default('', true) %}
+                {% set fromName = walletNameById.get(_from, _from) %}
+                {% set toName = walletNameById.get(_to, _to) %}
+                {% if fromName or toName %}
+                <div class="crypto-history-sub">{% if fromName and toName %}{{ fromName }} -> {{ toName }}{% else %}{{ fromName or toName }}{% endif %}</div>
                 {% endif %}
             </div>
 
             <div class="crypto-history-right">
                 <div class="crypto-history-amount">{{ crypto.quantity }}</div>
-                <div class="crypto-history-sub">{{ crypto.price }}{% if crypto.currency %} {{ crypto.currency }}{% endif %}</div>
+                <div class="crypto-history-sub">
+                    {{ crypto.price }}{% if crypto.currency %} {{ crypto.currency }}{% endif %}
+                </div>
+                {% if crypto.note %}
+                <div class="crypto-history-sub">{{ crypto.note }}</div>
+                {% endif %}
             </div>
 
             <div class="crypto-history-actions">

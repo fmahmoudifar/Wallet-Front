@@ -706,8 +706,8 @@
                     guard += 1;
                 }
                 usedHues.add(hue);
-                // Muted ("matte") palette: lower saturation + a bit of alpha.
-                return `hsla(${hue}, 55%, 55%, 0.85)`;
+                // Dimmer (more subtle) palette: lower saturation + lower alpha.
+                return `hsla(${hue}, 45%, 52%, 0.62)`;
             });
         }
 
@@ -755,8 +755,8 @@
                             label: 'Income',
                             data: income.values,
                             backgroundColor: incomeColors,
-                            borderColor: 'rgba(255,255,255,0.7)',
-                            borderWidth: 2,
+                            borderColor: 'rgba(255,255,255,0.35)',
+                            borderWidth: 1.5,
                             radius: '78%',
                         }]
                     },
@@ -795,8 +795,8 @@
                             label: 'Expense',
                             data: expense.values,
                             backgroundColor: expenseColors,
-                            borderColor: 'rgba(255,255,255,0.7)',
-                            borderWidth: 2,
+                            borderColor: 'rgba(255,255,255,0.35)',
+                            borderWidth: 1.5,
                             radius: '78%',
                         }]
                     },
@@ -1393,6 +1393,12 @@
         </div>
     </div>
 {% if transactions %}
+{% set walletNameById = {} %}
+{% for w in wallets %}
+    {% if w['walletId'] is defined %}
+        {% set _ = walletNameById.update({ w['walletId']: (w['walletName']|default(w['walletId'])) }) %}
+    {% endif %}
+{% endfor %}
 <ul id="transList">
     {% for transaction in transactions %}
         <li data-id="{{ transaction.transId }}" data-tdate="{{ transaction.tdate }}" data-type="{{ transaction.transType|default('') }}" data-cat="{{ transaction.mainCat|default('') }}" data-note="{{ transaction.note|default('') }}" data-from="{{ transaction.fromWallet|default('') }}" data-to="{{ transaction.toWallet|default('') }}" data-currency="{{ transaction.currency|default('') }}" data-amount="{{ transaction.amountBase|default(transaction.amount|default(0)) }}">
@@ -1400,22 +1406,25 @@
                 <div class="crypto-history-left">
                     <div class="crypto-history-title">{{ transaction.transType }}</div>
                     <div class="crypto-history-sub">{{ transaction.mainCat }}</div>
-                    {% if transaction.note %}
-                    <div class="crypto-history-sub">{{ transaction.note }}</div>
+                    {% set _from = transaction.fromWallet|default('', true) %}
+                    {% set _to = transaction.toWallet|default('', true) %}
+                    {% set fromName = walletNameById.get(_from, _from) %}
+                    {% set toName = walletNameById.get(_to, _to) %}
+                    {% if fromName or toName %}
+                    <div class="crypto-history-sub">{% if fromName and toName %}{{ fromName }} -> {{ toName }}{% else %}{{ fromName or toName }}{% endif %}</div>
                     {% endif %}
                 </div>
 
                 <div class="crypto-history-right">
                     <div class="crypto-history-amount">{{ transaction.amountBase|default(transaction.amount) }} {{ base_currency|default('EUR') }}</div>
-                    <div class="crypto-history-sub">
-                        {{ base_currency|default('EUR') }}
-                        {% if transaction.currency and transaction.currency != (base_currency|default('EUR')) %}
-                            • Original {{ transaction.amount }} {{ transaction.currency }}
-                        {% endif %}
-                        {% if transaction.fee %}
-                            • Fee {{ transaction.fee }}{% if transaction.currency %} {{ transaction.currency }}{% endif %}
-                        {% endif %}
-                    </div>
+                    {% set _base = base_currency|default('EUR') %}
+                    {% set _ccy = transaction.currency|default('', true) %}
+                    {% if _ccy and _ccy != _base %}
+                    <div class="crypto-history-sub">Original {{ transaction.amount }} {{ _ccy }}</div>
+                    {% endif %}
+                    {% if transaction.note %}
+                    <div class="crypto-history-sub">{{ transaction.note }}</div>
+                    {% endif %}
                 </div>
 
                 <div class="crypto-history-actions">
