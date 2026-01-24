@@ -37,7 +37,7 @@
                 {% if session.get('user') %}
                     <a class="app-nav-link" href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>Home</a>
                     
-                    <a class="app-nav-link" href="/fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>Fiat</a>
+                    <a class="app-nav-link" href="/fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>Fiat (Cash)</a>
                     {% if request.path.startswith('/fiat') %}
                     <div class="app-subnav app-subnav-inline" aria-label="Fiat sections">
                         <button type="button" class="app-subnav-link" data-fiat-nav="dashboard" onclick="showFiatDashboard()">Overview</button>
@@ -65,6 +65,14 @@
                         <button type="button" class="app-subnav-link" data-stock-nav="history" onclick="stockHistoryDiv()">Transactions History</button>
                     </div>
                     {% endif %}
+                    <a class="app-nav-link" href="/loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>Loans</a>
+                    {% if request.path.startswith('/loans') %}
+                    <div class="app-subnav app-subnav-inline" aria-label="Loans sections">
+                        <button type="button" class="app-subnav-link" data-loans-nav="overview" onclick="showLoansOverview()">Overview</button>
+                        <button type="button" class="app-subnav-link" data-loans-nav="new" onclick="showLoansNew()">New Transaction</button>
+                        <button type="button" class="app-subnav-link" data-loans-nav="history" onclick="showLoansHistory()">Transactions History</button>
+                    </div>
+                    {% endif %}
                     <a class="app-nav-link" href="/wallet" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>Wallets</a>
                     {% if request.path.startswith('/wallet') %}
                     <div class="app-subnav app-subnav-inline" aria-label="Wallet sections">
@@ -72,6 +80,7 @@
                         <button type="button" class="app-subnav-link" data-wallet-nav="new" onclick="newWalletDiv()">New Wallet</button>
                     </div>
                     {% endif %}
+
                     <a class="app-nav-link" href="/settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>Settings</a>
                     <a class="app-nav-link app-nav-link-logout" href="/logout">Logout</a>
                 {% else %}
@@ -119,6 +128,15 @@
                 <path d="M6.5 15.5 10 12l3 2.2 4.5-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span class="sr-only">Stocks</span>
+        </a>
+        <a class="app-bottom-link" href="/loans" aria-label="Loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>
+            <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4.5 12.5h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M9 9.5 11.5 12 9 14.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12.5 8.5h5.5a2.5 2.5 0 0 1 2.5 2.5v5a2.5 2.5 0 0 1-2.5 2.5h-5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M14.5 12a1.5 1.5 0 1 0 0.01 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span class="sr-only">Loans</span>
         </a>
         <a class="app-bottom-link" href="/wallet" aria-label="Wallets" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">

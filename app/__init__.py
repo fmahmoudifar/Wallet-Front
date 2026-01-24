@@ -7,6 +7,7 @@ from app.routes.fiat import fiat_bp
 from app.routes.crypto import crypto_bp
 from app.routes.stock import stock_bp
 from app.routes.settings import settings_bp
+from app.routes.loans import loans_bp
 from app.routes.auth import auth_bp
 
 FLASK_SECRET_KEY = os.urandom(24)
@@ -21,5 +22,6 @@ def create_app():
     app.register_blueprint(crypto_bp)
     app.register_blueprint(stock_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(loans_bp)
     app.register_blueprint(auth_bp)
     return app

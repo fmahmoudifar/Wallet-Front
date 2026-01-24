@@ -1,0 +1,394 @@
+{% extends "layout.html" %}
+{% block head_extra %}
+    <link rel="stylesheet" href="/static/css/site_styles.css">
+{% endblock %}
+
+{% block content %}
+{% if session.get('user') %}
+
+<div class="crypto-page-header">
+    <h1 class="crypto-page-title">Borrow &amp; Lend</h1>
+</div>
+
+<div class="app-subnav app-subnav-mobile" aria-label="Loans sections">
+    <button type="button" class="app-subnav-link" data-loans-nav="overview" onclick="showLoansOverview()">Overview</button>
+    <button type="button" class="app-subnav-link" data-loans-nav="new" onclick="showLoansNew()">New Transaction</button>
+    <button type="button" class="app-subnav-link" data-loans-nav="history" onclick="showLoansHistory()">Transactions History</button>
+</div>
+
+<div id="loansOverviewDiv" class="form-container">
+    <div class="totals-card" style="width:100%;max-width:1100px;">
+        <div class="crypto-page-title" style="margin:0 0 6px 0;">Overview</div>
+        <div class="small-muted">Track who owes you, what you owe, and due dates.</div>
+
+        <div class="totals-grid" style="margin-top:12px;">
+            <div class="totals-card" style="box-shadow:none;">
+                <div class="small-muted" style="font-weight:700;">You will receive</div>
+                <div class="totals-value" style="margin-top:4px;">{{ receive_total|default(0) }}{% if base_currency %} {{ base_currency }}{% endif %}</div>
+            </div>
+            <div class="totals-card" style="box-shadow:none;">
+                <div class="small-muted" style="font-weight:700;">You owe</div>
+                <div class="totals-value" style="margin-top:4px;">{{ owe_total|default(0) }}{% if base_currency %} {{ base_currency }}{% endif %}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="loansNewDiv" class="block-new" style="display:none;">
+    <h2 class="center-text" style="display:none;">Add New Transaction</h2>
+    <div class="form-container">
+        <form action="/loans" method="POST">
+            <div>
+                <label for="loansType">Type</label>
+                <select id="loansType" name="type">
+                    <option value="borrow">Borrow</option>
+                    <option value="lend">Lend</option>
+                    <option value="loan">Loan</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="loansStatus">Status</label>
+                <select id="loansStatus" name="status">
+                    <option value="open">Open</option>
+                    <option value="paid">Paid</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="loansCounterparty">Counterparty</label>
+                <input id="loansCounterparty" type="text" name="counterparty" placeholder="Name">
+            </div>
+
+            <div>
+                <label for="loansAmount">Amount</label>
+                <input id="loansAmount" type="number" name="amount" step="any" inputmode="decimal" placeholder="0" required>
+            </div>
+
+            <div>
+                <label for="loansCurrency">Currency</label>
+                <select id="loansCurrency" name="currency" required>
+                    {% set _ccy = (session.get('currency') or 'EUR')|upper %}
+                    <option value="EUR" {% if _ccy == 'EUR' %}selected{% endif %}>EUR</option>
+                    <option value="USD" {% if _ccy == 'USD' %}selected{% endif %}>USD</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="loansWalletId">Wallet (optional)</label>
+                <select id="loansWalletId" name="walletId">
+                    <option value="">-- Select Wallet --</option>
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
+                        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="loansDate">Date</label>
+                <input id="loansDate" type="text" name="tdate" data-dt-picker="1" placeholder="Select date" required>
+            </div>
+
+            <div>
+                <label for="loansDueDate">Due date (optional)</label>
+                <input id="loansDueDate" type="text" name="dueDate" data-dt-picker="1" placeholder="Select due date">
+            </div>
+
+            <div>
+                <label for="loansNote">Note</label>
+                <input id="loansNote" type="text" name="note" placeholder="Optional">
+            </div>
+
+            <div>
+                <button type="submit" class="btn-insert pct-positive">Insert</button>
+                <button type="reset" class="btn-clear">Clear</button>
+                <button type="button" class="btn-cancel" onclick="showLoansOverview()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="loansHistoryDiv" class="form-container" style="display:none;">
+    <div id="loansFilters" class="history-filters" style="width:100%;max-width:1100px;">
+        <form class="filters-grid" onsubmit="return false;">
+            <div>
+                <label for="loansFilterStart">From Date:</label>
+                <input type="text" id="loansFilterStart" name="start" data-dt-picker="1">
+            </div>
+            <div>
+                <label for="loansFilterEnd">To Date:</label>
+                <input type="text" id="loansFilterEnd" name="end" data-dt-picker="1">
+            </div>
+            <div>
+                <label for="loansFilterType">Type:</label>
+                <select id="loansFilterType" name="type">
+                    <option value="">-- All --</option>
+                    <option value="borrow">Borrow</option>
+                    <option value="lend">Lend</option>
+                    <option value="loan">Loan</option>
+                </select>
+            </div>
+            <div>
+                <label for="loansFilterParty">Counterparty:</label>
+                <input type="text" id="loansFilterParty" name="party" placeholder="Contains..." autocomplete="off" />
+            </div>
+            <div>
+                <label for="loansFilterNote">Note:</label>
+                <input type="text" id="loansFilterNote" name="note" placeholder="Contains..." autocomplete="off" />
+            </div>
+            <div class="filters-actions">
+                <button type="button" class="btn-clear" onclick="resetLoansFilters()">Clear</button>
+            </div>
+        </form>
+        <div id="loansFilterEmptyMsg" class="small-muted" style="display:none;margin-top:8px">No matching transactions.</div>
+    </div>
+
+    {% if loans and loans|length %}
+    {% set walletNameById = {} %}
+    {% for w in wallets %}
+        {% if w['walletId'] is defined %}
+            {% set _ = walletNameById.update({ w['walletId']: (w['walletName']|default(w['walletId'])) }) %}
+        {% endif %}
+    {% endfor %}
+    <ul id="loansList">
+        {% for tx in loans %}
+        {% set _loan_id = (tx.loanId or tx.id)|default('', true) %}
+        {% set _uid = tx.userId|default(((session.get('user') or {}).get('username','')), true) %}
+        {% set _type = (tx.type|default('loan', true))|lower %}
+        {% set _status = (tx.status|default('open', true))|lower %}
+        {% set _party = tx.counterparty|default('', true) %}
+        {% set _note = tx.note|default('', true) %}
+        {% set _amount = tx.amount|default('0', true) %}
+        {% set _currency = (tx.currency|default((session.get('currency') or 'EUR')|upper, true))|upper %}
+        {% set _wallet_id = tx.walletId|default('', true) %}
+        {% set _tdate = tx.tdate|default('', true) %}
+        {% set _due = tx.dueDate|default('', true) %}
+        <li data-loanid="{{ _loan_id }}" data-userid="{{ _uid }}" data-type="{{ _type }}" data-status="{{ _status }}" data-party="{{ _party }}" data-amount="{{ _amount }}" data-currency="{{ _currency }}" data-walletid="{{ _wallet_id }}" data-tdate="{{ _tdate }}" data-duedate="{{ _due }}" data-note="{{ _note }}" data-from="{{ tx.fromWallet|default('') }}" data-to="{{ tx.toWallet|default('') }}">
+            <div class="crypto-history-row">
+                <div class="crypto-history-left">
+                    <div class="crypto-history-title">{{ _party if _party else _type }}</div>
+                    <div class="crypto-history-sub">{{ _type }}{% if _status %} • {{ _status }}{% endif %}</div>
+                    {% set _from = tx.fromWallet|default('', true) %}
+                    {% set _to = tx.toWallet|default('', true) %}
+                    {% set fromName = walletNameById.get(_from, _from) %}
+                    {% set toName = walletNameById.get(_to, _to) %}
+                    {% if fromName or toName %}
+                    <div class="crypto-history-sub">{% if fromName and toName %}{{ fromName }} -> {{ toName }}{% else %}{{ fromName or toName }}{% endif %}</div>
+                    {% endif %}
+                </div>
+
+                <div class="crypto-history-right">
+                    <div class="crypto-history-amount">{{ _amount }}{% if _currency %} {{ _currency }}{% endif %}</div>
+                    {% if _note %}
+                    <div class="crypto-history-sub">{{ _note }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="crypto-history-actions">
+                    <button class="btn-insert" type="button" onclick="editLoanFromRow(this)">Edit</button>
+                </div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="totals-card" style="width:100%;max-width:1100px;">
+        <div class="crypto-page-title" style="margin:0 0 6px 0;">Transactions History</div>
+        <div class="small-muted">No loan transactions yet.</div>
+    </div>
+    {% endif %}
+</div>
+
+<div id="updateLoanDiv" class="block-update" style="display:none;">
+    <div class="form-container">
+        <form id="updateLoanForm" action="/updateLoan" method="POST">
+            <input type="hidden" id="updateLoanId" name="loanId" />
+            <input type="hidden" id="updateLoanUserId" name="userId" />
+
+            <div>
+                <label for="updateLoansType">Type</label>
+                <select id="updateLoansType" name="type" required>
+                    <option value="borrow">Borrow</option>
+                    <option value="lend">Lend</option>
+                    <option value="loan">Loan</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="updateLoansStatus">Status</label>
+                <select id="updateLoansStatus" name="status" required>
+                    <option value="open">Open</option>
+                    <option value="paid">Paid</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="updateLoansCounterparty">Counterparty</label>
+                <input id="updateLoansCounterparty" type="text" name="counterparty" placeholder="Name" />
+            </div>
+
+            <div>
+                <label for="updateLoansAmount">Amount</label>
+                <input id="updateLoansAmount" type="number" name="amount" step="any" inputmode="decimal" required />
+            </div>
+
+            <div>
+                <label for="updateLoansCurrency">Currency</label>
+                <select id="updateLoansCurrency" name="currency" required>
+                    {% set _ccy2 = (session.get('currency') or 'EUR')|upper %}
+                    <option value="EUR" {% if _ccy2 == 'EUR' %}selected{% endif %}>EUR</option>
+                    <option value="USD" {% if _ccy2 == 'USD' %}selected{% endif %}>USD</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="updateLoansWalletId">Wallet (optional)</label>
+                <select id="updateLoansWalletId" name="walletId">
+                    <option value="">-- Select Wallet --</option>
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
+                        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="updateLoansDate">Date</label>
+                <input id="updateLoansDate" type="text" name="tdate" data-dt-picker="1" placeholder="Select date" required />
+            </div>
+
+            <div>
+                <label for="updateLoansDueDate">Due date (optional)</label>
+                <input id="updateLoansDueDate" type="text" name="dueDate" data-dt-picker="1" placeholder="Select due date" />
+            </div>
+
+            <div>
+                <label for="updateLoansNote">Note</label>
+                <input id="updateLoansNote" type="text" name="note" placeholder="Optional" />
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button type="submit" class="btn-insert pct-positive">Update</button>
+                <button type="submit" class="btn-clear">Delete</button>
+                <button type="button" class="btn-cancel" onclick="cancelLoanUpdate()">Cancel</button>
+            </div>
+        </form>
+
+        <form id="deleteLoanForm" method="POST" style="margin-top:10px;">
+        </form>
+    </div>
+</div>
+
+<script>
+    function setLoansActive(tab) {
+        const all = document.querySelectorAll('[data-loans-nav]');
+        all.forEach(b => b.classList.remove('is-active'));
+        const btn = document.querySelector('[data-loans-nav="' + tab + '"]');
+        if (btn) btn.classList.add('is-active');
+    }
+
+    function showLoansOverview() {
+        document.getElementById('loansOverviewDiv').style.display = '';
+        document.getElementById('loansNewDiv').style.display = 'none';
+        document.getElementById('loansHistoryDiv').style.display = 'none';
+        setLoansActive('overview');
+    }
+    function showLoansNew() {
+        document.getElementById('loansOverviewDiv').style.display = 'none';
+        document.getElementById('loansNewDiv').style.display = '';
+        document.getElementById('loansHistoryDiv').style.display = 'none';
+        setLoansActive('new');
+    }
+    function showLoansHistory() {
+        document.getElementById('loansOverviewDiv').style.display = 'none';
+        document.getElementById('loansNewDiv').style.display = 'none';
+        document.getElementById('loansHistoryDiv').style.display = '';
+        const upd = document.getElementById('updateLoanDiv');
+        if (upd) upd.style.display = 'none';
+        setLoansActive('history');
+    }
+
+    window.showLoansOverview = showLoansOverview;
+    window.showLoansNew = showLoansNew;
+    window.showLoansHistory = showLoansHistory;
+
+    function resetLoansFilters() {
+        ['loansFilterStart','loansFilterEnd','loansFilterType','loansFilterParty','loansFilterNote'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (el._flatpickr) {
+                el._flatpickr.clear();
+                return;
+            }
+            if (el.tagName === 'SELECT') el.selectedIndex = 0;
+            else el.value = '';
+        });
+        const msg = document.getElementById('loansFilterEmptyMsg');
+        if (msg) msg.style.display = 'none';
+    }
+    window.resetLoansFilters = resetLoansFilters;
+
+    function showLoanUpdate() {
+        document.getElementById('loansOverviewDiv').style.display = 'none';
+        document.getElementById('loansNewDiv').style.display = 'none';
+        document.getElementById('loansHistoryDiv').style.display = 'none';
+        document.getElementById('updateLoanDiv').style.display = '';
+        setLoansActive('history');
+    }
+
+    function cancelLoanUpdate() {
+        const upd = document.getElementById('updateLoanDiv');
+        if (upd) upd.style.display = 'none';
+        showLoansHistory();
+    }
+    window.cancelLoanUpdate = cancelLoanUpdate;
+
+    function editLoan(loanId, userId, type, status, counterparty, amount, currency, walletId, tdate, dueDate, note) {
+        document.getElementById('updateLoanId').value = loanId || '';
+        document.getElementById('updateLoanUserId').value = userId || '';
+        document.getElementById('updateLoansType').value = (type || 'loan');
+        document.getElementById('updateLoansStatus').value = (status || 'open');
+        document.getElementById('updateLoansCounterparty').value = counterparty || '';
+        document.getElementById('updateLoansAmount').value = amount || '';
+        if (currency) document.getElementById('updateLoansCurrency').value = String(currency).toUpperCase();
+        document.getElementById('updateLoansWalletId').value = walletId || '';
+        document.getElementById('updateLoansDate').value = tdate || '';
+        document.getElementById('updateLoansDueDate').value = dueDate || '';
+        document.getElementById('updateLoansNote').value = note || '';
+
+        const del = document.getElementById('deleteLoanForm');
+        if (del && loanId) del.action = `/deleteloan/${encodeURIComponent(loanId)}`;
+
+        showLoanUpdate();
+    }
+    window.editLoan = editLoan;
+
+    function editLoanFromRow(buttonEl) {
+        const li = buttonEl?.closest('li[data-loanid]');
+        if (!li) return;
+        editLoan(
+            li.dataset.loanid,
+            li.dataset.userid,
+            li.dataset.type,
+            li.dataset.status,
+            li.dataset.party,
+            li.dataset.amount,
+            li.dataset.currency,
+            li.dataset.walletid,
+            li.dataset.tdate,
+            li.dataset.duedate,
+            li.dataset.note
+        );
+    }
+    window.editLoanFromRow = editLoanFromRow;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        showLoansOverview();
+    });
+</script>
+
+{% else %}
+<script>
+    window.location.replace('/login');
+</script>
+{% endif %}
+{% endblock %}

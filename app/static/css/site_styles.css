@@ -286,15 +286,16 @@
     }
 }
 
+/*
+ * IMPORTANT:
+ * Avoid styling all <form> elements as a 2-column CSS grid.
+ * That caused pages like Login/Settings/Loans to render strangely.
+ * Use page-specific classes (e.g. .filters-grid, .block-new/.block-update) for grid layouts.
+ */
 form {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: end;
-    row-gap: 12px;
-    justify-items: end;
-    margin-bottom: 1rem;
     width: 100%;
     max-width: 900px;
+    margin: 0 0 1rem;
 }
 
 .pagination-controls {
@@ -370,6 +371,12 @@ html[data-theme="dark"] #cryptoList li {
     box-shadow: 0 6px 18px var(--shadow);
 }
 
+html[data-theme="dark"] #loansList li {
+    background: var(--surface);
+    border-color: var(--border);
+    box-shadow: 0 6px 18px var(--shadow);
+}
+
 
 html[data-theme="dark"] #transList li {
     background: var(--surface);
@@ -393,6 +400,10 @@ html[data-theme="dark"] #cryptoList li:hover {
     background: var(--surface-2);
 }
 
+html[data-theme="dark"] #loansList li:hover {
+    background: var(--surface-2);
+}
+
 
 html[data-theme="dark"] #transList li:hover {
     background: var(--surface-2);
@@ -408,6 +419,8 @@ html[data-theme="dark"] #walletList li:hover {
 
 html[data-theme="dark"] #cryptoList .crypto-history-title,
 html[data-theme="dark"] #cryptoList .crypto-history-amount,
+html[data-theme="dark"] #loansList .crypto-history-title,
+html[data-theme="dark"] #loansList .crypto-history-amount,
 html[data-theme="dark"] #transList .crypto-history-title,
 html[data-theme="dark"] #transList .crypto-history-amount,
 html[data-theme="dark"] #stockList .crypto-history-title,
@@ -423,6 +436,8 @@ html[data-theme="dark"] #walletList .crypto-history-amount {
 
 html[data-theme="dark"] #cryptoList .crypto-history-sub,
 html[data-theme="dark"] #cryptoList li.crypto-group-header,
+html[data-theme="dark"] #loansList .crypto-history-sub,
+html[data-theme="dark"] #loansList li.crypto-group-header,
 html[data-theme="dark"] #transList .crypto-history-sub,
 html[data-theme="dark"] #transList li.crypto-group-header,
 html[data-theme="dark"] #stockList .crypto-history-sub {
@@ -598,16 +613,22 @@ html[data-theme="dark"] .autocomplete-items div.autocomplete-active {
     background: rgba(255,255,255,0.08);
 }
 
-input[type="text"], input[type="number"], input[type="datetime-local"], select {
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="datetime-local"],
+select {
     width: var(--input-desktop-width);
-    padding: 6px 8px;
+    padding: 8px 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
     font-size: 14px;
+    height: 40px;
     box-sizing: border-box;
 }
 
-select { height: 36px; }
+/* Keep selects aligned with inputs */
+select { height: 40px; }
 
 form > div { display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; }
 form > div label { width: 120px; text-align: right; margin: 0; font-weight: bold; }
@@ -831,10 +852,29 @@ button.pct-positive:hover {
 
 
 
-/* List containers: crypto, stock, transactions, wallets */
-#cryptoList, #stockList, #transList, #walletList, #settingsList { display: grid; grid-template-columns: 1fr 1fr; column-gap: 25px; padding: 0; }
+/*
+ * Base list reset.
+ * Each list (crypto/stock/trans/wallet) has its own layout rules below.
+ */
+#cryptoList,
+#loansList,
+#stockList,
+#transList,
+#walletList,
+#settingsList {
+    padding: 0;
+    margin: 0 auto;
+    width: 100%;
+}
 
-#cryptoList li, #stockList li, #transList li, #walletList li { background-color: #f0f0f0; padding: 25px; border: 1px solid #333; padding: 12px; border-radius: 10px; margin: 8px; list-style-type: none; width: 100%; max-width: 900px; box-sizing: border-box; box-shadow: 0 6px 12px #979797 }
+#cryptoList li,
+#loansList li,
+#stockList li,
+#transList li,
+#walletList li,
+#settingsList li {
+    list-style-type: none;
+}
 
 /* Crypto transaction history: force one transaction per row + lighter Wise-like card styling */
 #cryptoList {
@@ -959,6 +999,35 @@ button.pct-positive:hover {
     background: #f8f9fa;
 }
 
+/* Loans transaction history: match crypto/stock/trans history (one full-width row per transaction) */
+#loansList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    column-gap: 0;
+}
+
+#loansList li {
+    list-style-type: none;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    box-sizing: border-box;
+}
+
+#loansList li:hover {
+    background: #f8f9fa;
+}
+
 /* Wallets list: match crypto/transaction history card layout */
 #walletList {
     display: flex;
@@ -1077,6 +1146,41 @@ button.pct-positive:hover {
     align-self: center;
 }
 
+/* Reuse the same row typography/layout for loans history rows */
+#loansList .crypto-history-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px 14px;
+    align-items: start;
+}
+
+#loansList .crypto-history-title {
+    font-weight: 800;
+    color: #222;
+}
+
+#loansList .crypto-history-right {
+    text-align: right;
+}
+
+#loansList .crypto-history-amount {
+    font-weight: 800;
+    color: #222;
+}
+
+#loansList .crypto-history-sub {
+    color: #666;
+    font-weight: 600;
+    font-size: 13px;
+    margin-top: 2px;
+}
+
+#loansList .crypto-history-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-self: center;
+}
+
 /* Reuse the same row typography/layout for stock history rows */
 #stockList .crypto-history-row {
     display: grid;
@@ -1190,7 +1294,7 @@ button.pct-positive:hover {
     display: grid;
     grid-template-columns: 1fr 1fr;
     row-gap: 8px;
-    justify-items: end;
+    justify-items: stretch;
     width: 100%;
     max-width: 760px;
     margin: 0 auto;
@@ -1212,9 +1316,22 @@ button.pct-positive:hover {
 
 .block-new h2:not(.center-text), .block-update h2:not(.center-text) { font-size: 1.1rem; margin-bottom: 6px; }
 
-.block-new .form-container form input[type="text"], .block-new .form-container form input[type="datetime-local"], .block-new .form-container form select,
-.block-update .form-container form input[type="text"], .block-update .form-container form input[type="datetime-local"], .block-update .form-container form select {
-    width: 100%; padding: 8px 10px; font-size: 14px; box-sizing: border-box; max-width: 100vw;
+.block-new .form-container form input[type="text"],
+.block-new .form-container form input[type="password"],
+.block-new .form-container form input[type="number"],
+.block-new .form-container form input[type="datetime-local"],
+.block-new .form-container form select,
+.block-update .form-container form input[type="text"],
+.block-update .form-container form input[type="password"],
+.block-update .form-container form input[type="number"],
+.block-update .form-container form input[type="datetime-local"],
+.block-update .form-container form select {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+    height: 40px;
+    box-sizing: border-box;
+    max-width: 100vw;
 }
 
 /* Crypto totals cards */
@@ -1265,7 +1382,16 @@ button.pct-positive:hover {
     .block-new .form-container, .block-update .form-container { display: flex; flex-direction: column; align-items: center; padding: 0 16px; margin: 0 auto; }
     .block-new .form-container form, .block-update .form-container form { justify-content: center; grid-template-columns: 1fr; padding: 0; width: 100%; max-width: 320px; margin: 0 auto; }
     .block-new .form-container form > div label, .block-update .form-container form > div label { width: auto; text-align: left; font-size: 13px; }
-    .block-new .form-container form input[type="text"], .block-new .form-container form input[type="datetime-local"], .block-new .form-container form select, .block-update .form-container form input[type="text"], .block-update .form-container form input[type="datetime-local"], .block-update .form-container form select { width: 100%; max-width: none; }
+    .block-new .form-container form input[type="text"],
+    .block-new .form-container form input[type="password"],
+    .block-new .form-container form input[type="number"],
+    .block-new .form-container form input[type="datetime-local"],
+    .block-new .form-container form select,
+    .block-update .form-container form input[type="text"],
+    .block-update .form-container form input[type="password"],
+    .block-update .form-container form input[type="number"],
+    .block-update .form-container form input[type="datetime-local"],
+    .block-update .form-container form select { width: 100%; max-width: none; }
     /* keep list grid rule available on mobile as well */
     #cryptoList, #stockList, #transList, #walletList, #settingsList { display: flex; flex-direction: column; align-items: center; padding: 0; }    
 }
