@@ -65,7 +65,7 @@
                         <button type="button" class="app-subnav-link" data-stock-nav="history" onclick="stockHistoryDiv()">Transactions History</button>
                     </div>
                     {% endif %}
-                    <a class="app-nav-link" href="/loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>Loans</a>
+                    <a class="app-nav-link" href="/loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>Loan</a>
                     {% if request.path.startswith('/loans') %}
                     <div class="app-subnav app-subnav-inline" aria-label="Loans sections">
                         <button type="button" class="app-subnav-link" data-loans-nav="overview" onclick="showLoansOverview()">Overview</button>
@@ -127,7 +127,7 @@
                 <path d="M4 19h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 <path d="M6.5 15.5 10 12l3 2.2 4.5-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="sr-only">Stocks</span>
+            <span class="sr-only">Stock</span>
         </a>
         <a class="app-bottom-link" href="/loans" aria-label="Loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -136,7 +136,7 @@
                 <path d="M12.5 8.5h5.5a2.5 2.5 0 0 1 2.5 2.5v5a2.5 2.5 0 0 1-2.5 2.5h-5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 <path d="M14.5 12a1.5 1.5 0 1 0 0.01 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
             </svg>
-            <span class="sr-only">Loans</span>
+            <span class="sr-only">Loan</span>
         </a>
         <a class="app-bottom-link" href="/wallet" aria-label="Wallets" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
