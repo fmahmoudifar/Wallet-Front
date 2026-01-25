@@ -1028,6 +1028,24 @@ button.pct-positive:hover {
     background: #f8f9fa;
 }
 
+#loansList li.crypto-group-header {
+    padding: 6px 4px;
+    margin: 8px 0 -4px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #666;
+    font-weight: 800;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+#loansList li.crypto-group-header:hover {
+    background: transparent;
+}
+
 /* Wallets list: match crypto/transaction history card layout */
 #walletList {
     display: flex;

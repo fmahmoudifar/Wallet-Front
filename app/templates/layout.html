@@ -68,7 +68,7 @@
                     <a class="app-nav-link" href="/loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>Loan</a>
                     {% if request.path.startswith('/loans') %}
                     <div class="app-subnav app-subnav-inline" aria-label="Loans sections">
-                        <button type="button" class="app-subnav-link" data-loans-nav="overview" onclick="showLoansOverview()">Overview</button>
+                        <button type="button" class="app-subnav-link" data-loans-nav="portfolio" onclick="showLoansOverview()">Overview</button>
                         <button type="button" class="app-subnav-link" data-loans-nav="new" onclick="showLoansNew()">New Transaction</button>
                         <button type="button" class="app-subnav-link" data-loans-nav="history" onclick="showLoansHistory()">Transactions History</button>
                     </div>

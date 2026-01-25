@@ -83,19 +83,35 @@ def create_loan_transaction():
     user_id = user.get('username')
     loan_id = str(uuid.uuid4())
 
+    from_wallet = (request.form.get('fromWallet', '') or '').strip()
+    to_wallet = (request.form.get('toWallet', '') or '').strip()
+    amount = (request.form.get('amount', '') or '').strip() or '0'
+    fee = (request.form.get('fee', '') or '').strip() or '0'
+    currency = (request.form.get('currency', '') or '').strip() or ((session.get('currency') or 'EUR').strip().upper() or 'EUR')
+
     data = {
         "loanId": loan_id,
         "userId": user_id,
         "type": request.form.get('type', ''),
         "status": request.form.get('status', ''),
         "counterparty": request.form.get('counterparty', ''),
-        "amount": request.form.get('amount', ''),
-        "currency": request.form.get('currency', ''),
-        "walletId": request.form.get('walletId', ''),
+        "amount": amount,
+        "currency": currency,
+        "fromWallet": from_wallet,
+        "toWallet": to_wallet,
+        "fee": fee,
         "tdate": request.form.get('tdate', ''),
         "dueDate": request.form.get('dueDate', ''),
         "note": request.form.get('note', ''),
     }
+
+    # Many backends treat empty-string optional fields as invalid (e.g., dates).
+    # Drop them from the payload so the API can interpret them as null/absent.
+    for k in ("fromWallet", "toWallet", "dueDate"):
+        if data.get(k) == "":
+            data.pop(k, None)
+
+    print(f"🔄 [Loans] Creating loan payload: {data}")
 
     try:
         resp = requests.post(f"{API_URL}/loan", json=data, auth=aws_auth, timeout=12)
@@ -107,11 +123,12 @@ def create_loan_transaction():
             detail = resp.json()
         except Exception:
             detail = {"text": resp.text}
-        print(f"[Loans] Create failed: {resp.status_code} {detail}")
-        return jsonify({"error": "Failed to create loan", "detail": detail}), 500
+        print(f"❌ [Loans] Create failed: {resp.status_code} detail={detail} text={resp.text}")
+        # Keep UX consistent with other pages: redirect back even on failure.
+        return redirect(url_for('loans.loans_page'))
     except Exception as e:
         print(f"[Loans] Create exception: {e}")
-        return jsonify({"error": "Internal Server Error"}), 500
+        return redirect(url_for('loans.loans_page'))
 
 
 @loans_bp.route('/updateLoan', methods=['POST'])
@@ -120,7 +137,14 @@ def update_loan_transaction():
     if not user:
         return redirect(url_for('home.home_page'))
 
-    user_id = user.get('username')
+    # Mirror the crypto/stock pattern: userId is submitted by the form.
+    user_id = (request.form.get('userId', '') or '').strip() or user.get('username')
+
+    from_wallet = (request.form.get('fromWallet', '') or '').strip()
+    to_wallet = (request.form.get('toWallet', '') or '').strip()
+    amount = (request.form.get('amount', '') or '').strip() or '0'
+    fee = (request.form.get('fee', '') or '').strip() or '0'
+    currency = (request.form.get('currency', '') or '').strip() or ((session.get('currency') or 'EUR').strip().upper() or 'EUR')
 
     data = {
         "loanId": request.form.get('loanId', ''),
@@ -128,24 +152,39 @@ def update_loan_transaction():
         "type": request.form.get('type', ''),
         "status": request.form.get('status', ''),
         "counterparty": request.form.get('counterparty', ''),
-        "amount": request.form.get('amount', ''),
-        "currency": request.form.get('currency', ''),
-        "walletId": request.form.get('walletId', ''),
+        "amount": amount,
+        "currency": currency,
+        "fromWallet": from_wallet,
+        "toWallet": to_wallet,
+        "fee": fee,
         "tdate": request.form.get('tdate', ''),
         "dueDate": request.form.get('dueDate', ''),
         "note": request.form.get('note', ''),
     }
 
+    # Many backends treat empty-string optional fields as invalid (e.g., dates).
+    # Drop them from the payload so the API can interpret them as null/absent.
+    for k in ("fromWallet", "toWallet", "dueDate"):
+        if data.get(k) == "":
+            data.pop(k, None)
+
+    print(f"🔄 [Loans] Updating loan payload: {data}")
+
     try:
         response = requests.patch(f"{API_URL}/loan", json=data, auth=aws_auth, timeout=12)
         try:
-            print(f"✅ [Loans] Update Response: {response.status_code}, JSON: {response.json()}")
+            j = response.json()
         except Exception:
-            print(f"✅ [Loans] Update Response: {response.status_code}, Text: {response.text}")
+            j = None
+
+        print(f"✅ [Loans] Update Response: {response.status_code}, JSON: {j}")
+        if response.status_code not in (200, 201):
+            print(f"❌ [Loans] Update failed. Text: {response.text}")
+        # Keep UX consistent with other pages: always redirect back.
         return redirect(url_for('loans.loans_page'))
     except Exception as e:
         print(f"❌ [Loans] Failed to update loan: {str(e)}")
-        return jsonify({"error": "Internal Server Error"}), 500
+        return redirect(url_for('loans.loans_page'))
 
 
 @loans_bp.route('/deleteloan/<loan_id>', methods=['POST'])

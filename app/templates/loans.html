@@ -7,16 +7,16 @@
 {% if session.get('user') %}
 
 <div class="crypto-page-header">
-    <h1 class="crypto-page-title">Borrow &amp; Lend</h1>
+    <h1 id="loansPageTitle" class="crypto-page-title">Borrow &amp; Lend</h1>
 </div>
 
 <div class="app-subnav app-subnav-mobile" aria-label="Loans sections">
-    <button type="button" class="app-subnav-link" data-loans-nav="overview" onclick="showLoansOverview()">Overview</button>
-    <button type="button" class="app-subnav-link" data-loans-nav="new" onclick="showLoansNew()">New Transaction</button>
-    <button type="button" class="app-subnav-link" data-loans-nav="history" onclick="showLoansHistory()">Transactions History</button>
+    <button type="button" class="app-subnav-link" data-loans-nav="portfolio" onclick="showLoansPortfolio()">Overview</button>
+    <button type="button" class="app-subnav-link" data-loans-nav="new" onclick="showLoansNew()">New</button>
+    <button type="button" class="app-subnav-link" data-loans-nav="history" onclick="showLoansHistory()">History</button>
 </div>
 
-<div id="loansOverviewDiv" class="form-container">
+<div id="panel" class="panel" style="padding:12px;margin-bottom:12px;">
     <div class="totals-card" style="width:100%;max-width:1100px;">
         <div class="crypto-page-title" style="margin:0 0 6px 0;">Overview</div>
         <div class="small-muted">Track who owes you, what you owe, and due dates.</div>
@@ -34,10 +34,10 @@
     </div>
 </div>
 
-<div id="loansNewDiv" class="block-new" style="display:none;">
+<div id="newLoan" class="block-new" style="display: none;">
     <h2 class="center-text" style="display:none;">Add New Transaction</h2>
     <div class="form-container">
-        <form action="/loans" method="POST">
+        <form id="createLoanForm" action="/loans" method="POST">
             <div>
                 <label for="loansType">Type</label>
                 <select id="loansType" name="type">
@@ -57,7 +57,7 @@
 
             <div>
                 <label for="loansCounterparty">Counterparty</label>
-                <input id="loansCounterparty" type="text" name="counterparty" placeholder="Name">
+                <input id="loansCounterparty" type="text" name="counterparty" placeholder="Name" required>
             </div>
 
             <div>
@@ -75,8 +75,18 @@
             </div>
 
             <div>
-                <label for="loansWalletId">Wallet (optional)</label>
-                <select id="loansWalletId" name="walletId">
+                <label for="fromWallet">From Wallet:</label>
+                <select name="fromWallet" id="fromWallet">
+                    <option value="">-- Select Wallet --</option>
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
+                        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="toWallet">To Wallet:</label>
+                <select name="toWallet" id="toWallet" required>
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
                         <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
@@ -100,28 +110,33 @@
             </div>
 
             <div>
+                <label for="loansFee">Fee:</label>
+                <input id="loansFee" type="number" name="fee" step="any" inputmode="decimal" placeholder="0">
+            </div>
+
+            <div>
                 <button type="submit" class="btn-insert pct-positive">Insert</button>
                 <button type="reset" class="btn-clear">Clear</button>
-                <button type="button" class="btn-cancel" onclick="showLoansOverview()">Cancel</button>
+                <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
             </div>
         </form>
     </div>
 </div>
 
-<div id="loansHistoryDiv" class="form-container" style="display:none;">
+<div id="loansListDiv" class="form-container" style="display: none;" >
     <div id="loansFilters" class="history-filters" style="width:100%;max-width:1100px;">
-        <form class="filters-grid" onsubmit="return false;">
+        <form class="filters-grid" onsubmit="applyLoansFilters(); return false;">
             <div>
-                <label for="loansFilterStart">From Date:</label>
-                <input type="text" id="loansFilterStart" name="start" data-dt-picker="1">
+                <label for="filterStart">From Date:</label>
+                <input type="text" id="filterStart" name="start" data-dt-picker="1">
             </div>
             <div>
-                <label for="loansFilterEnd">To Date:</label>
-                <input type="text" id="loansFilterEnd" name="end" data-dt-picker="1">
+                <label for="filterEnd">To Date:</label>
+                <input type="text" id="filterEnd" name="end" data-dt-picker="1">
             </div>
             <div>
-                <label for="loansFilterType">Type:</label>
-                <select id="loansFilterType" name="type">
+                <label for="filterType">Type:</label>
+                <select id="filterType" name="type">
                     <option value="">-- All --</option>
                     <option value="borrow">Borrow</option>
                     <option value="lend">Lend</option>
@@ -129,18 +144,41 @@
                 </select>
             </div>
             <div>
-                <label for="loansFilterParty">Counterparty:</label>
-                <input type="text" id="loansFilterParty" name="party" placeholder="Contains..." autocomplete="off" />
+                <label for="filterParty">Counterparty:</label>
+                <input type="text" id="filterParty" name="party" placeholder="Contains..." autocomplete="off" />
             </div>
             <div>
-                <label for="loansFilterNote">Note:</label>
-                <input type="text" id="loansFilterNote" name="note" placeholder="Contains..." autocomplete="off" />
+                <label for="filterNote">Note:</label>
+                <input type="text" id="filterNote" name="note" placeholder="Contains..." autocomplete="off" />
+            </div>
+            <div>
+                <label for="filterFromWallet">From Wallet:</label>
+                <select id="filterFromWallet" name="fromWallet">
+                    <option value="">-- Any --</option>
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="filterToWallet">To Wallet:</label>
+                <select id="filterToWallet" name="toWallet">
+                    <option value="">-- Any --</option>
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="filters-actions">
                 <button type="button" class="btn-clear" onclick="resetLoansFilters()">Clear</button>
             </div>
         </form>
-        <div id="loansFilterEmptyMsg" class="small-muted" style="display:none;margin-top:8px">No matching transactions.</div>
+        <div id="filterEmptyMsg" class="small-muted" style="display:none;margin-top:8px">No matching transactions.</div>
+        <div id="loansPagination" class="pagination-controls" style="display:none;margin-top:10px">
+            <button id="loansPrevPage" type="button" class="btn-clear" onclick="loansGoToPrevPage()">Prev</button>
+            <div id="loansPageInfo" class="small-muted" style="min-width:140px;text-align:center">Page 1 of 1</div>
+            <button id="loansNextPage" type="button" class="btn-clear" onclick="loansGoToNextPage()">Next</button>
+        </div>
     </div>
 
     {% if loans and loans|length %}
@@ -163,13 +201,14 @@
         {% set _wallet_id = tx.walletId|default('', true) %}
         {% set _tdate = tx.tdate|default('', true) %}
         {% set _due = tx.dueDate|default('', true) %}
-        <li data-loanid="{{ _loan_id }}" data-userid="{{ _uid }}" data-type="{{ _type }}" data-status="{{ _status }}" data-party="{{ _party }}" data-amount="{{ _amount }}" data-currency="{{ _currency }}" data-walletid="{{ _wallet_id }}" data-tdate="{{ _tdate }}" data-duedate="{{ _due }}" data-note="{{ _note }}" data-from="{{ tx.fromWallet|default('') }}" data-to="{{ tx.toWallet|default('') }}">
+        {% set _fee = tx.fee|default(0, true) %}
+        {% set _from = '' if (tx.fromWallet|default('', true)) == 'None' else (tx.fromWallet|default('', true)) %}
+        {% set _to = '' if (tx.toWallet|default('', true)) == 'None' else (tx.toWallet|default('', true)) %}
+        <li data-id="{{ _loan_id }}" data-userid="{{ _uid }}" data-tdate="{{ _tdate }}" data-type="{{ _type }}" data-status="{{ _status }}" data-party="{{ _party }}" data-amount="{{ _amount }}" data-currency="{{ _currency }}" data-walletid="{{ _wallet_id }}" data-duedate="{{ _due }}" data-fee="{{ _fee }}" data-note="{{ _note }}" data-from="{{ _from }}" data-to="{{ _to }}">
             <div class="crypto-history-row">
                 <div class="crypto-history-left">
-                    <div class="crypto-history-title">{{ _party if _party else _type }}</div>
+                    <div class="crypto-history-title">{{ _party if _party else '—' }}</div>
                     <div class="crypto-history-sub">{{ _type }}{% if _status %} • {{ _status }}{% endif %}</div>
-                    {% set _from = tx.fromWallet|default('', true) %}
-                    {% set _to = tx.toWallet|default('', true) %}
                     {% set fromName = walletNameById.get(_from, _from) %}
                     {% set toName = walletNameById.get(_to, _to) %}
                     {% if fromName or toName %}
@@ -179,6 +218,9 @@
 
                 <div class="crypto-history-right">
                     <div class="crypto-history-amount">{{ _amount }}{% if _currency %} {{ _currency }}{% endif %}</div>
+                    {% if _fee and _fee != 0 and _fee != '0' %}
+                    <div class="crypto-history-sub">Fee: {{ _fee }}{% if _currency %} {{ _currency }}{% endif %}</div>
+                    {% endif %}
                     {% if _note %}
                     <div class="crypto-history-sub">{{ _note }}</div>
                     {% endif %}
@@ -199,11 +241,12 @@
     {% endif %}
 </div>
 
-<div id="updateLoanDiv" class="block-update" style="display:none;">
+<div id="updateLoanDiv" class="block-update" style="display: none;">
+    <h2 class="center-text" style="display:none;">Update Loan Transaction</h2>
     <div class="form-container">
-        <form id="updateLoanForm" action="/updateLoan" method="POST">
+        <form id="updateForm" action="/updateLoan" method="POST">
             <input type="hidden" id="updateLoanId" name="loanId" />
-            <input type="hidden" id="updateLoanUserId" name="userId" />
+            <input type="hidden" id="updateUserId" name="userId" />
 
             <div>
                 <label for="updateLoansType">Type</label>
@@ -224,7 +267,7 @@
 
             <div>
                 <label for="updateLoansCounterparty">Counterparty</label>
-                <input id="updateLoansCounterparty" type="text" name="counterparty" placeholder="Name" />
+                <input id="updateLoansCounterparty" type="text" name="counterparty" placeholder="Name" required />
             </div>
 
             <div>
@@ -242,8 +285,18 @@
             </div>
 
             <div>
-                <label for="updateLoansWalletId">Wallet (optional)</label>
-                <select id="updateLoansWalletId" name="walletId">
+                <label for="updateFromWallet">From Wallet:</label>
+                <select name="fromWallet" id="updateFromWallet">
+                    <option value="">-- Select Wallet --</option>
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
+                        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="updateToWallet">To Wallet:</label>
+                <select name="toWallet" id="updateToWallet" required>
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
                         <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
@@ -266,53 +319,303 @@
                 <input id="updateLoansNote" type="text" name="note" placeholder="Optional" />
             </div>
 
+            <div>
+                <label for="updateFee">Fee:</label>
+                <input type="number" id="updateFee" name="fee" step="any" inputmode="decimal" placeholder="0">
+            </div>
+
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                <button type="submit" class="btn-insert pct-positive">Update</button>
-                <button type="submit" class="btn-clear">Delete</button>
-                <button type="button" class="btn-cancel" onclick="cancelLoanUpdate()">Cancel</button>
+                <button type="submit" class="btn-insert pct-positive">Save</button>
+                <button type="submit" form="deleteForm" class="btn-delete" onclick="return confirm('Are you sure?')">Delete</button>
+                <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
             </div>
         </form>
-
-        <form id="deleteLoanForm" method="POST" style="margin-top:10px;">
-        </form>
     </div>
+
+    <form id="deleteForm" method="POST"></form>
 </div>
 
 <script>
-    function setLoansActive(tab) {
-        const all = document.querySelectorAll('[data-loans-nav]');
-        all.forEach(b => b.classList.remove('is-active'));
-        const btn = document.querySelector('[data-loans-nav="' + tab + '"]');
-        if (btn) btn.classList.add('is-active');
+    function setLoansNavVisibility(activeView) {
+        const btns = Array.from(document.querySelectorAll('[data-loans-nav]'));
+        btns.forEach(btn => {
+            const v = String(btn.getAttribute('data-loans-nav') || '').trim();
+            const isActive = (v && v === String(activeView || ''));
+            if (isActive) btn.setAttribute('aria-current', 'page');
+            else btn.removeAttribute('aria-current');
+            btn.classList.toggle('is-active', isActive);
+        });
     }
 
-    function showLoansOverview() {
-        document.getElementById('loansOverviewDiv').style.display = '';
-        document.getElementById('loansNewDiv').style.display = 'none';
-        document.getElementById('loansHistoryDiv').style.display = 'none';
-        setLoansActive('overview');
+    function showLoansPortfolio() {
+        const title = document.getElementById('loansPageTitle');
+        const panel = document.getElementById('panel');
+        const listDiv = document.getElementById('loansListDiv');
+        const newDiv = document.getElementById('newLoan');
+        const updateDiv = document.getElementById('updateLoanDiv');
+
+        if (title) title.innerText = 'Borrow & Lend';
+        if (panel) panel.style.display = 'block';
+        if (listDiv) listDiv.style.display = 'none';
+        if (newDiv) newDiv.style.display = 'none';
+        if (updateDiv) updateDiv.style.display = 'none';
+
+        setLoansNavVisibility('portfolio');
     }
+
     function showLoansNew() {
-        document.getElementById('loansOverviewDiv').style.display = 'none';
-        document.getElementById('loansNewDiv').style.display = '';
-        document.getElementById('loansHistoryDiv').style.display = 'none';
-        setLoansActive('new');
-    }
-    function showLoansHistory() {
-        document.getElementById('loansOverviewDiv').style.display = 'none';
-        document.getElementById('loansNewDiv').style.display = 'none';
-        document.getElementById('loansHistoryDiv').style.display = '';
-        const upd = document.getElementById('updateLoanDiv');
-        if (upd) upd.style.display = 'none';
-        setLoansActive('history');
+        const title = document.getElementById('loansPageTitle');
+        const panel = document.getElementById('panel');
+        const listDiv = document.getElementById('loansListDiv');
+        const newDiv = document.getElementById('newLoan');
+        const updateDiv = document.getElementById('updateLoanDiv');
+
+        if (title) title.innerText = 'New Loan Transaction';
+        if (newDiv) newDiv.style.display = 'block';
+        if (updateDiv) updateDiv.style.display = 'none';
+        if (panel) panel.style.display = 'none';
+        if (listDiv) listDiv.style.display = 'none';
+
+        setLoansNavVisibility('new');
     }
 
+    function showLoansHistory() {
+        const title = document.getElementById('loansPageTitle');
+        const panel = document.getElementById('panel');
+        const listDiv = document.getElementById('loansListDiv');
+        const newDiv = document.getElementById('newLoan');
+        const updateDiv = document.getElementById('updateLoanDiv');
+
+        if (title) title.innerText = 'Loans Transactions History';
+        if (listDiv) listDiv.style.display = 'block';
+        if (newDiv) newDiv.style.display = 'none';
+        if (updateDiv) updateDiv.style.display = 'none';
+        if (panel) panel.style.display = 'none';
+
+        setLoansNavVisibility('history');
+        if (typeof applyLoansFilters === 'function') { applyLoansFilters(); }
+    }
+
+    function showLoansUpdate() {
+        const title = document.getElementById('loansPageTitle');
+        const panel = document.getElementById('panel');
+        const listDiv = document.getElementById('loansListDiv');
+        const newDiv = document.getElementById('newLoan');
+        const updateDiv = document.getElementById('updateLoanDiv');
+
+        if (title) title.innerText = 'Update Loan Transaction';
+        if (updateDiv) updateDiv.style.display = 'block';
+        if (newDiv) newDiv.style.display = 'none';
+        if (listDiv) listDiv.style.display = 'none';
+        if (panel) panel.style.display = 'none';
+
+        setLoansNavVisibility('update');
+    }
+
+    // Keep old name for sidebar submenu compatibility
+    function showLoansOverview() { showLoansPortfolio(); }
     window.showLoansOverview = showLoansOverview;
+    window.showLoansPortfolio = showLoansPortfolio;
     window.showLoansNew = showLoansNew;
     window.showLoansHistory = showLoansHistory;
 
+    function editLoan(loanId, userId, type, status, counterparty, amount, currency, fromWallet, toWallet, fee, tdate, dueDate, note) {
+        document.getElementById('updateLoanId').value = loanId || '';
+        document.getElementById('updateUserId').value = userId || '';
+        document.getElementById('updateLoansType').value = (type || 'loan');
+        document.getElementById('updateLoansStatus').value = (status || 'open');
+        document.getElementById('updateLoansCounterparty').value = counterparty || '';
+        document.getElementById('updateLoansAmount').value = amount || '';
+        if (currency) document.getElementById('updateLoansCurrency').value = String(currency).toUpperCase();
+        document.getElementById('updateFromWallet').value = (fromWallet && String(fromWallet) !== 'None') ? fromWallet : '';
+        document.getElementById('updateToWallet').value = (toWallet && String(toWallet) !== 'None') ? toWallet : '';
+        const feeEl = document.getElementById('updateFee');
+        if (feeEl) feeEl.value = (fee != null ? fee : '');
+
+        {
+            const el = document.getElementById('updateLoansDate');
+            if (el && el._flatpickr) el._flatpickr.setDate(tdate, false, 'Y-m-d\\TH:i');
+            else if (el) el.value = tdate || '';
+        }
+        {
+            const el = document.getElementById('updateLoansDueDate');
+            if (el && el._flatpickr) el._flatpickr.setDate(dueDate, false, 'Y-m-d\\TH:i');
+            else if (el) el.value = dueDate || '';
+        }
+
+        document.getElementById('updateLoansNote').value = note || '';
+        document.getElementById('deleteForm').action = `/deleteloan/${encodeURIComponent(loanId || '')}`;
+        showLoansUpdate();
+    }
+    window.editLoan = editLoan;
+
+    function editLoanFromRow(buttonEl) {
+        const li = buttonEl?.closest('li[data-id]');
+        if (!li) return;
+        editLoan(
+            li.dataset.id,
+            li.dataset.userid,
+            li.dataset.type,
+            li.dataset.status,
+            li.dataset.party,
+            li.dataset.amount,
+            li.dataset.currency,
+            li.dataset.from,
+            li.dataset.to,
+            li.dataset.fee,
+            li.dataset.tdate,
+            li.dataset.duedate,
+            li.dataset.note
+        );
+    }
+    window.editLoanFromRow = editLoanFromRow;
+
+    // Utilities for history filtering/pagination/month grouping (mirrors Crypto)
+    function parseLocalDateTime(val) {
+        if (!val) return null;
+        try { return new Date(val); } catch(e) { return null; }
+    }
+    function parseTxDate(val) {
+        if (!val) return null;
+        let s = String(val);
+        let d = new Date(s);
+        if (isNaN(d)) d = new Date(s.replace(' ', 'T'));
+        return isNaN(d) ? null : d;
+    }
+    function monthKeyFromDate(d) {
+        if (!d || isNaN(d)) return 'unknown';
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+    }
+    function monthLabelFromDate(d) {
+        if (!d || isNaN(d)) return 'Unknown date';
+        try {
+            return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+        } catch (e) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        }
+    }
+    function buildLoansMonthGroups() {
+        const list = document.getElementById('loansList');
+        if (!list) return;
+        list.querySelectorAll('li.crypto-group-header').forEach(h => h.remove());
+        const txItems = Array.from(list.querySelectorAll('li[data-tdate]'));
+        if (!txItems.length) return;
+        let currentKey = null;
+        txItems.forEach(li => {
+            const d = parseTxDate(li.getAttribute('data-tdate'));
+            const key = monthKeyFromDate(d);
+            li.setAttribute('data-group', key);
+            if (key !== currentKey) {
+                const header = document.createElement('li');
+                header.className = 'crypto-group-header';
+                header.setAttribute('data-group', key);
+                header.textContent = monthLabelFromDate(d);
+                list.insertBefore(header, li);
+                currentKey = key;
+            }
+        });
+    }
+    function syncLoansGroupHeaders() {
+        const list = document.getElementById('loansList');
+        if (!list) return;
+        const headers = Array.from(list.querySelectorAll('li.crypto-group-header'));
+        if (!headers.length) return;
+        const txItems = Array.from(list.querySelectorAll('li[data-tdate]'));
+        headers.forEach(h => {
+            const key = h.getAttribute('data-group') || '';
+            const anyVisible = txItems.some(li => {
+                if ((li.getAttribute('data-group') || '') !== key) return false;
+                return li.style.display !== 'none';
+            });
+            h.style.display = anyVisible ? '' : 'none';
+        });
+    }
+    function ensureLoansGroupsBuilt(force) {
+        const list = document.getElementById('loansList');
+        if (!list) return;
+        const hasHeaders = !!list.querySelector('li.crypto-group-header');
+        if (force || !hasHeaders) buildLoansMonthGroups();
+        syncLoansGroupHeaders();
+    }
+
+    function applyLoansFilters() {
+        const list = document.getElementById('loansList');
+        if (!list) return;
+        ensureLoansGroupsBuilt(false);
+        const items = Array.from(list.querySelectorAll('li[data-tdate]'));
+        const startVal = document.getElementById('filterStart')?.value || '';
+        const endVal = document.getElementById('filterEnd')?.value || '';
+        const typeVal = (document.getElementById('filterType')?.value || '').trim().toLowerCase();
+        const partyVal = (document.getElementById('filterParty')?.value || '').trim().toLowerCase();
+        const noteVal = (document.getElementById('filterNote')?.value || '').trim().toLowerCase();
+        const fromVal = String(document.getElementById('filterFromWallet')?.value || '').trim();
+        const toVal = String(document.getElementById('filterToWallet')?.value || '').trim();
+        const startDt = parseLocalDateTime(startVal);
+        const endDt = parseLocalDateTime(endVal);
+
+        if (window.loansPageSize == null) window.loansPageSize = 20;
+        if (window.loansCurrentPage == null) window.loansCurrentPage = 1;
+
+        function itemMatches(li) {
+            let show = true;
+            const tdate = parseTxDate(li.getAttribute('data-tdate'));
+            if (startDt && tdate && tdate < startDt) show = false;
+            if (endDt && tdate && tdate > endDt) show = false;
+            if ((startDt || endDt) && !tdate) show = false;
+
+            if (show && typeVal) {
+                const t = (li.getAttribute('data-type') || '').toLowerCase();
+                if (!t.includes(typeVal)) show = false;
+            }
+            if (show && partyVal) {
+                const p = (li.getAttribute('data-party') || '').toLowerCase();
+                if (!p.includes(partyVal)) show = false;
+            }
+            if (show && noteVal) {
+                const n = (li.getAttribute('data-note') || '').toLowerCase();
+                if (!n.includes(noteVal)) show = false;
+            }
+            if (show && fromVal) {
+                const f = String(li.getAttribute('data-from') || '').trim();
+                if (f !== fromVal) show = false;
+            }
+            if (show && toVal) {
+                const t = String(li.getAttribute('data-to') || '').trim();
+                if (t !== toVal) show = false;
+            }
+            return show;
+        }
+
+        const matching = items.filter(itemMatches);
+        const total = matching.length;
+        const pageSize = Number(window.loansPageSize) || 20;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        window.loansCurrentPage = Math.min(Math.max(1, Number(window.loansCurrentPage) || 1), totalPages);
+
+        items.forEach(li => { li.style.display = 'none'; });
+        const startIdx = (window.loansCurrentPage - 1) * pageSize;
+        const endIdx = startIdx + pageSize;
+        matching.slice(startIdx, endIdx).forEach(li => { li.style.display = ''; });
+        syncLoansGroupHeaders();
+
+        const emptyMsg = document.getElementById('filterEmptyMsg');
+        if (emptyMsg) emptyMsg.style.display = total ? 'none' : '';
+
+        const pager = document.getElementById('loansPagination');
+        const pageInfo = document.getElementById('loansPageInfo');
+        const prevBtn = document.getElementById('loansPrevPage');
+        const nextBtn = document.getElementById('loansNextPage');
+        if (pager) pager.style.display = total ? '' : 'none';
+        if (pageInfo) pageInfo.textContent = `Page ${window.loansCurrentPage} of ${totalPages}`;
+        if (prevBtn) prevBtn.disabled = window.loansCurrentPage <= 1;
+        if (nextBtn) nextBtn.disabled = window.loansCurrentPage >= totalPages;
+    }
+    window.applyLoansFilters = applyLoansFilters;
+
     function resetLoansFilters() {
-        ['loansFilterStart','loansFilterEnd','loansFilterType','loansFilterParty','loansFilterNote'].forEach(id => {
+        ['filterStart','filterEnd','filterType','filterParty','filterNote','filterFromWallet','filterToWallet'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             if (el._flatpickr) {
@@ -322,67 +625,56 @@
             if (el.tagName === 'SELECT') el.selectedIndex = 0;
             else el.value = '';
         });
-        const msg = document.getElementById('loansFilterEmptyMsg');
-        if (msg) msg.style.display = 'none';
+        window.loansCurrentPage = 1;
+        applyLoansFilters();
     }
     window.resetLoansFilters = resetLoansFilters;
 
-    function showLoanUpdate() {
-        document.getElementById('loansOverviewDiv').style.display = 'none';
-        document.getElementById('loansNewDiv').style.display = 'none';
-        document.getElementById('loansHistoryDiv').style.display = 'none';
-        document.getElementById('updateLoanDiv').style.display = '';
-        setLoansActive('history');
+    function loansGoToPrevPage() {
+        window.loansCurrentPage = Math.max(1, (Number(window.loansCurrentPage) || 1) - 1);
+        applyLoansFilters();
     }
-
-    function cancelLoanUpdate() {
-        const upd = document.getElementById('updateLoanDiv');
-        if (upd) upd.style.display = 'none';
-        showLoansHistory();
+    function loansGoToNextPage() {
+        window.loansCurrentPage = (Number(window.loansCurrentPage) || 1) + 1;
+        applyLoansFilters();
     }
-    window.cancelLoanUpdate = cancelLoanUpdate;
+    window.loansGoToPrevPage = loansGoToPrevPage;
+    window.loansGoToNextPage = loansGoToNextPage;
 
-    function editLoan(loanId, userId, type, status, counterparty, amount, currency, walletId, tdate, dueDate, note) {
-        document.getElementById('updateLoanId').value = loanId || '';
-        document.getElementById('updateLoanUserId').value = userId || '';
-        document.getElementById('updateLoansType').value = (type || 'loan');
-        document.getElementById('updateLoansStatus').value = (status || 'open');
-        document.getElementById('updateLoansCounterparty').value = counterparty || '';
-        document.getElementById('updateLoansAmount').value = amount || '';
-        if (currency) document.getElementById('updateLoansCurrency').value = String(currency).toUpperCase();
-        document.getElementById('updateLoansWalletId').value = walletId || '';
-        document.getElementById('updateLoansDate').value = tdate || '';
-        document.getElementById('updateLoansDueDate').value = dueDate || '';
-        document.getElementById('updateLoansNote').value = note || '';
+    document.addEventListener('DOMContentLoaded', function() {
+        // Sort newest-first, then build month headers
+        const list = document.getElementById('loansList');
+        if (list && list.children && list.children.length) {
+            const items = Array.from(list.querySelectorAll('li[data-tdate]'));
+            if (items.length > 1) {
+                items.sort((a, b) => {
+                    let dateA = new Date(a.getAttribute('data-tdate') || 0);
+                    let dateB = new Date(b.getAttribute('data-tdate') || 0);
+                    return dateB - dateA;
+                });
+                items.forEach(item => list.appendChild(item));
+            }
+            ensureLoansGroupsBuilt(true);
+        }
 
-        const del = document.getElementById('deleteLoanForm');
-        if (del && loanId) del.action = `/deleteloan/${encodeURIComponent(loanId)}`;
+        const fStart = document.getElementById('filterStart');
+        const fEnd = document.getElementById('filterEnd');
+        const fType = document.getElementById('filterType');
+        const fParty = document.getElementById('filterParty');
+        const fNote = document.getElementById('filterNote');
+        const fFrom = document.getElementById('filterFromWallet');
+        const fTo = document.getElementById('filterToWallet');
+        ['input','change'].forEach(evt => {
+            if (fStart) fStart.addEventListener(evt, applyLoansFilters);
+            if (fEnd) fEnd.addEventListener(evt, applyLoansFilters);
+            if (fType) fType.addEventListener(evt, applyLoansFilters);
+            if (fParty) fParty.addEventListener(evt, applyLoansFilters);
+            if (fNote) fNote.addEventListener(evt, applyLoansFilters);
+            if (fFrom) fFrom.addEventListener(evt, applyLoansFilters);
+            if (fTo) fTo.addEventListener(evt, applyLoansFilters);
+        });
 
-        showLoanUpdate();
-    }
-    window.editLoan = editLoan;
-
-    function editLoanFromRow(buttonEl) {
-        const li = buttonEl?.closest('li[data-loanid]');
-        if (!li) return;
-        editLoan(
-            li.dataset.loanid,
-            li.dataset.userid,
-            li.dataset.type,
-            li.dataset.status,
-            li.dataset.party,
-            li.dataset.amount,
-            li.dataset.currency,
-            li.dataset.walletid,
-            li.dataset.tdate,
-            li.dataset.duedate,
-            li.dataset.note
-        );
-    }
-    window.editLoanFromRow = editLoanFromRow;
-
-    document.addEventListener('DOMContentLoaded', function () {
-        showLoansOverview();
+        showLoansPortfolio();
     });
 </script>
 
