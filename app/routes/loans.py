@@ -44,24 +44,42 @@ def loans_page():
         print(f"Error fetching wallets: {e}")
         wallets = []
 
-    # --- Overview totals (simple, based on loan type) ---
+    # --- Overview totals (based on type + action) ---
+    # type: borrow|lend
+    # action: new|repay
+    # lend+new   => you will receive more
+    # lend+repay => you will receive less
+    # borrow+new => you owe more
+    # borrow+repay => you owe less
     receive_total = Decimal(0)
     owe_total = Decimal(0)
     base_currency = (session.get('currency') or 'EUR').strip().upper() or 'EUR'
     try:
         for row in (loans or []):
             t = str(row.get('type') or '').strip().lower()
-            status = str(row.get('status') or '').strip().lower()
-            # Count only open items by default for overview.
-            if status and status not in ('open', 'pending'):
-                continue
+            if t == 'loan':
+                t = 'borrow'
+            action = str(row.get('action') or '').strip().lower() or 'new'
             amt = _to_decimal(row.get('amount'))
+
             if t == 'lend':
-                receive_total += amt
+                if action == 'repay':
+                    receive_total -= amt
+                else:
+                    receive_total += amt
             elif t == 'borrow':
-                owe_total += amt
+                if action == 'repay':
+                    owe_total -= amt
+                else:
+                    owe_total += amt
     except Exception:
         receive_total = Decimal(0)
+        owe_total = Decimal(0)
+
+    # Avoid showing negative totals if repayments exceed borrows/lends.
+    if receive_total < 0:
+        receive_total = Decimal(0)
+    if owe_total < 0:
         owe_total = Decimal(0)
 
     return render_template(
@@ -89,11 +107,16 @@ def create_loan_transaction():
     fee = (request.form.get('fee', '') or '').strip() or '0'
     currency = (request.form.get('currency', '') or '').strip() or ((session.get('currency') or 'EUR').strip().upper() or 'EUR')
 
+    tx_type = (request.form.get('type', '') or '').strip().lower()
+    if tx_type == 'loan':
+        tx_type = 'borrow'
+    action = (request.form.get('action', '') or '').strip().lower() or 'new'
+
     data = {
         "loanId": loan_id,
         "userId": user_id,
-        "type": request.form.get('type', ''),
-        "status": request.form.get('status', ''),
+        "type": tx_type,
+        "action": action,
         "counterparty": request.form.get('counterparty', ''),
         "amount": amount,
         "currency": currency,
@@ -146,11 +169,16 @@ def update_loan_transaction():
     fee = (request.form.get('fee', '') or '').strip() or '0'
     currency = (request.form.get('currency', '') or '').strip() or ((session.get('currency') or 'EUR').strip().upper() or 'EUR')
 
+    tx_type = (request.form.get('type', '') or '').strip().lower()
+    if tx_type == 'loan':
+        tx_type = 'borrow'
+    action = (request.form.get('action', '') or '').strip().lower() or 'new'
+
     data = {
         "loanId": request.form.get('loanId', ''),
         "userId": user_id,
-        "type": request.form.get('type', ''),
-        "status": request.form.get('status', ''),
+        "type": tx_type,
+        "action": action,
         "counterparty": request.form.get('counterparty', ''),
         "amount": amount,
         "currency": currency,

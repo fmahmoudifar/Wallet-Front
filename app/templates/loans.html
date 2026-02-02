@@ -40,18 +40,17 @@
         <form id="createLoanForm" action="/loans" method="POST">
             <div>
                 <label for="loansType">Type</label>
-                <select id="loansType" name="type">
-                    <option value="borrow">Borrow</option>
+                <select id="loansType" name="type" required>
+                    <option value="borrow">Borrow (Loan)</option>
                     <option value="lend">Lend</option>
-                    <option value="loan">Loan</option>
                 </select>
             </div>
 
             <div>
-                <label for="loansStatus">Status</label>
-                <select id="loansStatus" name="status">
-                    <option value="open">Open</option>
-                    <option value="paid">Paid</option>
+                <label for="loansAction">Action</label>
+                <select id="loansAction" name="action" required>
+                    <option value="new">New</option>
+                    <option value="repay">Repay</option>
                 </select>
             </div>
 
@@ -74,7 +73,7 @@
                 </select>
             </div>
 
-            <div>
+            <div id="loansFromWalletRow">
                 <label for="fromWallet">From Wallet:</label>
                 <select name="fromWallet" id="fromWallet">
                     <option value="">-- Select Wallet --</option>
@@ -84,9 +83,9 @@
                 </select>
             </div>
 
-            <div>
+            <div id="loansToWalletRow">
                 <label for="toWallet">To Wallet:</label>
-                <select name="toWallet" id="toWallet" required>
+                <select name="toWallet" id="toWallet">
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
                         <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
@@ -99,7 +98,7 @@
                 <input id="loansDate" type="text" name="tdate" data-dt-picker="1" placeholder="Select date" required>
             </div>
 
-            <div>
+            <div id="loansDueDateRow">
                 <label for="loansDueDate">Due date (optional)</label>
                 <input id="loansDueDate" type="text" name="dueDate" data-dt-picker="1" placeholder="Select due date">
             </div>
@@ -138,9 +137,16 @@
                 <label for="filterType">Type:</label>
                 <select id="filterType" name="type">
                     <option value="">-- All --</option>
-                    <option value="borrow">Borrow</option>
+                    <option value="borrow">Borrow (Loan)</option>
                     <option value="lend">Lend</option>
-                    <option value="loan">Loan</option>
+                </select>
+            </div>
+            <div>
+                <label for="filterAction">Action:</label>
+                <select id="filterAction" name="action">
+                    <option value="">-- All --</option>
+                    <option value="new">New</option>
+                    <option value="repay">Repay</option>
                 </select>
             </div>
             <div>
@@ -192,8 +198,10 @@
         {% for tx in loans %}
         {% set _loan_id = (tx.loanId or tx.id)|default('', true) %}
         {% set _uid = tx.userId|default(((session.get('user') or {}).get('username','')), true) %}
-        {% set _type = (tx.type|default('loan', true))|lower %}
-        {% set _status = (tx.status|default('open', true))|lower %}
+        {% set _type_raw = (tx.type|default('borrow', true))|lower %}
+        {% set _type = 'borrow' if _type_raw == 'loan' else _type_raw %}
+        {% set _action_raw = (tx.action|default('', true))|lower %}
+        {% set _action = _action_raw if _action_raw else 'new' %}
         {% set _party = tx.counterparty|default('', true) %}
         {% set _note = tx.note|default('', true) %}
         {% set _amount = tx.amount|default('0', true) %}
@@ -204,11 +212,11 @@
         {% set _fee = tx.fee|default(0, true) %}
         {% set _from = '' if (tx.fromWallet|default('', true)) == 'None' else (tx.fromWallet|default('', true)) %}
         {% set _to = '' if (tx.toWallet|default('', true)) == 'None' else (tx.toWallet|default('', true)) %}
-        <li data-id="{{ _loan_id }}" data-userid="{{ _uid }}" data-tdate="{{ _tdate }}" data-type="{{ _type }}" data-status="{{ _status }}" data-party="{{ _party }}" data-amount="{{ _amount }}" data-currency="{{ _currency }}" data-walletid="{{ _wallet_id }}" data-duedate="{{ _due }}" data-fee="{{ _fee }}" data-note="{{ _note }}" data-from="{{ _from }}" data-to="{{ _to }}">
+        <li data-id="{{ _loan_id }}" data-userid="{{ _uid }}" data-tdate="{{ _tdate }}" data-type="{{ _type }}" data-action="{{ _action }}" data-party="{{ _party }}" data-amount="{{ _amount }}" data-currency="{{ _currency }}" data-walletid="{{ _wallet_id }}" data-duedate="{{ _due }}" data-fee="{{ _fee }}" data-note="{{ _note }}" data-from="{{ _from }}" data-to="{{ _to }}">
             <div class="crypto-history-row">
                 <div class="crypto-history-left">
                     <div class="crypto-history-title">{{ _party if _party else '—' }}</div>
-                    <div class="crypto-history-sub">{{ _type }}{% if _status %} • {{ _status }}{% endif %}</div>
+                    <div class="crypto-history-sub">{{ _type|capitalize }} • {{ _action|capitalize }}</div>
                     {% set fromName = walletNameById.get(_from, _from) %}
                     {% set toName = walletNameById.get(_to, _to) %}
                     {% if fromName or toName %}
@@ -251,17 +259,16 @@
             <div>
                 <label for="updateLoansType">Type</label>
                 <select id="updateLoansType" name="type" required>
-                    <option value="borrow">Borrow</option>
+                    <option value="borrow">Borrow (Loan)</option>
                     <option value="lend">Lend</option>
-                    <option value="loan">Loan</option>
                 </select>
             </div>
 
             <div>
-                <label for="updateLoansStatus">Status</label>
-                <select id="updateLoansStatus" name="status" required>
-                    <option value="open">Open</option>
-                    <option value="paid">Paid</option>
+                <label for="updateLoansAction">Action</label>
+                <select id="updateLoansAction" name="action" required>
+                    <option value="new">New</option>
+                    <option value="repay">Repay</option>
                 </select>
             </div>
 
@@ -284,7 +291,7 @@
                 </select>
             </div>
 
-            <div>
+            <div id="updateFromWalletRow">
                 <label for="updateFromWallet">From Wallet:</label>
                 <select name="fromWallet" id="updateFromWallet">
                     <option value="">-- Select Wallet --</option>
@@ -294,9 +301,9 @@
                 </select>
             </div>
 
-            <div>
+            <div id="updateToWalletRow">
                 <label for="updateToWallet">To Wallet:</label>
-                <select name="toWallet" id="updateToWallet" required>
+                <select name="toWallet" id="updateToWallet">
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
                         <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
@@ -309,7 +316,7 @@
                 <input id="updateLoansDate" type="text" name="tdate" data-dt-picker="1" placeholder="Select date" required />
             </div>
 
-            <div>
+            <div id="updateDueDateRow">
                 <label for="updateLoansDueDate">Due date (optional)</label>
                 <input id="updateLoansDueDate" type="text" name="dueDate" data-dt-picker="1" placeholder="Select due date" />
             </div>
@@ -419,11 +426,11 @@
     window.showLoansNew = showLoansNew;
     window.showLoansHistory = showLoansHistory;
 
-    function editLoan(loanId, userId, type, status, counterparty, amount, currency, fromWallet, toWallet, fee, tdate, dueDate, note) {
+    function editLoan(loanId, userId, type, action, counterparty, amount, currency, fromWallet, toWallet, fee, tdate, dueDate, note) {
         document.getElementById('updateLoanId').value = loanId || '';
         document.getElementById('updateUserId').value = userId || '';
-        document.getElementById('updateLoansType').value = (type || 'loan');
-        document.getElementById('updateLoansStatus').value = (status || 'open');
+        document.getElementById('updateLoansType').value = (type || 'borrow');
+        document.getElementById('updateLoansAction').value = (action || 'new');
         document.getElementById('updateLoansCounterparty').value = counterparty || '';
         document.getElementById('updateLoansAmount').value = amount || '';
         if (currency) document.getElementById('updateLoansCurrency').value = String(currency).toUpperCase();
@@ -445,6 +452,7 @@
 
         document.getElementById('updateLoansNote').value = note || '';
         document.getElementById('deleteForm').action = `/deleteloan/${encodeURIComponent(loanId || '')}`;
+        applyLoansTypeActionRules('update');
         showLoansUpdate();
     }
     window.editLoan = editLoan;
@@ -456,7 +464,7 @@
             li.dataset.id,
             li.dataset.userid,
             li.dataset.type,
-            li.dataset.status,
+            li.dataset.action,
             li.dataset.party,
             li.dataset.amount,
             li.dataset.currency,
@@ -469,6 +477,72 @@
         );
     }
     window.editLoanFromRow = editLoanFromRow;
+
+    function setRowVisibility(rowEl, inputEl, visible) {
+        if (!rowEl || !inputEl) return;
+        rowEl.style.display = visible ? '' : 'none';
+        inputEl.required = !!visible;
+        inputEl.disabled = !visible;
+        if (!visible) {
+            if (inputEl.tagName === 'SELECT') inputEl.selectedIndex = 0;
+            else inputEl.value = '';
+        }
+    }
+
+    function applyLoansTypeActionRules(prefix) {
+        const isUpdate = prefix === 'update';
+
+        const typeEl = document.getElementById(isUpdate ? 'updateLoansType' : 'loansType');
+        const actionEl = document.getElementById(isUpdate ? 'updateLoansAction' : 'loansAction');
+
+        const fromRow = document.getElementById(isUpdate ? 'updateFromWalletRow' : 'loansFromWalletRow');
+        const toRow = document.getElementById(isUpdate ? 'updateToWalletRow' : 'loansToWalletRow');
+        const dueRow = document.getElementById(isUpdate ? 'updateDueDateRow' : 'loansDueDateRow');
+
+        const fromEl = document.getElementById(isUpdate ? 'updateFromWallet' : 'fromWallet');
+        const toEl = document.getElementById(isUpdate ? 'updateToWallet' : 'toWallet');
+        const dueEl = document.getElementById(isUpdate ? 'updateLoansDueDate' : 'loansDueDate');
+
+        const typeVal = String(typeEl?.value || '').toLowerCase();
+        const actionVal = String(actionEl?.value || '').toLowerCase();
+
+        const isNew = actionVal === 'new';
+        const isRepay = actionVal === 'repay';
+        const isBorrow = typeVal === 'borrow';
+        const isLend = typeVal === 'lend';
+
+        // Wallet rules:
+        // - borrow+new: toWallet required
+        // - borrow+repay: fromWallet required
+        // - lend+new: fromWallet required
+        // - lend+repay: toWallet required
+        let showFrom = false;
+        let showTo = false;
+
+        if (isBorrow && isNew) showTo = true;
+        else if (isBorrow && isRepay) showFrom = true;
+        else if (isLend && isNew) showFrom = true;
+        else if (isLend && isRepay) showTo = true;
+        else {
+            // Fallback (unknown values): show both but not required
+            showFrom = true;
+            showTo = true;
+        }
+
+        setRowVisibility(fromRow, fromEl, showFrom);
+        setRowVisibility(toRow, toEl, showTo);
+
+        // Due date only for new
+        if (dueRow && dueEl) {
+            dueRow.style.display = isNew ? '' : 'none';
+            dueEl.disabled = !isNew;
+            if (!isNew) {
+                if (dueEl._flatpickr) dueEl._flatpickr.clear();
+                dueEl.value = '';
+            }
+        }
+    }
+    window.applyLoansTypeActionRules = applyLoansTypeActionRules;
 
     // Utilities for history filtering/pagination/month grouping (mirrors Crypto)
     function parseLocalDateTime(val) {
@@ -548,6 +622,7 @@
         const startVal = document.getElementById('filterStart')?.value || '';
         const endVal = document.getElementById('filterEnd')?.value || '';
         const typeVal = (document.getElementById('filterType')?.value || '').trim().toLowerCase();
+        const actionVal = (document.getElementById('filterAction')?.value || '').trim().toLowerCase();
         const partyVal = (document.getElementById('filterParty')?.value || '').trim().toLowerCase();
         const noteVal = (document.getElementById('filterNote')?.value || '').trim().toLowerCase();
         const fromVal = String(document.getElementById('filterFromWallet')?.value || '').trim();
@@ -568,6 +643,10 @@
             if (show && typeVal) {
                 const t = (li.getAttribute('data-type') || '').toLowerCase();
                 if (!t.includes(typeVal)) show = false;
+            }
+            if (show && actionVal) {
+                const a = (li.getAttribute('data-action') || '').toLowerCase();
+                if (!a.includes(actionVal)) show = false;
             }
             if (show && partyVal) {
                 const p = (li.getAttribute('data-party') || '').toLowerCase();
@@ -615,7 +694,7 @@
     window.applyLoansFilters = applyLoansFilters;
 
     function resetLoansFilters() {
-        ['filterStart','filterEnd','filterType','filterParty','filterNote','filterFromWallet','filterToWallet'].forEach(id => {
+        ['filterStart','filterEnd','filterType','filterAction','filterParty','filterNote','filterFromWallet','filterToWallet'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             if (el._flatpickr) {
@@ -660,6 +739,7 @@
         const fStart = document.getElementById('filterStart');
         const fEnd = document.getElementById('filterEnd');
         const fType = document.getElementById('filterType');
+        const fAction = document.getElementById('filterAction');
         const fParty = document.getElementById('filterParty');
         const fNote = document.getElementById('filterNote');
         const fFrom = document.getElementById('filterFromWallet');
@@ -668,11 +748,24 @@
             if (fStart) fStart.addEventListener(evt, applyLoansFilters);
             if (fEnd) fEnd.addEventListener(evt, applyLoansFilters);
             if (fType) fType.addEventListener(evt, applyLoansFilters);
+            if (fAction) fAction.addEventListener(evt, applyLoansFilters);
             if (fParty) fParty.addEventListener(evt, applyLoansFilters);
             if (fNote) fNote.addEventListener(evt, applyLoansFilters);
             if (fFrom) fFrom.addEventListener(evt, applyLoansFilters);
             if (fTo) fTo.addEventListener(evt, applyLoansFilters);
         });
+
+        const createType = document.getElementById('loansType');
+        const createAction = document.getElementById('loansAction');
+        if (createType) createType.addEventListener('change', () => applyLoansTypeActionRules('create'));
+        if (createAction) createAction.addEventListener('change', () => applyLoansTypeActionRules('create'));
+        applyLoansTypeActionRules('create');
+
+        const updType = document.getElementById('updateLoansType');
+        const updAction = document.getElementById('updateLoansAction');
+        if (updType) updType.addEventListener('change', () => applyLoansTypeActionRules('update'));
+        if (updAction) updAction.addEventListener('change', () => applyLoansTypeActionRules('update'));
+        applyLoansTypeActionRules('update');
 
         showLoansPortfolio();
     });
