@@ -6,6 +6,12 @@
 {% block content %}
 {% if session.get('user') %}
 
+<!-- counterparties data provided to JS via data attribute to avoid inline template tags in scripts -->
+<div id="counterparties-data" style="display:none" data-counterparties='{{ counterparties|default([])|tojson | safe }}'></div>
+
+<!-- positions catalog provided to JS (explicit Position support) -->
+<div id="positions-data" style="display:none" data-positions='{{ positions_catalog|default([])|tojson | safe }}'></div>
+
 <div class="crypto-page-header">
     <h1 id="loansPageTitle" class="crypto-page-title">Borrow &amp; Lend</h1>
 </div>
@@ -24,13 +30,104 @@
         <div class="totals-grid" style="margin-top:12px;">
             <div class="totals-card" style="box-shadow:none;">
                 <div class="small-muted" style="font-weight:700;">You will receive</div>
-                <div class="totals-value" style="margin-top:4px;">{{ receive_total|default(0) }}{% if base_currency %} {{ base_currency }}{% endif %}</div>
+                {% if receive_totals and receive_totals|length > 1 %}
+                    <div style="margin-top:4px;display:flex;flex-direction:column;gap:2px;">
+                        {% for ccy, amt in receive_totals|dictsort %}
+                            <div class="totals-value">{{ amt|default(0) }} {{ ccy }}</div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="totals-value" style="margin-top:4px;">{{ receive_total|default(0) }}{% if base_currency %} {{ base_currency }}{% endif %}</div>
+                {% endif %}
             </div>
             <div class="totals-card" style="box-shadow:none;">
                 <div class="small-muted" style="font-weight:700;">You owe</div>
-                <div class="totals-value" style="margin-top:4px;">{{ owe_total|default(0) }}{% if base_currency %} {{ base_currency }}{% endif %}</div>
+                {% if owe_totals and owe_totals|length > 1 %}
+                    <div style="margin-top:4px;display:flex;flex-direction:column;gap:2px;">
+                        {% for ccy, amt in owe_totals|dictsort %}
+                            <div class="totals-value">{{ amt|default(0) }} {{ ccy }}</div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="totals-value" style="margin-top:4px;">{{ owe_total|default(0) }}{% if base_currency %} {{ base_currency }}{% endif %}</div>
+                {% endif %}
             </div>
         </div>
+
+        {% if loan_positions and loan_positions|length %}
+        <div class="crypto-page-title" style="margin:14px 0 6px 0; font-size: 1rem;">By position</div>
+        <div class="small-muted">Grouped by position (counterparty, currency, date).</div>
+
+        <div class="totals-grid" style="margin-top:12px;">
+            {% for p in loan_positions %}
+            <div class="totals-card">
+                <div class="totals-header">
+                    <div>
+                        <div style="font-size:1rem;font-weight:700">{{ p.counterparty|default('—') }}</div>
+                        <div class="small-muted">{{ p.currency|default(base_currency|default('EUR')) }}</div>
+                    </div>
+                    <div class="pct-badge {{ p.badge_class|default('pct-neutral') }}">{{ p.type_label|default('Loan') }}</div>
+                </div>
+
+                <div class="totals-meta">
+                    {% if p.opened_date %}
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Opened:</span>
+                        <span class="totals-value">{{ p.opened_date }}</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Total amount:</span>
+                        <span class="totals-value">{{ p.principal_display|default(p.principal|default(0)) }} {{ p.currency|default(base_currency|default('EUR')) }}</span>
+                    </div>
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Repaid:</span>
+                        <span class="totals-value">{{ p.repaid_display|default(p.repaid|default(0)) }} {{ p.currency|default(base_currency|default('EUR')) }}</span>
+                    </div>
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Outstanding:</span>
+                        <span class="totals-value" style="font-weight:700">{{ p.outstanding_display|default(p.outstanding|default(0)) }} {{ p.currency|default(base_currency|default('EUR')) }}</span>
+                    </div>
+
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Status:</span>
+                        <span class="totals-value">{{ p.status|default('—') }}</span>
+                    </div>
+
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Progress:</span>
+                        <span class="totals-value">{{ p.repaid_pct_display|default(0) }}%</span>
+                    </div>
+                    <div class="pct-bar" aria-hidden="true">
+                        <div class="pct-fill pct-fill-positive" data-fill="{{ p.repaid_pct|default(0) }}"></div>
+                    </div>
+
+                    {% if p.next_due %}
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Due date:</span>
+                        <span class="totals-value">{{ p.next_due }}</span>
+                    </div>
+                    {% endif %}
+
+                    {% if p.last_activity %}
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Last activity:</span>
+                        <span class="totals-value">{{ p.last_activity }}</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="totals-row">
+                        <span class="totals-label small-muted">Transactions:</span>
+                        <span class="totals-value">{{ p.tx_count|default(0) }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="small-muted" style="margin-top:12px;">No positions yet. Add a new borrow/lend transaction to see a per-counterparty overview.</div>
+        {% endif %}
     </div>
 </div>
 
@@ -41,8 +138,9 @@
             <div>
                 <label for="loansType">Type</label>
                 <select id="loansType" name="type" required>
-                    <option value="borrow">Borrow (Loan)</option>
+                    <option value="borrow">Borrow</option>
                     <option value="lend">Lend</option>
+                    <option value="loan">Loan</option>
                 </select>
             </div>
 
@@ -57,6 +155,7 @@
             <div>
                 <label for="loansCounterparty">Counterparty</label>
                 <input id="loansCounterparty" type="text" name="counterparty" placeholder="Name" required>
+                <div id="loansCounterpartyList" class="autocomplete-list" style="position:relative"></div>
             </div>
 
             <div>
@@ -67,10 +166,26 @@
             <div>
                 <label for="loansCurrency">Currency</label>
                 <select id="loansCurrency" name="currency" required>
-                    {% set _ccy = (session.get('currency') or 'EUR')|upper %}
-                    <option value="EUR" {% if _ccy == 'EUR' %}selected{% endif %}>EUR</option>
-                    <option value="USD" {% if _ccy == 'USD' %}selected{% endif %}>USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                    <option value="GBP">GBP</option>
+                    <option value="CHF">CHF</option>
+                    <option value="CAD">CAD</option>
+                    <option value="AUD">AUD</option>
+                    <option value="JPY">JPY</option>
+                    <option value="SEK">SEK</option>
+                    <option value="NOK">NOK</option>
+                    <option value="DKK">DKK</option>
                 </select>
+            </div>
+
+            <div>
+                <label for="loansPositionSelect">Position</label>
+                <select id="loansPositionSelect">
+                    <option value="" selected disabled>-- Select counterparty first --</option>
+                    <option value="__new__">New position</option>
+                </select>
+                <input type="hidden" id="loansPosition" name="position" value="" />
             </div>
 
             <div id="loansFromWalletRow">
@@ -98,9 +213,9 @@
                 <input id="loansDate" type="text" name="tdate" data-dt-picker="1" placeholder="Select date" required>
             </div>
 
-            <div id="loansDueDateRow">
-                <label for="loansDueDate">Due date (optional)</label>
-                <input id="loansDueDate" type="text" name="dueDate" data-dt-picker="1" placeholder="Select due date">
+            <div id="loansDDateRow">
+                <label for="loansDDate">Due date (optional)</label>
+                <input id="loansDDate" type="text" name="ddate" data-dt-picker="1" placeholder="Select due date">
             </div>
 
             <div>
@@ -137,8 +252,9 @@
                 <label for="filterType">Type:</label>
                 <select id="filterType" name="type">
                     <option value="">-- All --</option>
-                    <option value="borrow">Borrow (Loan)</option>
+                    <option value="borrow">Borrow</option>
                     <option value="lend">Lend</option>
+                    <option value="loan">Loan</option>
                 </select>
             </div>
             <div>
@@ -152,6 +268,7 @@
             <div>
                 <label for="filterParty">Counterparty:</label>
                 <input type="text" id="filterParty" name="party" placeholder="Contains..." autocomplete="off" />
+                <div id="filterPartyList" class="autocomplete-list" style="position:relative"></div>
             </div>
             <div>
                 <label for="filterNote">Note:</label>
@@ -199,7 +316,7 @@
         {% set _loan_id = (tx.loanId or tx.id)|default('', true) %}
         {% set _uid = tx.userId|default(((session.get('user') or {}).get('username','')), true) %}
         {% set _type_raw = (tx.type|default('borrow', true))|lower %}
-        {% set _type = 'borrow' if _type_raw == 'loan' else _type_raw %}
+        {% set _type = _type_raw %}
         {% set _action_raw = (tx.action|default('', true))|lower %}
         {% set _action = _action_raw if _action_raw else 'new' %}
         {% set _party = tx.counterparty|default('', true) %}
@@ -208,11 +325,12 @@
         {% set _currency = (tx.currency|default((session.get('currency') or 'EUR')|upper, true))|upper %}
         {% set _wallet_id = tx.walletId|default('', true) %}
         {% set _tdate = tx.tdate|default('', true) %}
-        {% set _due = tx.dueDate|default('', true) %}
+        {% set _due = tx.ddate|default('', true) %}
+        {% set _position = tx.position|default('', true) %}
         {% set _fee = tx.fee|default(0, true) %}
         {% set _from = '' if (tx.fromWallet|default('', true)) == 'None' else (tx.fromWallet|default('', true)) %}
         {% set _to = '' if (tx.toWallet|default('', true)) == 'None' else (tx.toWallet|default('', true)) %}
-        <li data-id="{{ _loan_id }}" data-userid="{{ _uid }}" data-tdate="{{ _tdate }}" data-type="{{ _type }}" data-action="{{ _action }}" data-party="{{ _party }}" data-amount="{{ _amount }}" data-currency="{{ _currency }}" data-walletid="{{ _wallet_id }}" data-duedate="{{ _due }}" data-fee="{{ _fee }}" data-note="{{ _note }}" data-from="{{ _from }}" data-to="{{ _to }}">
+        <li data-id="{{ _loan_id }}" data-userid="{{ _uid }}" data-tdate="{{ _tdate }}" data-type="{{ _type }}" data-action="{{ _action }}" data-party="{{ _party }}" data-amount="{{ _amount }}" data-currency="{{ _currency }}" data-walletid="{{ _wallet_id }}" data-ddate="{{ _due }}" data-position="{{ _position }}" data-fee="{{ _fee }}" data-note="{{ _note }}" data-from="{{ _from }}" data-to="{{ _to }}">
             <div class="crypto-history-row">
                 <div class="crypto-history-left">
                     <div class="crypto-history-title">{{ _party if _party else '—' }}</div>
@@ -255,18 +373,23 @@
         <form id="updateForm" action="/updateLoan" method="POST">
             <input type="hidden" id="updateLoanId" name="loanId" />
             <input type="hidden" id="updateUserId" name="userId" />
+            <input type="hidden" id="updateLockedType" name="type" />
+            <input type="hidden" id="updateLockedAction" name="action" />
+            <input type="hidden" id="updateLockedCurrency" name="currency" />
+            <input type="hidden" id="updateLockedTdate" name="tdate" />
 
             <div>
                 <label for="updateLoansType">Type</label>
-                <select id="updateLoansType" name="type" required>
-                    <option value="borrow">Borrow (Loan)</option>
+                <select id="updateLoansType" name="type_display" required disabled>
+                    <option value="borrow">Borrow</option>
                     <option value="lend">Lend</option>
+                    <option value="loan">Loan</option>
                 </select>
             </div>
 
             <div>
                 <label for="updateLoansAction">Action</label>
-                <select id="updateLoansAction" name="action" required>
+                <select id="updateLoansAction" name="action_display" required disabled>
                     <option value="new">New</option>
                     <option value="repay">Repay</option>
                 </select>
@@ -274,7 +397,8 @@
 
             <div>
                 <label for="updateLoansCounterparty">Counterparty</label>
-                <input id="updateLoansCounterparty" type="text" name="counterparty" placeholder="Name" required />
+                <input id="updateLoansCounterparty" type="text" name="counterparty" placeholder="Name" required readonly />
+                <div id="updateLoansCounterpartyList" class="autocomplete-list" style="position:relative"></div>
             </div>
 
             <div>
@@ -284,11 +408,24 @@
 
             <div>
                 <label for="updateLoansCurrency">Currency</label>
-                <select id="updateLoansCurrency" name="currency" required>
-                    {% set _ccy2 = (session.get('currency') or 'EUR')|upper %}
-                    <option value="EUR" {% if _ccy2 == 'EUR' %}selected{% endif %}>EUR</option>
-                    <option value="USD" {% if _ccy2 == 'USD' %}selected{% endif %}>USD</option>
+                <select id="updateLoansCurrency" name="currency_display" required disabled>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                    <option value="GBP">GBP</option>
+                    <option value="CHF">CHF</option>
+                    <option value="CAD">CAD</option>
+                    <option value="AUD">AUD</option>
+                    <option value="JPY">JPY</option>
+                    <option value="SEK">SEK</option>
+                    <option value="NOK">NOK</option>
+                    <option value="DKK">DKK</option>
                 </select>
+            </div>
+
+            <div>
+                <label for="updateLoansPositionSelect">Position</label>
+                <select id="updateLoansPositionSelect" disabled></select>
+                <input type="hidden" id="updateLoansPosition" name="position" value="" />
             </div>
 
             <div id="updateFromWalletRow">
@@ -313,12 +450,12 @@
 
             <div>
                 <label for="updateLoansDate">Date</label>
-                <input id="updateLoansDate" type="text" name="tdate" data-dt-picker="1" placeholder="Select date" required />
+                <input id="updateLoansDate" type="text" name="tdate_display" data-dt-picker="1" placeholder="Select date" required disabled />
             </div>
 
-            <div id="updateDueDateRow">
-                <label for="updateLoansDueDate">Due date (optional)</label>
-                <input id="updateLoansDueDate" type="text" name="dueDate" data-dt-picker="1" placeholder="Select due date" />
+            <div id="updateDDateRow">
+                <label for="updateLoansDDate">Due date (optional)</label>
+                <input id="updateLoansDDate" type="text" name="ddate" data-dt-picker="1" placeholder="Select due date" />
             </div>
 
             <div>
@@ -343,6 +480,311 @@
 </div>
 
 <script>
+    // Counterparty autocomplete (crypto-like UX)
+    function initCounterpartyAutocomplete(inputId, listId, names, onCommit) {
+        const input = document.getElementById(inputId);
+        const listWrap = document.getElementById(listId);
+        if (!input || !listWrap) return;
+        const itemsSrc = Array.isArray(names) ? names : [];
+
+        let currentFocus = -1;
+
+        function closeAllLists(elmnt) {
+            const lists = document.querySelectorAll('.autocomplete-items');
+            lists.forEach(l => {
+                if (elmnt !== l && elmnt !== input) {
+                    try { l.parentNode.removeChild(l); } catch(e) {}
+                }
+            });
+            currentFocus = -1;
+        }
+
+        function addActive(items) {
+            if (!items || !items.length) return;
+            items.forEach(i => { i.classList.remove('autocomplete-active'); i.style.background=''; });
+            if (currentFocus >= items.length) currentFocus = 0;
+            if (currentFocus < 0) currentFocus = items.length - 1;
+            items[currentFocus].classList.add('autocomplete-active');
+            items[currentFocus].style.background = '#e9e9e9';
+        }
+
+        function commit(name) {
+            input.value = name || '';
+            closeAllLists();
+            if (typeof onCommit === 'function') onCommit(name || '');
+        }
+
+        input.addEventListener('input', function() {
+            const val = String(this.value || '').trim().toLowerCase();
+            closeAllLists();
+            if (!val) return;
+
+            const matches = itemsSrc
+                .filter(n => String(n || '').toLowerCase().includes(val))
+                .slice(0, 20);
+            if (!matches.length) return;
+
+            const list = document.createElement('div');
+            list.setAttribute('class','autocomplete-items');
+            if (!listWrap.style.position) listWrap.style.position = 'relative';
+            list.style.position = 'absolute';
+            list.style.zIndex = 1000;
+            list.style.left = '0px';
+            list.style.right = '0px';
+            list.style.top = '4px';
+            list.style.maxHeight = '260px';
+            list.style.overflowY = 'auto';
+            listWrap.appendChild(list);
+
+            matches.forEach(n => {
+                const name = String(n || '').trim();
+                if (!name) return;
+                const item = document.createElement('div');
+                item.textContent = name;
+                item.style.padding = '6px 8px';
+                item.style.cursor = 'pointer';
+                item.addEventListener('mousedown', function() {
+                    // Commit before blur fires.
+                    commit(name);
+                });
+                item.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    commit(name);
+                });
+                list.appendChild(item);
+            });
+        });
+
+        input.addEventListener('keydown', function(e) {
+            const box = listWrap.querySelector('.autocomplete-items');
+            const items = box ? box.querySelectorAll('div') : null;
+            if (!items || items.length === 0) return;
+            if (e.keyCode === 40) { // down
+                currentFocus++; addActive(Array.from(items));
+            } else if (e.keyCode === 38) { // up
+                currentFocus--; addActive(Array.from(items));
+            } else if (e.keyCode === 13) { // enter
+                e.preventDefault();
+                if (currentFocus > -1 && items[currentFocus]) items[currentFocus].dispatchEvent(new Event('mousedown'));
+            }
+        });
+
+        document.addEventListener('click', function(e) { closeAllLists(e.target); });
+    }
+
+    // Positions (explicit Position field)
+    function readPositionsCatalog() {
+        try {
+            const el = document.getElementById('positions-data');
+            if (el && el.dataset && el.dataset.positions) {
+                const arr = JSON.parse(el.dataset.positions) || [];
+                return Array.isArray(arr) ? arr : [];
+            }
+        } catch (e) {}
+        return [];
+    }
+
+    function isoDay(s) {
+        const v = String(s || '').trim();
+        return v.length >= 10 ? v.slice(0, 10) : v;
+    }
+
+    function derivePosition(counterparty, currency, tdate) {
+        const party = String(counterparty || '').trim() || '—';
+        const ccy = String(currency || '').trim().toUpperCase() || 'EUR';
+        const day = isoDay(tdate) || 'unknown-date';
+        return `${party} | ${ccy} | ${day}`;
+    }
+
+    function getLoansPositionEls(prefix) {
+        const isUpdate = prefix === 'update';
+        return {
+            typeEl: document.getElementById(isUpdate ? 'updateLoansType' : 'loansType'),
+            actionEl: document.getElementById(isUpdate ? 'updateLoansAction' : 'loansAction'),
+            partyEl: document.getElementById(isUpdate ? 'updateLoansCounterparty' : 'loansCounterparty'),
+            currencyEl: document.getElementById(isUpdate ? 'updateLoansCurrency' : 'loansCurrency'),
+            dateEl: document.getElementById(isUpdate ? 'updateLoansDate' : 'loansDate'),
+            selectEl: document.getElementById(isUpdate ? 'updateLoansPositionSelect' : 'loansPositionSelect'),
+            hiddenEl: document.getElementById(isUpdate ? 'updateLoansPosition' : 'loansPosition'),
+            formEl: document.getElementById(isUpdate ? 'updateForm' : 'createLoanForm'),
+        };
+    }
+
+    function refreshLoansPositionOptions(prefix, keepSelection) {
+        const els = getLoansPositionEls(prefix);
+        if (!els.selectEl || !els.hiddenEl) return;
+
+        const isUpdateForm = prefix === 'update';
+
+        const catalog = window.loansPositionsCatalog || [];
+        const typeVal = String(els.typeEl?.value || '').trim().toLowerCase();
+        const actionVal = String(els.actionEl?.value || '').trim().toLowerCase();
+        const partyVal = String(els.partyEl?.value || '').trim();
+        const ccyVal = String(els.currencyEl?.value || '').trim().toUpperCase();
+
+        const current = keepSelection ? String(els.selectEl.value || '') : '';
+
+        const isRepay = actionVal === 'repay';
+        const matches = catalog
+            .filter(p => String(p?.type || '').toLowerCase() === typeVal)
+            .filter(p => !partyVal || String(p?.counterparty || '').trim().toLowerCase() === partyVal.toLowerCase())
+            .filter(p => !ccyVal || String(p?.currency || '').trim().toUpperCase() === ccyVal)
+            .map(p => String(p.position || '').trim())
+            .filter(Boolean);
+
+        const uniq = Array.from(new Set(matches));
+
+        // Rebuild select options.
+        els.selectEl.innerHTML = '';
+
+        // Placeholder behaviour:
+        // - Create form: show a placeholder until counterparty is set
+        // - Repay: always show "-- Select position --"
+        if (isRepay) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = '-- Select position --';
+            els.selectEl.appendChild(opt);
+        } else if (!isUpdateForm) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = partyVal ? '-- Select position (optional) --' : '-- Select counterparty first --';
+            els.selectEl.appendChild(opt);
+        }
+
+        const newOpt = document.createElement('option');
+        newOpt.value = '__new__';
+        newOpt.textContent = 'New position';
+        if (isRepay) newOpt.disabled = true;
+        els.selectEl.appendChild(newOpt);
+
+        // Only suggest existing positions after a counterparty is entered.
+        if (partyVal) {
+            uniq.forEach(pos => {
+                const opt = document.createElement('option');
+                opt.value = pos;
+                opt.textContent = pos;
+                els.selectEl.appendChild(opt);
+            });
+        }
+
+        // Ensure current position (from edit) remains selectable even if not in catalog.
+        const existingHidden = String(els.hiddenEl.value || '').trim();
+        if (isUpdateForm && existingHidden && !uniq.includes(existingHidden)) {
+            const opt = document.createElement('option');
+            opt.value = existingHidden;
+            opt.textContent = existingHidden;
+            els.selectEl.appendChild(opt);
+        }
+
+        // Restore selection:
+        // - Update form: prefer hidden value (existing tx), then prior selection.
+        // - Create form:
+        //   - If counterparty empty: stay blank
+        //   - Else default to New position (unless user selected an existing one)
+        let next = isUpdateForm ? (existingHidden || current) : current;
+        if (!next) {
+            if (isRepay) next = '';
+            else if (!partyVal) next = '';
+            else next = '__new__';
+        }
+        if (isRepay && next === '__new__') next = '';
+        els.selectEl.value = next;
+
+        syncLoansPositionHidden(prefix);
+    }
+
+    function syncLoansPositionHidden(prefix) {
+        const els = getLoansPositionEls(prefix);
+        if (!els.selectEl || !els.hiddenEl) return;
+
+        const actionVal = String(els.actionEl?.value || '').trim().toLowerCase();
+        const sel = String(els.selectEl.value || '');
+
+        if (actionVal === 'repay') {
+            els.hiddenEl.value = sel && sel !== '__new__' ? sel : '';
+            return;
+        }
+
+        if (!sel || sel === '__new__') {
+            const pos = derivePosition(els.partyEl?.value, els.currencyEl?.value, els.dateEl?.value);
+            els.hiddenEl.value = pos;
+        } else {
+            els.hiddenEl.value = sel;
+        }
+    }
+
+    function validateLoansPositionOnSubmit(prefix, e) {
+        const els = getLoansPositionEls(prefix);
+        if (!els.formEl) return;
+        const actionVal = String(els.actionEl?.value || '').trim().toLowerCase();
+        syncLoansPositionHidden(prefix);
+
+        // If a standard position string is selected, ensure party/currency match to avoid inconsistent rows.
+        const posVal = String(els.hiddenEl?.value || '').trim();
+        const parts = posVal.split(' | ');
+        if (parts.length >= 3) {
+            const expectedParty = String(parts[0] || '').trim().toLowerCase();
+            const expectedCcy = String(parts[1] || '').trim().toUpperCase();
+            const actualParty = String(els.partyEl?.value || '').trim().toLowerCase();
+            const actualCcy = String(els.currencyEl?.value || '').trim().toUpperCase();
+            if (expectedParty && expectedParty !== '—' && actualParty && expectedParty !== actualParty) {
+                if (e && typeof e.preventDefault === 'function') e.preventDefault();
+                alert('Selected Position does not match the Counterparty.');
+                return false;
+            }
+            if (expectedCcy && actualCcy && expectedCcy !== actualCcy) {
+                if (e && typeof e.preventDefault === 'function') e.preventDefault();
+                alert('Selected Position does not match the Currency.');
+                return false;
+            }
+        }
+        if (actionVal === 'repay') {
+            if (!posVal) {
+                if (e && typeof e.preventDefault === 'function') e.preventDefault();
+                alert('Please select an existing Position for Repay.');
+                return false;
+            }
+        }
+        return true;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Apply percent-fill widths for progress bars.
+        const fills = document.querySelectorAll('.pct-fill');
+        fills.forEach(f => {
+            const v = f.getAttribute('data-fill');
+            if (v !== null && v !== undefined) {
+                const num = parseFloat(v) || 0;
+                f.style.width = (Math.max(0, Math.min(100, num))) + '%';
+            }
+        });
+
+        // Counterparty autocomplete: suggest previously used names.
+        let names = [];
+        try {
+            const el = document.getElementById('counterparties-data');
+            if (el && el.dataset && el.dataset.counterparties) {
+                names = JSON.parse(el.dataset.counterparties) || [];
+            }
+        } catch (e) { names = []; }
+
+        window.loansPositionsCatalog = readPositionsCatalog();
+
+        initCounterpartyAutocomplete('loansCounterparty', 'loansCounterpartyList', names, function() {
+            refreshLoansPositionOptions('create', true);
+        });
+        initCounterpartyAutocomplete('updateLoansCounterparty', 'updateLoansCounterpartyList', names, function() {
+            refreshLoansPositionOptions('update', true);
+        });
+        initCounterpartyAutocomplete('filterParty', 'filterPartyList', names, function() {
+            if (typeof applyLoansFilters === 'function') {
+                window.loansCurrentPage = 1;
+                applyLoansFilters();
+            }
+        });
+    });
+
     function setLoansNavVisibility(activeView) {
         const btns = Array.from(document.querySelectorAll('[data-loans-nav]'));
         btns.forEach(btn => {
@@ -426,14 +868,21 @@
     window.showLoansNew = showLoansNew;
     window.showLoansHistory = showLoansHistory;
 
-    function editLoan(loanId, userId, type, action, counterparty, amount, currency, fromWallet, toWallet, fee, tdate, dueDate, note) {
+    function editLoan(loanId, userId, type, action, counterparty, amount, currency, fromWallet, toWallet, fee, tdate, ddate, position, note) {
         document.getElementById('updateLoanId').value = loanId || '';
         document.getElementById('updateUserId').value = userId || '';
         document.getElementById('updateLoansType').value = (type || 'borrow');
         document.getElementById('updateLoansAction').value = (action || 'new');
+        // Locked fields: keep values submitted via hidden inputs.
+        const lockedType = document.getElementById('updateLockedType');
+        if (lockedType) lockedType.value = (type || 'borrow');
+        const lockedAction = document.getElementById('updateLockedAction');
+        if (lockedAction) lockedAction.value = (action || 'new');
         document.getElementById('updateLoansCounterparty').value = counterparty || '';
         document.getElementById('updateLoansAmount').value = amount || '';
         if (currency) document.getElementById('updateLoansCurrency').value = String(currency).toUpperCase();
+        const lockedCurrency = document.getElementById('updateLockedCurrency');
+        if (lockedCurrency) lockedCurrency.value = currency ? String(currency).toUpperCase() : '';
         document.getElementById('updateFromWallet').value = (fromWallet && String(fromWallet) !== 'None') ? fromWallet : '';
         document.getElementById('updateToWallet').value = (toWallet && String(toWallet) !== 'None') ? toWallet : '';
         const feeEl = document.getElementById('updateFee');
@@ -443,14 +892,39 @@
             const el = document.getElementById('updateLoansDate');
             if (el && el._flatpickr) el._flatpickr.setDate(tdate, false, 'Y-m-d\\TH:i');
             else if (el) el.value = tdate || '';
+            const lockedTdate = document.getElementById('updateLockedTdate');
+            if (lockedTdate) lockedTdate.value = tdate || '';
+            // Prevent edits / calendar popover.
+            if (el) {
+                el.disabled = true;
+                try {
+                    if (el._flatpickr) {
+                        el._flatpickr.set('clickOpens', false);
+                        el._flatpickr.close();
+                        el._flatpickr._input.setAttribute('disabled', 'disabled');
+                        if (typeof el._flatpickr.disable === 'function') el._flatpickr.disable();
+                    }
+                } catch(e) {}
+            }
         }
         {
-            const el = document.getElementById('updateLoansDueDate');
-            if (el && el._flatpickr) el._flatpickr.setDate(dueDate, false, 'Y-m-d\\TH:i');
-            else if (el) el.value = dueDate || '';
+            const el = document.getElementById('updateLoansDDate');
+            if (el && el._flatpickr) el._flatpickr.setDate(ddate, false, 'Y-m-d\\TH:i');
+            else if (el) el.value = ddate || '';
         }
 
         document.getElementById('updateLoansNote').value = note || '';
+        const posHidden = document.getElementById('updateLoansPosition');
+        if (posHidden) posHidden.value = String(position || '').trim();
+        refreshLoansPositionOptions('update', true);
+
+        // Hard-lock requested fields.
+        try { document.getElementById('updateLoansType').disabled = true; } catch(e) {}
+        try { document.getElementById('updateLoansAction').disabled = true; } catch(e) {}
+        try { document.getElementById('updateLoansCurrency').disabled = true; } catch(e) {}
+        try { document.getElementById('updateLoansPositionSelect').disabled = true; } catch(e) {}
+        try { document.getElementById('updateLoansCounterparty').readOnly = true; } catch(e) {}
+
         document.getElementById('deleteForm').action = `/deleteloan/${encodeURIComponent(loanId || '')}`;
         applyLoansTypeActionRules('update');
         showLoansUpdate();
@@ -472,7 +946,8 @@
             li.dataset.to,
             li.dataset.fee,
             li.dataset.tdate,
-            li.dataset.duedate,
+            li.dataset.ddate,
+            li.dataset.position,
             li.dataset.note
         );
     }
@@ -481,8 +956,8 @@
     function setRowVisibility(rowEl, inputEl, visible) {
         if (!rowEl || !inputEl) return;
         rowEl.style.display = visible ? '' : 'none';
-        inputEl.required = !!visible;
-        inputEl.disabled = !visible;
+        // Wallet fields are optional. Keep inputs enabled so they submit
+        // even when hidden (empty string), and never mark them as required.
         if (!visible) {
             if (inputEl.tagName === 'SELECT') inputEl.selectedIndex = 0;
             else inputEl.value = '';
@@ -497,18 +972,18 @@
 
         const fromRow = document.getElementById(isUpdate ? 'updateFromWalletRow' : 'loansFromWalletRow');
         const toRow = document.getElementById(isUpdate ? 'updateToWalletRow' : 'loansToWalletRow');
-        const dueRow = document.getElementById(isUpdate ? 'updateDueDateRow' : 'loansDueDateRow');
+        const dueRow = document.getElementById(isUpdate ? 'updateDDateRow' : 'loansDDateRow');
 
         const fromEl = document.getElementById(isUpdate ? 'updateFromWallet' : 'fromWallet');
         const toEl = document.getElementById(isUpdate ? 'updateToWallet' : 'toWallet');
-        const dueEl = document.getElementById(isUpdate ? 'updateLoansDueDate' : 'loansDueDate');
+        const dueEl = document.getElementById(isUpdate ? 'updateLoansDDate' : 'loansDDate');
 
         const typeVal = String(typeEl?.value || '').toLowerCase();
         const actionVal = String(actionEl?.value || '').toLowerCase();
 
         const isNew = actionVal === 'new';
         const isRepay = actionVal === 'repay';
-        const isBorrow = typeVal === 'borrow';
+        const isBorrow = typeVal === 'borrow' || typeVal === 'loan';
         const isLend = typeVal === 'lend';
 
         // Wallet rules:
@@ -541,6 +1016,8 @@
                 dueEl.value = '';
             }
         }
+
+        refreshLoansPositionOptions(isUpdate ? 'update' : 'create', true);
     }
     window.applyLoansTypeActionRules = applyLoansTypeActionRules;
 
@@ -757,14 +1234,34 @@
 
         const createType = document.getElementById('loansType');
         const createAction = document.getElementById('loansAction');
+        const createParty = document.getElementById('loansCounterparty');
+        const createCcy = document.getElementById('loansCurrency');
+        const createDate = document.getElementById('loansDate');
+        const createPosSel = document.getElementById('loansPositionSelect');
+        const createForm = document.getElementById('createLoanForm');
         if (createType) createType.addEventListener('change', () => applyLoansTypeActionRules('create'));
         if (createAction) createAction.addEventListener('change', () => applyLoansTypeActionRules('create'));
+        if (createParty) createParty.addEventListener('input', () => refreshLoansPositionOptions('create', true));
+        if (createCcy) createCcy.addEventListener('change', () => refreshLoansPositionOptions('create', true));
+        if (createDate) createDate.addEventListener('change', () => syncLoansPositionHidden('create'));
+        if (createPosSel) createPosSel.addEventListener('change', () => syncLoansPositionHidden('create'));
+        if (createForm) createForm.addEventListener('submit', (e) => validateLoansPositionOnSubmit('create', e));
         applyLoansTypeActionRules('create');
 
         const updType = document.getElementById('updateLoansType');
         const updAction = document.getElementById('updateLoansAction');
+        const updParty = document.getElementById('updateLoansCounterparty');
+        const updCcy = document.getElementById('updateLoansCurrency');
+        const updDate = document.getElementById('updateLoansDate');
+        const updPosSel = document.getElementById('updateLoansPositionSelect');
+        const updForm = document.getElementById('updateForm');
         if (updType) updType.addEventListener('change', () => applyLoansTypeActionRules('update'));
         if (updAction) updAction.addEventListener('change', () => applyLoansTypeActionRules('update'));
+        if (updParty) updParty.addEventListener('input', () => refreshLoansPositionOptions('update', true));
+        if (updCcy) updCcy.addEventListener('change', () => refreshLoansPositionOptions('update', true));
+        if (updDate) updDate.addEventListener('change', () => syncLoansPositionHidden('update'));
+        if (updPosSel) updPosSel.addEventListener('change', () => syncLoansPositionHidden('update'));
+        if (updForm) updForm.addEventListener('submit', (e) => validateLoansPositionOnSubmit('update', e));
         applyLoansTypeActionRules('update');
 
         showLoansPortfolio();

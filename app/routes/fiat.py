@@ -46,11 +46,12 @@ def fiat_page():
         for tx in transactions:
             try:
                 tx_currency = _normalize_currency(tx.get('currency'), base_currency)
+                amt_raw = _to_decimal(tx.get('amount', 0))
+                fee_raw = _to_decimal(tx.get('fee', 0))
+
                 fx_rate = _get_fx_rate(tx_currency, base_currency)
-                amt = _to_decimal(tx.get('amount', 0))
-                fee = _to_decimal(tx.get('fee', 0))
-                tx['amountBase'] = float(amt * fx_rate)
-                tx['feeBase'] = float(fee * fx_rate)
+                tx['amountBase'] = float(amt_raw * fx_rate)
+                tx['feeBase'] = float(fee_raw * fx_rate)
                 tx['baseCurrency'] = base_currency
             except Exception:
                 # If FX fails, keep base amounts as original and flag a warning.

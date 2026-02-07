@@ -465,21 +465,24 @@
         let lastQuotedSymbol = '';
 
         function showError(inputElem, msg) {
-            if (!inputElem || !inputElem.parentNode) return;
             clearError(inputElem);
             const span = document.createElement('span');
             span.className = 'field-error';
-            span.style.color = '#c62828';
-            span.style.fontSize = '12px';
-            span.style.display = 'block';
-            span.style.marginTop = '6px';
-            span.textContent = msg;
+            span.innerText = msg || 'Please select a stock from the suggestions.';
+            if (!inputElem || !inputElem.parentNode) return;
 
-            const label = inputElem.parentNode.querySelector('label');
-            if (label) {
-                label.appendChild(span);
-                return;
+            // Match crypto: show error inline beside the label for the stock search fields.
+            const isStockSearch = inputElem.id === 'stockSearch' || inputElem.id === 'updateStockSearch';
+            if (isStockSearch) {
+                span.classList.add('field-error-inline');
+                const label = inputElem.parentNode.querySelector('label');
+                if (label) {
+                    label.appendChild(span);
+                    return;
+                }
             }
+
+            // Fallback: show below the input.
             inputElem.parentNode.appendChild(span);
         }
 
