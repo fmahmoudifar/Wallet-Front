@@ -29,12 +29,59 @@ from app.services.user_scope import filter_records_by_user
 
 home_bp = Blueprint("home", __name__, url_prefix="/")
 
+
+def _ensure_user_settings_row(user_id: str) -> None:
+    """Ensure a user has a settings row; if missing, create defaults.
+
+    Defaults match the Settings page: currency=EUR, theme=Light.
+    """
+    try:
+        resp = requests.get(f"{API_URL}/settings", params={"userId": user_id}, auth=aws_auth, timeout=10)
+        settings = resp.json().get("settings", []) if resp.status_code == 200 else []
+        settings = filter_records_by_user(settings, user_id)
+    except Exception as e:
+        print(f"Error fetching settings (home init): {e}")
+        settings = []
+
+    if settings and isinstance(settings, list):
+        try:
+            first = settings[0] or {}
+            if first.get('theme'):
+                session['theme'] = first.get('theme')
+            if first.get('currency'):
+                session['currency'] = first.get('currency')
+        except Exception:
+            pass
+        return
+
+    default_data = {
+        "userId": user_id,
+        "currency": "EUR",
+        "theme": "Light",
+    }
+
+    try:
+        upsert = requests.patch(f"{API_URL}/settings", json=default_data, auth=aws_auth, timeout=10)
+        if upsert.status_code in (200, 201):
+            session['currency'] = default_data['currency']
+            session['theme'] = default_data['theme']
+        else:
+            try:
+                print(f"Settings default upsert failed: {upsert.status_code} {upsert.text}")
+            except Exception:
+                print(f"Settings default upsert failed: {upsert.status_code}")
+    except Exception as e:
+        print(f"Error creating default settings (home init): {e}")
+
 @home_bp.route("/", methods=['GET'])
 def users():
     user = session.get('user')
     print(user)
     if user:
         userId = user.get('username')
+
+        # Ensure settings row exists for this user (EUR + Light defaults)
+        _ensure_user_settings_row(userId)
 
         base_currency = _get_user_base_currency(userId)
         cg_vs_currency = (base_currency or 'EUR').lower()
