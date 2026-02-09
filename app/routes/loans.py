@@ -7,6 +7,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from config import API_URL, aws_auth
+from app.services.user_scope import filter_records_by_user
 
 loans_bp = Blueprint('loans', __name__)
 
@@ -91,6 +92,7 @@ def loans_page():
     try:
         resp = requests.get(f"{API_URL}/loans", params={"userId": user_id}, auth=aws_auth, timeout=12)
         loans = resp.json().get('loans', []) if resp.status_code == 200 else []
+        loans = filter_records_by_user(loans, user_id)
     except Exception as e:
         print(f"Error fetching loans: {e}")
         loans = []
@@ -120,6 +122,7 @@ def loans_page():
     try:
         w_resp = requests.get(f"{API_URL}/wallets", params={"userId": user_id}, auth=aws_auth, timeout=12)
         wallets = w_resp.json().get('wallets', []) if w_resp.status_code == 200 else []
+        wallets = filter_records_by_user(wallets, user_id)
     except Exception as e:
         print(f"Error fetching wallets: {e}")
         wallets = []
@@ -477,8 +480,8 @@ def update_loan_transaction():
     if not user:
         return redirect(url_for('home.home_page'))
 
-    # Mirror the crypto/stock pattern: userId is submitted by the form.
-    user_id = (request.form.get('userId', '') or '').strip() or user.get('username')
+    # Never trust userId from the client; scope to the logged-in user.
+    user_id = user.get('username')
 
     from_wallet = (request.form.get('fromWallet', '') or '').strip()
     to_wallet = (request.form.get('toWallet', '') or '').strip()

@@ -12,6 +12,7 @@ from .crypto import (
     _get_fx_rate,
     _normalize_currency,
 )
+from app.services.user_scope import filter_records_by_user
 
 stock_bp = Blueprint('stock', __name__)
 
@@ -445,6 +446,7 @@ def stock_page():
             # Assuming your API accepts a username filter as a query parameter
             response = requests.get(f"{API_URL}/stocks", params={"userId": userId}, auth=aws_auth)
             stocks = response.json().get("stocks", []) if response.status_code == 200 else []
+            stocks = filter_records_by_user(stocks, userId)
         except Exception as e:
             print(f"Error fetching stocks: {e}")
             stocks = []
@@ -476,6 +478,7 @@ def stock_page():
         try:
             response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
             wallets = response.json().get("wallets", []) if response.status_code == 200 else []
+            wallets = filter_records_by_user(wallets, userId)
         except Exception as e:
             print(f"Error fetching wallets: {e}")
             wallets = []
@@ -532,9 +535,15 @@ def create_stock():
 
 @stock_bp.route('/updateStock', methods=['POST'])
 def update_stock():
+    user = session.get('user')
+    if not user:
+        return redirect(url_for('home.home_page'))
+    user_id = user.get('username')
+
     data = {
         "stockId": request.form["stockId"],
-        "userId": request.form["userId"],
+        # Never trust userId from the client; scope to the logged-in user.
+        "userId": user_id,
         "stockName": request.form["stockName"],
         "tdate": request.form["tdate"],        
         "fromWallet": request.form["fromWallet"],
@@ -560,9 +569,15 @@ def update_stock():
 @stock_bp.route('/deletestock/<stock_id>/<user_id>', methods=['POST'])
 def delete_stock(stock_id, user_id):
     """Delete a stock."""
+    user = session.get('user')
+    if not user:
+        return redirect(url_for('home.home_page'))
+    session_user_id = user.get('username')
+
     data = {
         "stockId": stock_id,
-        "userId": user_id
+        # Never trust userId from the URL; scope to the logged-in user.
+        "userId": session_user_id,
     }
     print(f"🗑️ [DEBUG] Deleting stock: {data}")
 

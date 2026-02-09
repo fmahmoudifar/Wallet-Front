@@ -25,6 +25,7 @@ from .stock import (
     _scale_minor_currency,
     _to_decimal as _to_decimal_stock,
 )
+from app.services.user_scope import filter_records_by_user
 
 home_bp = Blueprint("home", __name__, url_prefix="/")
 
@@ -42,6 +43,7 @@ def users():
         try:
             response = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
             cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
+            cryptos = filter_records_by_user(cryptos, userId)
         except Exception as e:
             print(f"Error fetching cryptos: {e}")
             cryptos = []
@@ -217,6 +219,7 @@ def users():
         try:
             response = requests.get(f"{API_URL}/transactions", params={"userId": userId}, auth=aws_auth)
             transactions = response.json().get("transactions", []) if response.status_code == 200 else []
+            transactions = filter_records_by_user(transactions, userId)
         except Exception as e:
             print(f"Error fetching transactions: {e}")
             transactions = []
@@ -286,6 +289,7 @@ def users():
         try:
             response = requests.get(f"{API_URL}/stocks", params={"userId": userId}, auth=aws_auth)
             stocks = response.json().get("stocks", []) if response.status_code == 200 else []
+            stocks = filter_records_by_user(stocks, userId)
         except Exception as e:
             print(f"Error fetching stocks: {e}")
             stocks = []
@@ -394,6 +398,7 @@ def users():
         try:
             response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
             wallets = response.json().get("wallets", []) if response.status_code == 200 else []
+            wallets = filter_records_by_user(wallets, userId)
         except Exception as e:
             print(f"Error fetching wallets: {e}")
             wallets = []

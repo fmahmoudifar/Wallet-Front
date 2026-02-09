@@ -10,6 +10,7 @@ from .crypto import (
     _get_fx_rate,
     _normalize_currency,
 )
+from app.services.user_scope import filter_records_by_user
 
 
 fiat_bp = Blueprint('fiat', __name__)
@@ -38,6 +39,7 @@ def fiat_page():
         try:
             response = requests.get(f"{API_URL}/transactions", params={"userId": userId}, auth=aws_auth)
             transactions = response.json().get("transactions", []) if response.status_code == 200 else []
+            transactions = filter_records_by_user(transactions, userId)
         except Exception as e:
             print(f"Error fetching transactions: {e}")
             transactions = []
@@ -67,6 +69,7 @@ def fiat_page():
         try:
             w_resp = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
             wallets = w_resp.json().get("wallets", []) if w_resp.status_code == 200 else []
+            wallets = filter_records_by_user(wallets, userId)
         except Exception as e:
             print(f"Error fetching wallets: {e}")
             wallets = []
@@ -121,9 +124,15 @@ def create_fiat_transaction():
 
 @fiat_bp.route('/updateFiat', methods=['POST'])
 def update_fiat_transaction():
+    user = session.get('user')
+    if not user:
+        return redirect(url_for('home.home_page'))
+    user_id = user.get('username')
+
     data = {
         "transId": request.form["transId"],
-        "userId": request.form["userId"],
+        # Never trust userId from the client; scope to the logged-in user.
+        "userId": user_id,
         "transType": request.form["transType"],
         "mainCat": request.form["mainCat"],
         "tdate": request.form["tdate"],
@@ -149,9 +158,15 @@ def update_fiat_transaction():
 
 @fiat_bp.route('/deleteFiat/<trans_id>/<user_id>', methods=['POST'])
 def delete_fiat_transaction(trans_id, user_id):
+    user = session.get('user')
+    if not user:
+        return redirect(url_for('home.home_page'))
+    session_user_id = user.get('username')
+
     data = {
         "transId": trans_id,
-        "userId": user_id,
+        # Never trust userId from the URL; scope to the logged-in user.
+        "userId": session_user_id,
     }
     print(f"🗑️ [DEBUG] Deleting transaction: {data}")
 

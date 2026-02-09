@@ -26,3 +26,4 @@ STOCK_DATA_PROVIDER = (os.getenv("STOCK_DATA_PROVIDER") or "yahoo").strip().lowe
 AUTHORITY  = "https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_vGqk3w4TZ"
 SERVER_METADATA_URL = "https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_vGqk3w4TZ/.well-known/openid-configuration"
 URL = "https://jubilant-meme-jgxqwvqxpjh9wr-5000.app.github.dev"
+

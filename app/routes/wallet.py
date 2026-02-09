@@ -4,6 +4,7 @@ import uuid
 from config import API_URL, aws_auth
 from decimal import Decimal
 from datetime import datetime
+from app.services.user_scope import filter_records_by_user
 
 wallet_bp = Blueprint('wallet', __name__)
 
@@ -15,6 +16,7 @@ def wallet_page():
         try:
             response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
             wallets = response.json().get("wallets", []) if response.status_code == 200 else []
+            wallets = filter_records_by_user(wallets, userId)
         except Exception as e:
             print(f"Error fetching wallets: {e}")
             wallets = []
@@ -52,9 +54,15 @@ def create_wallet():
 
 @wallet_bp.route('/updateWallet', methods=['POST'])
 def update_wallet():
+    user = session.get('user')
+    if not user:
+        return redirect(url_for('home.home_page'))
+    user_id = user.get('username')
+
     data = {
         "walletId": request.form["walletId"],
-        "userId": request.form["userId"],
+        # Never trust userId from the client; scope to the logged-in user.
+        "userId": user_id,
         "currency": request.form["currency"],
         "walletName": request.form["walletName"],
         "walletType": request.form["walletType"],
@@ -76,9 +84,15 @@ def update_wallet():
 @wallet_bp.route('/deleteWallet/<wallet_id>/<user_id>', methods=['POST'])
 def delete_wallet(wallet_id, user_id):
     """Delete a wallet."""
+    user = session.get('user')
+    if not user:
+        return redirect(url_for('home.home_page'))
+    session_user_id = user.get('username')
+
     data = {
         "walletId": wallet_id,
-        "userId": user_id
+        # Never trust userId from the URL; scope to the logged-in user.
+        "userId": session_user_id,
     }
     print(f"🗑️ [DEBUG] Deleting wallet: {data}")
 

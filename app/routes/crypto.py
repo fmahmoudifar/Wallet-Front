@@ -8,6 +8,7 @@ from decimal import ROUND_HALF_UP
 import math
 from datetime import datetime
 import time
+from app.services.user_scope import filter_records_by_user
 
 crypto_bp = Blueprint('crypto', __name__)
 
@@ -140,6 +141,7 @@ def crypto_page():
         try:
             response = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
             cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
+            cryptos = filter_records_by_user(cryptos, userId)
         except Exception as e:
             print(f"Error fetching cryptos: {e}")
             cryptos = []
@@ -148,6 +150,7 @@ def crypto_page():
         try:
             response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
             wallets = response.json().get("wallets", []) if response.status_code == 200 else []
+            wallets = filter_records_by_user(wallets, userId)
         except Exception as e:
             print(f"Error fetching wallets: {e}")
             wallets = []
@@ -767,9 +770,15 @@ def create_crypto():
 
 @crypto_bp.route('/updateCrypto', methods=['POST'])
 def update_crypto():
+    user = session.get('user')
+    if not user:
+        return redirect(url_for('home.home_page'))
+    user_id = user.get('username')
+
     data = {
         "cryptoId": request.form["cryptoId"],
-        "userId": request.form["userId"],
+        # Never trust userId from the client; scope to the logged-in user.
+        "userId": user_id,
         "cryptoName": request.form["cryptoName"],
         "tdate": request.form["tdate"],        
         "fromWallet": request.form["fromWallet"],
@@ -796,9 +805,15 @@ def update_crypto():
 @crypto_bp.route('/deleteCrypto/<crypto_id>/<user_id>', methods=['POST'])
 def delete_crypto(crypto_id, user_id):
     """Delete a crypto."""
+    user = session.get('user')
+    if not user:
+        return redirect(url_for('home.home_page'))
+    session_user_id = user.get('username')
+
     data = {
         "cryptoId": crypto_id,
-        "userId": user_id
+        # Never trust userId from the URL; scope to the logged-in user.
+        "userId": session_user_id,
     }
     print(f"🗑️ [DEBUG] Deleting crypto: {data}")
 

@@ -4,6 +4,7 @@ import uuid
 from config import API_URL, aws_auth
 from decimal import Decimal
 from datetime import datetime
+from app.services.user_scope import filter_records_by_user
 
 settings_bp = Blueprint('settings', __name__)
 
@@ -17,6 +18,7 @@ def settings_page():
         try:
             response = requests.get(f"{API_URL}/settings", params={"userId": userId}, auth=aws_auth)
             settings = response.json().get("settings", []) if response.status_code == 200 else []
+            settings = filter_records_by_user(settings, userId)
             print(settings)
         except Exception as e:
             print(f"Error fetching settings: {e}")
