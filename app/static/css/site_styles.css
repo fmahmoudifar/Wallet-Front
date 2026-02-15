@@ -286,6 +286,14 @@
         shape-rendering: geometricPrecision;
     }
 
+    .app-bottom-text {
+        display: block;
+        font-size: 11px;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+    }
+
     .app-bottom-link:hover { background: rgba(255,255,255,0.12); }
 
     .app-bottom-link[aria-current="page"] {

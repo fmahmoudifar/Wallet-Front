@@ -1038,7 +1038,7 @@
                 <select name="fromWallet" id="fromWallet">
                     <option value="">-- Select Wallet --</option> 
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -1049,7 +1049,7 @@
                 <select name="toWallet" id="toWallet" required>
                     <option value="">-- Select Wallet --</option> 
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -1130,7 +1130,7 @@
                 <select id="filterFromWallet" name="fromWallet">
                     <option value="">-- Any --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -1139,7 +1139,7 @@
                 <select id="filterToWallet" name="toWallet">
                     <option value="">-- Any --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -1223,7 +1223,7 @@
                 <select name="fromWallet" id="updateFromWallet">
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -1232,7 +1232,7 @@
                 <select name="toWallet" id="updateToWallet" required>
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>

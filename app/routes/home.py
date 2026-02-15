@@ -95,6 +95,48 @@ def users():
             print(f"Error fetching cryptos: {e}")
             cryptos = []
 
+        # Fetch wallets early (needed to compute wallet chart values in wallet currency)
+        try:
+            w_resp = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth, timeout=12)
+            wallets = w_resp.json().get("wallets", []) if w_resp.status_code == 200 else []
+            wallets = filter_records_by_user(wallets, userId)
+        except Exception as e:
+            print(f"Error fetching wallets: {e}")
+            wallets = []
+
+        wallet_currency_by_id = {}
+        for w in (wallets or []):
+            try:
+                wid = (w or {}).get('walletId')
+                if not wid:
+                    continue
+                raw_ccy = (
+                    (w or {}).get('currency')
+                    or (w or {}).get('Currency')
+                    or (w or {}).get('walletCurrency')
+                    or (w or {}).get('wallet_currency')
+                )
+                wallet_currency_by_id[str(wid)] = _normalize_currency(raw_ccy, base_currency)
+            except Exception:
+                continue
+
+        def _wallet_ccy(wallet_id: str) -> str:
+            try:
+                return wallet_currency_by_id.get(str(wallet_id), _normalize_currency(base_currency, 'EUR'))
+            except Exception:
+                return _normalize_currency(base_currency, 'EUR')
+
+        def _fx_amount_to_wallet(amount: Decimal, from_currency: str, wallet_id: str) -> Decimal:
+            try:
+                from_ccy = _normalize_currency(from_currency, _normalize_currency(base_currency, 'EUR'))
+                to_ccy = _wallet_ccy(wallet_id)
+                if from_ccy == to_ccy:
+                    return amount
+                return amount * _get_fx_rate(from_ccy, to_ccy)
+            except Exception:
+                # On FX failure, fall back to no conversion.
+                return amount
+
         # Real-time wallet balance calculation (legacy cash-flow style kept for reference)
         wallet_balances = defaultdict(lambda: Decimal('0'))
         # Track per-wallet crypto quantities for live valuation
@@ -271,7 +313,7 @@ def users():
             print(f"Error fetching transactions: {e}")
             transactions = []
 
-        # Fiat transactions affect wallet cash balances (in base currency)
+        # Fiat transactions affect wallet cash balances (in each wallet's currency)
         wallet_fiat_balances = defaultdict(lambda: Decimal('0'))
             
         # Process regular transactions
@@ -293,9 +335,6 @@ def users():
                 fee = to_decimal_fiat(transaction.get('fee', 0))
 
                 tx_currency = _normalize_currency(transaction.get('currency'), base_currency)
-                fx_rate = _get_fx_rate(tx_currency, base_currency)
-                amt_base = amt * fx_rate
-                fee_base = fee * fx_rate
 
                 to_wallet = transaction.get('toWallet')
                 from_wallet = transaction.get('fromWallet')
@@ -307,29 +346,106 @@ def users():
                 # - Transfer: deduct (amount + fee) from fromWallet and add amount to toWallet
                 if ttype == 'income':
                     if to_wallet:
-                        wallet_fiat_balances[to_wallet] += amt_base
+                        wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet(amt, tx_currency, to_wallet)
                 elif ttype == 'expense':
                     if from_wallet:
-                        wallet_fiat_balances[from_wallet] -= amt_base
+                        wallet_fiat_balances[from_wallet] -= _fx_amount_to_wallet(amt, tx_currency, from_wallet)
                 elif ttype == 'transfer':
-                    total_move = amt_base + fee_base
+                    total_move = amt + fee
                     if from_wallet:
-                        wallet_fiat_balances[from_wallet] -= total_move
+                        wallet_fiat_balances[from_wallet] -= _fx_amount_to_wallet(total_move, tx_currency, from_wallet)
                     if to_wallet:
-                        wallet_fiat_balances[to_wallet] += amt_base
+                        wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet(amt, tx_currency, to_wallet)
                 else:
                     # Backward-compatible fallback based on which wallets are provided
                     if from_wallet and to_wallet:
-                        total_move = amt_base + fee_base
-                        wallet_fiat_balances[from_wallet] -= total_move
-                        wallet_fiat_balances[to_wallet] += amt_base
+                        total_move = amt + fee
+                        wallet_fiat_balances[from_wallet] -= _fx_amount_to_wallet(total_move, tx_currency, from_wallet)
+                        wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet(amt, tx_currency, to_wallet)
                     elif to_wallet:
-                        wallet_fiat_balances[to_wallet] += amt_base
+                        wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet(amt, tx_currency, to_wallet)
                     elif from_wallet:
-                        wallet_fiat_balances[from_wallet] -= amt_base
+                        wallet_fiat_balances[from_wallet] -= _fx_amount_to_wallet(amt, tx_currency, from_wallet)
                     
             except Exception as e:
                 print(f"Error processing transaction {transaction}: {e}")
+                continue
+
+        # Loans also affect wallet cash balances (in each wallet's currency)
+        try:
+            resp = requests.get(f"{API_URL}/loans", params={"userId": userId}, auth=aws_auth, timeout=12)
+            loans = resp.json().get("loans", []) if resp.status_code == 200 else []
+            loans = filter_records_by_user(loans, userId)
+        except Exception as e:
+            print(f"Error fetching loans (home wallet balances): {e}")
+            loans = []
+
+        def _wallet_id(val):
+            try:
+                s = (str(val) if val is not None else '').strip()
+                if not s or s.lower() == 'none':
+                    return None
+                return s
+            except Exception:
+                return None
+
+        for loan in (loans or []):
+            try:
+                def to_decimal_loan(val):
+                    try:
+                        if val is None:
+                            return Decimal(0)
+                        s = str(val).strip()
+                        if s == '':
+                            return Decimal(0)
+                        return Decimal(s)
+                    except Exception:
+                        return Decimal(0)
+
+                loan_type = str(loan.get('type') or '').strip().lower()
+                if loan_type not in ('borrow', 'lend', 'loan'):
+                    loan_type = 'borrow'
+
+                action = str(loan.get('action') or '').strip().lower() or 'new'
+                if action not in ('new', 'repay'):
+                    action = 'new'
+
+                amt = to_decimal_loan(loan.get('amount'))
+                fee = to_decimal_loan(loan.get('fee'))
+
+                tx_currency = _normalize_currency(loan.get('currency'), base_currency)
+
+                from_wallet = _wallet_id(loan.get('fromWallet'))
+                to_wallet = _wallet_id(loan.get('toWallet'))
+
+                inflow_wallet = None
+                outflow_wallet = None
+
+                if action == 'new':
+                    if loan_type in ('borrow', 'loan'):
+                        inflow_wallet = to_wallet
+                    else:  # lend
+                        outflow_wallet = from_wallet
+                else:  # repay
+                    if loan_type in ('borrow', 'loan'):
+                        outflow_wallet = from_wallet
+                    else:  # lend
+                        inflow_wallet = to_wallet
+
+                if outflow_wallet:
+                    wallet_fiat_balances[outflow_wallet] -= _fx_amount_to_wallet(amt, tx_currency, outflow_wallet)
+                if inflow_wallet:
+                    wallet_fiat_balances[inflow_wallet] += _fx_amount_to_wallet(amt, tx_currency, inflow_wallet)
+
+                # Fee: if we have an outflow wallet, charge it there; otherwise deduct from inflow.
+                if fee:
+                    if outflow_wallet:
+                        wallet_fiat_balances[outflow_wallet] -= _fx_amount_to_wallet(fee, tx_currency, outflow_wallet)
+                    elif inflow_wallet:
+                        wallet_fiat_balances[inflow_wallet] -= _fx_amount_to_wallet(fee, tx_currency, inflow_wallet)
+
+            except Exception as e:
+                print(f"Error processing loan {loan}: {e}")
                 continue
 
         # Fetch stock transactions
@@ -385,6 +501,10 @@ def users():
                         fee_base = fee_major * fx_rate
                         revenue_base = (qty * price_major) * fx_rate
 
+                        tx_value_tx = (qty * price_major) + fee_major
+                        revenue_tx = (qty * price_major)
+                        fee_tx = fee_major
+
                         # Wallet holdings / cash-flow effects:
                         # - buy: cash decreases in fromWallet, stock qty increases in toWallet
                         # - sell: stock qty decreases in fromWallet, cash increases in toWallet
@@ -393,12 +513,12 @@ def users():
                             if to_wallet:
                                 wallet_stock_qty[to_wallet][sym] += qty
                             if from_wallet:
-                                wallet_fiat_balances[from_wallet] -= tx_value_base
+                                wallet_fiat_balances[from_wallet] -= _fx_amount_to_wallet(tx_value_tx, tx_ccy, from_wallet)
                         elif operation == 'sell':
                             if from_wallet:
                                 wallet_stock_qty[from_wallet][sym] -= qty
                             if to_wallet:
-                                wallet_fiat_balances[to_wallet] += (revenue_base - fee_base)
+                                wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet((revenue_tx - fee_tx), tx_ccy, to_wallet)
                         elif operation == 'transfer':
                             if from_wallet:
                                 wallet_stock_qty[from_wallet][sym] -= qty
@@ -440,15 +560,6 @@ def users():
         except Exception as e:
             print(f"Error computing stock totals: {e}")
             stock_totals_map = {}
-
-        # Fetch wallet names
-        try:
-            response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
-            wallets = response.json().get("wallets", []) if response.status_code == 200 else []
-            wallets = filter_records_by_user(wallets, userId)
-        except Exception as e:
-            print(f"Error fetching wallets: {e}")
-            wallets = []
 
         # Fetch live prices from CoinGecko for chart values and compute per-wallet live values
         crypto_chart_now = {}
@@ -697,15 +808,54 @@ def users():
         for wallet in wallets:
             wallet_id = wallet.get('walletId')
             wallet_name = wallet.get('walletName')
-            balance = (
-                (wallet_fiat_balances.get(wallet_id, Decimal(0)) or Decimal(0))
-                + (wallet_live_values.get(wallet_id, Decimal(0)) or Decimal(0))
-                + (wallet_stock_live_values.get(wallet_id, Decimal(0)) or Decimal(0))
+            wallet_type = (
+                wallet.get('walletType')
+                or wallet.get('WalletType')
+                or wallet.get('type')
+                or wallet.get('wallet_type')
             )
+            wallet_currency = (
+                wallet.get('currency')
+                or wallet.get('Currency')
+                or wallet.get('walletCurrency')
+                or wallet.get('wallet_currency')
+            )
+            # wallet_fiat_balances is already in the wallet's own currency.
+            cash_in_wallet_ccy = wallet_fiat_balances.get(wallet_id, Decimal(0)) or Decimal(0)
+
+            # Crypto/stock live values are computed in base_currency; convert them into the wallet currency.
+            w_ccy = _normalize_currency(wallet_currency, base_currency)
+            b_ccy = _normalize_currency(base_currency, 'EUR')
+            fx_wallet_to_base = Decimal(1)
+            fx_base_to_wallet = Decimal(1)
+            try:
+                if w_ccy and b_ccy and w_ccy != b_ccy:
+                    fx_base_to_wallet = _get_fx_rate(b_ccy, w_ccy)
+                    fx_wallet_to_base = _get_fx_rate(w_ccy, b_ccy)
+            except Exception as e:
+                print(f"FX convert base->{wallet_currency} failed for wallet {wallet_id}: {e}")
+                fx_base_to_wallet = Decimal(1)
+                fx_wallet_to_base = Decimal(1)
+
+            crypto_base = wallet_live_values.get(wallet_id, Decimal(0)) or Decimal(0)
+            stock_base = wallet_stock_live_values.get(wallet_id, Decimal(0)) or Decimal(0)
+            crypto_in_wallet_ccy = crypto_base * fx_base_to_wallet
+            stock_in_wallet_ccy = stock_base * fx_base_to_wallet
+
+            cash_base = cash_in_wallet_ccy * fx_wallet_to_base
+            balance_base = cash_base + crypto_base + stock_base
+            balance_wallet = cash_in_wallet_ccy + crypto_in_wallet_ccy + stock_in_wallet_ccy
+
             wallet_list.append({
                 'walletId': wallet_id,
                 'walletName': wallet_name,
-                'balance': float(round(balance, 2))
+                'walletType': wallet_type,
+                'currency': wallet_currency,
+                # Chart bars use base/setting currency.
+                'balance': float(round(balance_base, 2)),
+                'balanceBase': float(round(balance_base, 2)),
+                # Tooltip can show wallet-native currency.
+                'balanceWallet': float(round(balance_wallet, 2)),
             })
 
         return render_template(

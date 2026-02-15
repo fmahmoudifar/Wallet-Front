@@ -139,24 +139,38 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // Wallet balances chart
-    const walletLabels = [
+    const walletItems = [
         {% if wallets and wallets|length > 0 %}
             {% for wallet in wallets %}
-                {{ (wallet.walletName or wallet.walletId) | tojson }}{% if not loop.last %},{% endif %}
+                {
+                    name: {{ (wallet.walletName or wallet.walletId or '') | tojson }},
+                    type: {{ (wallet.walletType or '') | tojson }},
+                    currency: {{ (wallet.currency or '') | tojson }},
+                    balance: {{ (wallet.balance or 0) | tojson }},
+                    balanceBase: {{ (wallet.balanceBase or 0) | tojson }},
+                    balanceWallet: {{ (wallet.balanceWallet or 0) | tojson }},
+                }{% if not loop.last %},{% endif %}
             {% endfor %}
-        {% else %}
-            
         {% endif %}
     ];
-    const walletBalances = [
-        {% if wallets and wallets|length > 0 %}
-            {% for wallet in wallets %}
-                {{ (wallet.balance or 0) | tojson }}{% if not loop.last %},{% endif %}
-            {% endfor %}
-        {% else %}
-            
-        {% endif %}
-    ];
+
+    // Sort wallets by name (asc).
+    if (Array.isArray(walletItems)) {
+        walletItems.sort((a, b) => {
+            const an = String(a?.name || '');
+            const bn = String(b?.name || '');
+            return an.localeCompare(bn);
+        });
+    }
+
+    // Label format: "WalletName (CUR)".
+    const walletLabels = (walletItems || []).map(w => {
+        const name = String(w?.name || '').trim();
+        const cur = String(w?.currency || '').trim();
+        return cur ? `${name} (${cur})` : name;
+    });
+    // Bars are in base/setting currency.
+    const walletBalances = (walletItems || []).map(w => Number(w?.balanceBase ?? w?.balance) || 0);
 
     const nowData = {{ cryptoNowValues | tojson }};
     const paidData = {{ cryptoPaidValues | tojson }};
@@ -202,7 +216,7 @@
                 labels: walletLabels,
                 datasets: [
                     {
-                        label: `Balance (${baseCurrency})`,
+                        label: 'Balance',
                         data: walletBalances,
                         backgroundColor: walletColors,
                         borderColor: walletBorderColors,
@@ -219,9 +233,46 @@
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
+                            title: function(context) {
+                                const idx = context && context[0] ? context[0].dataIndex : 0;
+                                const w = (walletItems && walletItems[idx]) ? walletItems[idx] : {};
+                                const name = String(w?.name || '').trim();
+                                const type = String(w?.type || '').trim();
+                                const cur = String(w?.currency || '').trim();
+                                const bits = [name];
+                                if (type) bits.push(type);
+                                if (cur) bits.push(cur);
+                                return bits.filter(Boolean).join(' - ');
+                            },
                             label: function(context) {
-                                const v = Number(context.parsed.x || 0);
-                                return `${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+                                const idx = context?.dataIndex ?? 0;
+                                const w = (walletItems && walletItems[idx]) ? walletItems[idx] : {};
+
+                                const vBase = Number(context.parsed.x || 0);
+                                const vWallet = Number(w?.balanceWallet || 0);
+                                const cur = String(w?.currency || '').trim();
+                                const base = String(baseCurrency || '').trim();
+
+                                const curUpper = cur ? cur.toUpperCase() : '';
+                                const baseUpper = base ? base.toUpperCase() : '';
+
+                                const a = base
+                                    ? `${vBase.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${base}`
+                                    : `${vBase.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+                                const b = cur
+                                    ? `${vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${cur}`
+                                    : `${vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+
+                                // If currencies are the same, show a single value (no repetition).
+                                if (curUpper && baseUpper && curUpper === baseUpper) {
+                                    return a;
+                                }
+
+                                // If one side is missing currency, fall back to showing the other.
+                                if (baseUpper && !curUpper) return a;
+                                if (!baseUpper && curUpper) return b;
+
+                                return `${a} - ${b}`;
                             }
                         }
                     }

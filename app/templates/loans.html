@@ -22,10 +22,9 @@
     <button type="button" class="app-subnav-link" data-loans-nav="history" onclick="showLoansHistory()">History</button>
 </div>
 
-<div id="panel" class="panel" style="padding:12px;margin-bottom:12px;">
-    <div class="totals-card" style="width:100%;max-width:1100px;">
-        <div class="crypto-page-title" style="margin:0 0 6px 0;">Overview</div>
-        <div class="small-muted">Track who owes you, what you owe, and due dates.</div>
+<div id="panel" style="margin-bottom:12px;">
+<div class="crypto-page-title" style="margin:0 0 6px 0;">Overview</div>
+<div class="small-muted">Track who owes you, what you owe, and due dates.</div>
 
         <div class="totals-grid" style="margin-top:12px;">
             <div class="totals-card" style="box-shadow:none;">
@@ -128,7 +127,7 @@
         {% else %}
         <div class="small-muted" style="margin-top:12px;">No positions yet. Add a new borrow/lend transaction to see a per-counterparty overview.</div>
         {% endif %}
-    </div>
+
 </div>
 
 <div id="newLoan" class="block-new" style="display: none;">
@@ -193,7 +192,7 @@
                 <select name="fromWallet" id="fromWallet">
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -203,7 +202,7 @@
                 <select name="toWallet" id="toWallet">
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -279,7 +278,7 @@
                 <select id="filterFromWallet" name="fromWallet">
                     <option value="">-- Any --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -288,7 +287,7 @@
                 <select id="filterToWallet" name="toWallet">
                     <option value="">-- Any --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -433,7 +432,7 @@
                 <select name="fromWallet" id="updateFromWallet">
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -443,7 +442,7 @@
                 <select name="toWallet" id="updateToWallet">
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                        <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>

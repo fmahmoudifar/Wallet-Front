@@ -109,14 +109,14 @@
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M3 10.5 12 3l9 7.5v9.5a1 1 0 0 1-1 1h-5.5v-6.5h-5V21H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
             </svg>
-            <span class="sr-only">Home</span>
+            <span class="app-bottom-text">Home</span>
         </a>
         <a class="app-bottom-link" href="/fiat" aria-label="Fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M7 7h13l-3-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M17 17H4l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="sr-only">Fiat</span>
+            <span class="app-bottom-text">Fiat</span>
         </a>
         <a class="app-bottom-link" href="/crypto" aria-label="Crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -125,7 +125,7 @@
                 <path d="M5.5 7v4c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5V7" fill="none" stroke="currentColor" stroke-width="1.8"/>
                 <path d="M5.5 11v4c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5v-4" fill="none" stroke="currentColor" stroke-width="1.8"/>
             </svg>
-            <span class="sr-only">Crypto</span>
+            <span class="app-bottom-text">Crypto</span>
         </a>
         <a class="app-bottom-link" href="/stock" aria-label="Stocks" {% if request.path.startswith('/stock') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -133,7 +133,7 @@
                 <path d="M4 19h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 <path d="M6.5 15.5 10 12l3 2.2 4.5-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="sr-only">Stock</span>
+            <span class="app-bottom-text">Stock</span>
         </a>
         <a class="app-bottom-link" href="/loans" aria-label="Loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -142,7 +142,7 @@
                 <path d="M12.5 8.5h5.5a2.5 2.5 0 0 1 2.5 2.5v5a2.5 2.5 0 0 1-2.5 2.5h-5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 <path d="M14.5 12a1.5 1.5 0 1 0 0.01 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
             </svg>
-            <span class="sr-only">Loan</span>
+            <span class="app-bottom-text">Loan</span>
         </a>
         <a class="app-bottom-link" href="/wallet" aria-label="Wallets" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -150,7 +150,7 @@
                 <path d="M20 9h-4.5a2 2 0 0 0 0 4H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 <path d="M16.5 11h.01" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
             </svg>
-            <span class="sr-only">Wallets</span>
+            <span class="app-bottom-text">Wallets</span>
         </a>
         <a class="app-bottom-link" href="/settings" aria-label="Settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -162,7 +162,7 @@
                 <circle cx="15" cy="12" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
                 <circle cx="11" cy="17" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
             </svg>
-            <span class="sr-only">Settings</span>
+            <span class="app-bottom-text">Settings</span>
         </a>
     </nav>
     {% endif %}

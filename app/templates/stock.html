@@ -1159,7 +1159,7 @@ function stockWalletsDiv() { showStockWallets(); }
         <select name="fromWallet" id="fromWallet" >
             <option value="">-- Select Wallet --</option>
             {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-            <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+            <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
             {% endfor %}
         </select>
         </div>
@@ -1168,7 +1168,7 @@ function stockWalletsDiv() { showStockWallets(); }
         <select name="toWallet" id="toWallet" required>
             <option value="">-- Select Wallet --</option>
             {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-            <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+            <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
             {% endfor %}
         </select>
         </div>
@@ -1248,7 +1248,7 @@ function stockWalletsDiv() { showStockWallets(); }
                 <select id="stockFilterFromWallet" name="fromWallet">
                     <option value="">All</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -1257,7 +1257,7 @@ function stockWalletsDiv() { showStockWallets(); }
                 <select id="stockFilterToWallet" name="toWallet">
                     <option value="">All</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -1344,7 +1344,7 @@ function stockWalletsDiv() { showStockWallets(); }
                 <select id="updateFromWallet" name="fromWallet">
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -1353,7 +1353,7 @@ function stockWalletsDiv() { showStockWallets(); }
                 <select id="updateToWallet" name="toWallet" required>
                     <option value="">-- Select Wallet --</option>
                     {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}</option>
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
