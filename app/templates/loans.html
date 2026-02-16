@@ -23,12 +23,12 @@
 </div>
 
 <div id="panel" style="margin-bottom:12px;">
-<div class="crypto-page-title" style="margin:0 0 6px 0;">Overview</div>
-<div class="small-muted">Track who owes you, what you owe, and due dates.</div>
+<!-- <div class="crypto-page-title" style="margin:0 0 6px 0;">Overview</div> -->
+<!-- <div class="small-muted">Track who owes you, what you owe, and due dates.</div> -->
 
         <div class="totals-grid" style="margin-top:12px;">
             <div class="totals-card" style="box-shadow:none;">
-                <div class="small-muted" style="font-weight:700;">You will receive</div>
+                <div class="small-muted" style="font-weight:700;">Total Lent</div>
                 {% if receive_totals and receive_totals|length > 1 %}
                     <div style="margin-top:4px;display:flex;flex-direction:column;gap:2px;">
                         {% for ccy, amt in receive_totals|dictsort %}
@@ -40,7 +40,7 @@
                 {% endif %}
             </div>
             <div class="totals-card" style="box-shadow:none;">
-                <div class="small-muted" style="font-weight:700;">You owe</div>
+                <div class="small-muted" style="font-weight:700;">Total Debt</div>
                 {% if owe_totals and owe_totals|length > 1 %}
                     <div style="margin-top:4px;display:flex;flex-direction:column;gap:2px;">
                         {% for ccy, amt in owe_totals|dictsort %}
@@ -54,12 +54,32 @@
         </div>
 
         {% if loan_positions and loan_positions|length %}
-        <div class="crypto-page-title" style="margin:14px 0 6px 0; font-size: 1rem;">By position</div>
+        <div style="margin:14px 0 6px 0; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+            <div class="crypto-page-title" style="margin:0; font-size: 1rem;">By position</div>
+            <div id="paidOffPositionsToggleRow" style="display:flex; justify-content:flex-end;">
+                <button type="button" id="togglePaidOffPositionsBtn" class="btn-clear" aria-pressed="false" onclick="togglePaidOffPositions()">Show paid-off positions</button>
+            </div>
+        </div>
         <div class="small-muted">Grouped by position (counterparty, currency, date).</div>
 
-        <div class="totals-grid" style="margin-top:12px;">
+        <div id="loanPositionsGrid" class="totals-grid loan-positions-grid hide-paid-off" style="margin-top:12px;">
             {% for p in loan_positions %}
-            <div class="totals-card">
+            {# Paid-off rule: Outstanding == 0. (Fallback to repaid>=principal if outstanding missing.) #}
+            {% set _principal_amt = (p.principal|default(0)|float) %}
+            {% set _repaid_amt = (p.repaid|default(0)|float) %}
+            {% set _has_outstanding = (p.outstanding is defined and p.outstanding is not none) %}
+            {% if _has_outstanding %}
+                {% set _outstanding_val = (p.outstanding|float) %}
+            {% else %}
+                {# Some backends only provide outstanding_display like "0 EUR"; float parses the numeric prefix. #}
+                {% set _outstanding_val = (p.outstanding_display|default(0)|float) %}
+            {% endif %}
+            {% set _is_paid_off = (_outstanding_val <= 0.000001) %}
+            {# Ultimate fallback if outstanding is not present at all #}
+            {% if (not _has_outstanding) and (p.outstanding_display is not defined) %}
+                {% set _is_paid_off = ((_repaid_amt + 0.000001) >= _principal_amt) %}
+            {% endif %}
+            <div class="totals-card loan-position-card{% if _is_paid_off %} is-paid-off{% endif %}" data-paid-off="{{ 1 if _is_paid_off else 0 }}">
                 <div class="totals-header">
                     <div>
                         <div style="font-size:1rem;font-weight:700">{{ p.counterparty|default('—') }}</div>
@@ -265,11 +285,6 @@
                 </select>
             </div>
             <div>
-                <label for="filterParty">Counterparty:</label>
-                <input type="text" id="filterParty" name="party" placeholder="Contains..." autocomplete="off" />
-                <div id="filterPartyList" class="autocomplete-list" style="position:relative"></div>
-            </div>
-            <div>
                 <label for="filterNote">Note:</label>
                 <input type="text" id="filterNote" name="note" placeholder="Contains..." autocomplete="off" />
             </div>
@@ -290,6 +305,11 @@
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
+            </div>
+            <div>
+                <label for="filterParty">Counterparty:</label>
+                <input type="text" id="filterParty" name="party" placeholder="Contains..." autocomplete="off" />
+                <div id="filterPartyList" class="autocomplete-list" style="position:relative"></div>
             </div>
             <div class="filters-actions">
                 <button type="button" class="btn-clear" onclick="resetLoansFilters()">Clear</button>
@@ -802,7 +822,7 @@
         const newDiv = document.getElementById('newLoan');
         const updateDiv = document.getElementById('updateLoanDiv');
 
-        if (title) title.innerText = 'Borrow & Lend';
+        if (title) title.innerText = 'Borrow & Lend Overview';
         if (panel) panel.style.display = 'block';
         if (listDiv) listDiv.style.display = 'none';
         if (newDiv) newDiv.style.display = 'none';
@@ -811,6 +831,52 @@
         setLoansNavVisibility('portfolio');
     }
 
+    function initPaidOffPositionsToggle() {
+        const grid = document.getElementById('loanPositionsGrid');
+        const btn = document.getElementById('togglePaidOffPositionsBtn');
+        const row = document.getElementById('paidOffPositionsToggleRow');
+        if (!grid || !btn || !row) return;
+
+        const paidOffCards = grid.querySelectorAll('.loan-position-card.is-paid-off');
+        if (!paidOffCards || paidOffCards.length === 0) {
+            row.style.display = 'none';
+            return;
+        }
+
+        grid.classList.add('hide-paid-off');
+        grid.classList.remove('show-paid-off');
+        btn.dataset.state = 'hidden';
+        btn.innerText = 'Show paid-off positions';
+        btn.setAttribute('aria-pressed', 'false');
+    }
+
+    function togglePaidOffPositions() {
+        const grid = document.getElementById('loanPositionsGrid');
+        const btn = document.getElementById('togglePaidOffPositionsBtn');
+        if (!grid || !btn) return;
+
+        const isShowing = grid.classList.contains('show-paid-off');
+        if (isShowing) {
+            grid.classList.add('hide-paid-off');
+            grid.classList.remove('show-paid-off');
+            btn.dataset.state = 'hidden';
+            btn.innerText = 'Show paid-off positions';
+            btn.setAttribute('aria-pressed', 'false');
+        } else {
+            grid.classList.add('show-paid-off');
+            grid.classList.remove('hide-paid-off');
+            btn.dataset.state = 'shown';
+            btn.innerText = 'Hide paid-off positions';
+            btn.setAttribute('aria-pressed', 'true');
+        }
+    }
+
+    window.togglePaidOffPositions = togglePaidOffPositions;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initPaidOffPositionsToggle();
+    });
+
     function showLoansNew() {
         const title = document.getElementById('loansPageTitle');
         const panel = document.getElementById('panel');
@@ -818,7 +884,7 @@
         const newDiv = document.getElementById('newLoan');
         const updateDiv = document.getElementById('updateLoanDiv');
 
-        if (title) title.innerText = 'New Loan Transaction';
+        if (title) title.innerText = 'New Transaction';
         if (newDiv) newDiv.style.display = 'block';
         if (updateDiv) updateDiv.style.display = 'none';
         if (panel) panel.style.display = 'none';

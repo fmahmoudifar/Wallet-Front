@@ -858,6 +858,237 @@ def users():
                 'balanceWallet': float(round(balance_wallet, 2)),
             })
 
+        # --- Loans (Home card): open positions progress (no FX) ---
+        # A position is considered open if outstanding > 0.
+        loanHomePositions = []
+
+        def _to_decimal_home(val) -> Decimal:
+            try:
+                if val is None:
+                    return Decimal(0)
+                s = str(val).strip()
+                if s == '':
+                    return Decimal(0)
+                return Decimal(s)
+            except Exception:
+                return Decimal(0)
+
+        def _day_from_iso_home(date_str: str) -> str:
+            s = (date_str or '').strip()
+            return s[:10] if len(s) >= 10 else s
+
+        def _derive_position_home(counterparty: str, currency: str, tdate: str) -> str:
+            party = (counterparty or '').strip() or '—'
+            ccy = (currency or '').strip().upper() or (base_currency or 'EUR')
+            day = _day_from_iso_home(tdate) or 'unknown-date'
+            return f"{party} | {ccy} | {day}"
+
+        try:
+            l_resp = requests.get(f"{API_URL}/loans", params={"userId": userId}, auth=aws_auth, timeout=12)
+            _loans = l_resp.json().get('loans', []) if l_resp.status_code == 200 else []
+            _loans = filter_records_by_user(_loans, userId)
+        except Exception as e:
+            print(f"Error fetching loans (home): {e}")
+            _loans = []
+
+        if _loans:
+            pos_map = {}
+            for row in (_loans or []):
+                try:
+                    t = str(row.get('type') or '').strip().lower()
+                    if t not in ('borrow', 'lend', 'loan'):
+                        t = 'borrow'
+                    action = str(row.get('action') or '').strip().lower() or 'new'
+                    if action not in ('new', 'repay'):
+                        action = 'new'
+
+                    party = str(row.get('counterparty') or '').strip() or '—'
+                    currency = (str(row.get('currency') or '').strip().upper() or (base_currency or 'EUR'))
+                    amt = _to_decimal_home(row.get('amount'))
+                    tdate = str(row.get('tdate') or '').strip()
+                    position_raw = str(row.get('position') or '').strip()
+
+                    if action == 'new':
+                        position = position_raw or _derive_position_home(party, currency, tdate)
+                    else:
+                        position = position_raw
+                        if not position:
+                            # Fallback: treat legacy repay as its own bucket.
+                            position = f"{party} | {currency} | legacy"
+
+                    key = (t, position)
+                    if key not in pos_map:
+                        pos_map[key] = {
+                            'type': t,
+                            'position': position,
+                            'counterparty': party,
+                            'currency': currency,
+                            'principal': Decimal(0),
+                            'repaid': Decimal(0),
+                        }
+
+                    if action == 'new':
+                        pos_map[key]['principal'] += amt
+                    else:
+                        pos_map[key]['repaid'] += amt
+                except Exception:
+                    continue
+
+            for entry in pos_map.values():
+                principal = entry.get('principal') or Decimal(0)
+                repaid = entry.get('repaid') or Decimal(0)
+                outstanding = principal - repaid
+                if outstanding <= 0:
+                    continue
+
+                # Clamp overpayment to principal for progress display.
+                repaid_for_pct = repaid
+                if principal > 0 and repaid_for_pct > principal:
+                    repaid_for_pct = principal
+
+                pct = Decimal(0)
+                if principal > 0:
+                    pct = (repaid_for_pct / principal) * Decimal(100)
+                    if pct < 0:
+                        pct = Decimal(0)
+                    if pct > 100:
+                        pct = Decimal(100)
+
+                t = entry.get('type')
+                if t == 'lend':
+                    type_label = 'Lend'
+                elif t == 'loan':
+                    type_label = 'Loan'
+                else:
+                    type_label = 'Borrow'
+
+                loanHomePositions.append({
+                    'counterparty': entry.get('counterparty') or '—',
+                    'currency': entry.get('currency') or (base_currency or 'EUR'),
+                    'type': t,
+                    'typeLabel': type_label,
+                    'principal': float(principal),
+                    'repaid': float(repaid_for_pct),
+                    'outstanding': float(outstanding),
+                    'progressPct': float(pct),
+                })
+
+            loanHomePositions.sort(key=lambda x: (
+                -abs(Decimal(str(x.get('outstanding') or 0))),
+                str(x.get('counterparty') or '').lower(),
+                str(x.get('currency') or ''),
+            ))
+
+        # --- Loans chart (Home card): outstanding by counterparty (no FX) ---
+        # Chart a single currency to avoid mixing units:
+        # - Prefer base currency if present
+        # - Else choose the currency with the largest total outstanding
+        def _to_decimal_home(val) -> Decimal:
+            try:
+                if val is None:
+                    return Decimal(0)
+                s = str(val).strip()
+                if s == '':
+                    return Decimal(0)
+                return Decimal(s)
+            except Exception:
+                return Decimal(0)
+
+        def _day_from_iso_home(date_str: str) -> str:
+            s = (date_str or '').strip()
+            return s[:10] if len(s) >= 10 else s
+
+        def _derive_position_home(counterparty: str, currency: str, tdate: str) -> str:
+            party = (counterparty or '').strip() or '—'
+            ccy = (currency or '').strip().upper() or (base_currency or 'EUR')
+            day = _day_from_iso_home(tdate) or 'unknown-date'
+            return f"{party} | {ccy} | {day}"
+
+        loanHomeChart = {'currency': '', 'labels': [], 'values': []}
+
+        try:
+            l_resp = requests.get(f"{API_URL}/loans", params={"userId": userId}, auth=aws_auth, timeout=12)
+            _loans = l_resp.json().get('loans', []) if l_resp.status_code == 200 else []
+            _loans = filter_records_by_user(_loans, userId)
+        except Exception as e:
+            print(f"Error fetching loans (home): {e}")
+            _loans = []
+
+        if _loans:
+            # Per-position ledger so paid-off/overpaid positions don't affect open ones.
+            pos_map = {}
+            for row in (_loans or []):
+                try:
+                    t = str(row.get('type') or '').strip().lower()
+                    if t not in ('borrow', 'lend', 'loan'):
+                        t = 'borrow'
+                    action = str(row.get('action') or '').strip().lower() or 'new'
+                    if action not in ('new', 'repay'):
+                        action = 'new'
+
+                    party = str(row.get('counterparty') or '').strip() or '—'
+                    currency = (str(row.get('currency') or '').strip().upper() or (base_currency or 'EUR'))
+                    amt = _to_decimal_home(row.get('amount'))
+                    tdate = str(row.get('tdate') or '').strip()
+                    position_raw = str(row.get('position') or '').strip()
+
+                    if action == 'new':
+                        position = position_raw or _derive_position_home(party, currency, tdate)
+                    else:
+                        # If legacy repay has no position, bucket it under a stable key.
+                        position = position_raw or f"{party} | {currency} | legacy"
+
+                    key = (t, party.lower(), currency, position)
+                    if key not in pos_map:
+                        pos_map[key] = {
+                            'type': t,
+                            'counterparty': party,
+                            'currency': currency,
+                            'principal': Decimal(0),
+                            'repaid': Decimal(0),
+                        }
+                    if action == 'new':
+                        pos_map[key]['principal'] += amt
+                    else:
+                        pos_map[key]['repaid'] += amt
+                except Exception:
+                    continue
+
+            totals_by_ccy = defaultdict(lambda: defaultdict(lambda: Decimal(0)))
+            for entry in pos_map.values():
+                principal = entry.get('principal') or Decimal(0)
+                repaid = entry.get('repaid') or Decimal(0)
+                outstanding = principal - repaid
+                if outstanding <= 0:
+                    continue
+                ccy = entry.get('currency') or (base_currency or 'EUR')
+                party = entry.get('counterparty') or '—'
+                signed = outstanding if entry.get('type') == 'lend' else -outstanding
+                totals_by_ccy[ccy][party] += signed
+
+            base_ccy = (base_currency or 'EUR').strip().upper() or 'EUR'
+            chosen_ccy = base_ccy if totals_by_ccy.get(base_ccy) else ''
+            if not chosen_ccy:
+                best_ccy = ''
+                best_total = Decimal(0)
+                for ccy, party_map in totals_by_ccy.items():
+                    total_abs = sum((abs(v) for v in (party_map or {}).values()), Decimal(0))
+                    if total_abs > best_total:
+                        best_total = total_abs
+                        best_ccy = ccy
+                chosen_ccy = best_ccy
+
+            if chosen_ccy and totals_by_ccy.get(chosen_ccy):
+                party_map = totals_by_ccy[chosen_ccy]
+                items = [(k, v) for k, v in party_map.items() if v is not None and v != 0]
+                items.sort(key=lambda kv: abs(kv[1]), reverse=True)
+                items = items[:8]
+                loanHomeChart = {
+                    'currency': chosen_ccy,
+                    'labels': [k for k, _ in items],
+                    'values': [float(v) for _, v in items],
+                }
+
         return render_template(
             "home.html",
             cryptoLabels=cryptoLabels,
@@ -877,6 +1108,7 @@ def users():
             stockPortfolioGainIsPositive=(stock_gain_amount >= 0),
             stockPortfolioGainPctDisplay=stock_gain_pct_display,
             wallets=wallet_list,
+            loanHomePositions=loanHomePositions,
             userId=userId
         )
  

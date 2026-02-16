@@ -39,6 +39,19 @@
             grid-template-columns: 1fr; 
         }
     }
+
+    .loan-pies {
+        display: block;
+    }
+    #loanBarChart {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+    }
+
+    @media (max-width: 768px) {
+        /* keep bar chart full-width */
+    }
 </style>
 
 <div class="grid-container">
@@ -129,14 +142,19 @@
 
 
     <div class="grid-item">
-        <div class="totals-card home-card" style="display: flex; flex-direction: column; justify-content: center;">
-            <div class="crypto-page-title" style="text-align: center; margin: 0; font-size: 1.1rem;">Transactions</div>
-            <div class="small-muted" style="text-align: center; margin-top: 8px;">Overview coming soon.</div>
+        <div class="totals-card home-card" style="display: flex; flex-direction: column;">
+            <div class="crypto-page-title" style="text-align: center; margin: 0 0 6px 0;">Debts & Loans</div>
+            {% if loanHomePositions and loanHomePositions|length > 0 %}
+                <div class="loan-pies" style="flex: 1 1 auto; min-height: 260px;">
+                    <canvas id="loanBarChart"></canvas>
+                </div>
+            {% else %}
+                <div class="small-muted" style="text-align: center; padding: 10px 0;">No open loan positions</div>
+            {% endif %}
         </div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // Wallet balances chart
     const walletItems = [
@@ -177,6 +195,7 @@
     const stockNowData = {{ (stockNowValues or []) | tojson }};
     const stockPaidData = {{ (stockPaidValues or []) | tojson }};
     const baseCurrency = {{ (baseCurrency or 'EUR') | tojson }};
+    const loanHomePositions = {{ (loanHomePositions or []) | tojson }};
     const gainIsPositive = {{ (cryptoPortfolioGainIsPositive or false) | tojson }};
     const gainAbsDisplay = {{ (cryptoPortfolioGainAbsDisplay or '0') | tojson }};
     const gainPctDisplay = {{ (cryptoPortfolioGainPctDisplay or 'N/A') | tojson }};
@@ -203,6 +222,129 @@
     const colorPaid = 'rgba(240, 87, 87, 0.45)';
     const borderNow = 'rgba(76, 180, 100, 0.9)';
     const borderPaid = 'rgba(240, 87, 87, 0.9)';
+
+    // Pie start angle: put the dividing line at 12 o'clock.
+    // Chart.js uses radians for rotation.
+    const pieTopRotation = -0.5 * Math.PI;
+
+    // Loans: small progress pies (one per open position)
+    if (Array.isArray(loanHomePositions) && loanHomePositions.length > 0) {
+        const loanCanvas = document.getElementById('loanBarChart');
+        if (loanCanvas) {
+            const loanMeta = loanHomePositions.map((p) => {
+                const principal = Number(p?.principal || 0);
+                const repaid = Number(p?.repaid || 0);
+                const outstanding = Number(p?.outstanding || 0);
+                const ccy = String(p?.currency || '').trim();
+                const name = String(p?.counterparty || '—').trim() || '—';
+                const typeLabel = String(p?.typeLabel || 'Loan').trim() || 'Loan';
+
+                const repaidVal = Math.max(0, Math.min(repaid, principal || repaid));
+                const remainingVal = Math.max(0, outstanding);
+                const total = principal > 0 ? principal : (repaidVal + remainingVal);
+                const repaidPct = total > 0 ? (repaidVal / total) * 100 : 0;
+                const remainingPct = Math.max(0, 100 - repaidPct);
+
+                const fmt = (v) => Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+                const totalText = `${fmt(total)}${ccy ? ' ' + ccy : ''}`;
+                const displayLabel = ccy ? `${name} (${ccy})` : name;
+
+                return {
+                    label: [displayLabel, totalText],
+                    displayLabel,
+                    totalText,
+                    typeLabel,
+                    ccy,
+                    repaidVal,
+                    remainingVal,
+                    repaidPct,
+                    remainingPct,
+                };
+            });
+
+            const loanLabels = loanMeta.map(x => x.label);
+            const repaidPctData = loanMeta.map(x => x.repaidPct);
+            const remainingPctData = loanMeta.map(x => x.remainingPct);
+
+            new Chart(loanCanvas, {
+                type: 'bar',
+                data: {
+                    labels: loanLabels,
+                    datasets: [
+                        {
+                            label: 'Repaid',
+                            data: repaidPctData,
+                            backgroundColor: colorNow,
+                            borderColor: borderNow,
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            borderSkipped: false,
+                            barThickness: 14,
+                        },
+                        {
+                            label: 'Outstanding',
+                            data: remainingPctData,
+                            backgroundColor: colorPaid,
+                            borderColor: borderPaid,
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            borderSkipped: false,
+                            barThickness: 14,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                boxWidth: 40,
+                                boxHeight: 10,
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    const idx = context && context[0] ? context[0].dataIndex : 0;
+                                    const m = loanMeta[idx] || {};
+                                    return `${m.displayLabel || ''} - ${m.typeLabel || ''}`.trim();
+                                },
+                                label: function(context) {
+                                    const idx = context?.dataIndex ?? 0;
+                                    const m = loanMeta[idx] || {};
+                                    const pct = Number(context.parsed?.x ?? 0);
+                                    const amt = context.datasetIndex === 0 ? Number(m.repaidVal || 0) : Number(m.remainingVal || 0);
+                                    const amtText = amt.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                                    return `${context.dataset.label}: ${pct.toLocaleString(undefined, { maximumFractionDigits: 0 })}% (${amtText}${m.ccy ? ' ' + m.ccy : ''})`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}%`;
+                                }
+                            },
+                            grid: { display: true }
+                        },
+                        y: {
+                            stacked: true,
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+    }
 
     // Render wallet bar chart (if the canvas exists)
     const walletCanvas = document.getElementById('walletChart');
@@ -312,6 +454,7 @@
             responsive: true,
             maintainAspectRatio: false,
             radius: '95%',
+            rotation: pieTopRotation,
             plugins: {
                 tooltip: {
                     callbacks: {
@@ -354,6 +497,7 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 radius: '95%',
+                rotation: pieTopRotation,
                 plugins: {
                     tooltip: {
                         callbacks: {

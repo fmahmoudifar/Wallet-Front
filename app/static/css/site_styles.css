@@ -181,6 +181,15 @@
     border: 0;
 }
 
+/* Loans overview: paid-off positions toggle */
+.loan-positions-grid.hide-paid-off .loan-position-card.is-paid-off {
+    display: none;
+}
+
+.loan-positions-grid.show-paid-off .loan-position-card.is-paid-off {
+    display: block;
+}
+
 @media (max-width: 768px) {
     .app-shell { display: block; }
     .app-sidebar { display: none; }
@@ -324,6 +333,10 @@ form {
     --input-desktop-width: 360px;
     /* Gray for all titles */
     --title-accent: #6c757d;
+
+    /* Semantic colors (reuse existing pct-positive / pct-negative palette) */
+    --positive: #4cb464;
+    --negative: #f05757;
 
     /* Theme tokens (light defaults) */
     --bg: #ffffff;
@@ -1368,8 +1381,8 @@ button.pct-positive:hover {
 }
 
 /* Crypto totals cards */
-.totals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:0;padding:0}
-.totals-card{background:linear-gradient(180deg,#fff,#fbfbfb);border-radius:10px;padding:12px;border:1px solid rgba(0,0,0,0.10);box-shadow:0 6px 18px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:8px}
+.totals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin:0;padding:0;align-items:stretch;grid-auto-rows:1fr}
+.totals-card{background:linear-gradient(180deg,#fff,#fbfbfb);border-radius:10px;padding:12px;border:1px solid rgba(0,0,0,0.10);box-shadow:0 6px 18px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:8px;height:100%}
 .totals-header{display:flex;justify-content:space-between;align-items:center}
 .pct-badge{font-weight:800;padding:0;border-radius:0;background:transparent;color:inherit;font-size:0.9rem}
 .pct-positive{background:#4cb464;color:#fff}

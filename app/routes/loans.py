@@ -127,45 +127,8 @@ def loans_page():
         print(f"Error fetching wallets: {e}")
         wallets = []
 
-    # --- Overview totals (currency-safe) ---
-    # Totals must not mix currencies. We compute per-currency totals.
+    # Base currency for display fallbacks only; loan totals are computed per currency.
     base_currency = (session.get('currency') or 'EUR').strip().upper() or 'EUR'
-    receive_totals = defaultdict(lambda: Decimal(0))
-    owe_totals = defaultdict(lambda: Decimal(0))
-    try:
-        for row in (loans or []):
-            t = str(row.get('type') or '').strip().lower()
-            if t not in ('borrow', 'lend', 'loan'):
-                t = 'borrow'
-            action = str(row.get('action') or '').strip().lower() or 'new'
-            amt = _to_decimal(row.get('amount'))
-            ccy = (str(row.get('currency') or '').strip().upper() or base_currency)
-
-            if t == 'lend':
-                if action == 'repay':
-                    receive_totals[ccy] -= amt
-                else:
-                    receive_totals[ccy] += amt
-            elif t in ('borrow', 'loan'):
-                if action == 'repay':
-                    owe_totals[ccy] -= amt
-                else:
-                    owe_totals[ccy] += amt
-    except Exception:
-        receive_totals = defaultdict(lambda: Decimal(0))
-        owe_totals = defaultdict(lambda: Decimal(0))
-
-    # Clamp negatives (overpaid) to 0 per currency.
-    for ccy in list(receive_totals.keys()):
-        if receive_totals[ccy] < 0:
-            receive_totals[ccy] = Decimal(0)
-    for ccy in list(owe_totals.keys()):
-        if owe_totals[ccy] < 0:
-            owe_totals[ccy] = Decimal(0)
-
-    # Legacy single totals for older templates: prefer base currency bucket.
-    receive_total = receive_totals.get(base_currency, Decimal(0))
-    owe_total = owe_totals.get(base_currency, Decimal(0))
 
     # --- Positions overview (explicit Position field) ---
     # We group by (type, position). Position is a string identifying a "contract".
@@ -312,6 +275,13 @@ def loans_page():
         positions = {}
         positions_catalog_map = {}
 
+    # --- Overview totals (currency-safe; per-position) ---
+    # Important: totals must be derived from per-position outstanding, otherwise
+    # an overpaid (closed) position can incorrectly offset another open position
+    # in the same currency.
+    receive_totals = defaultdict(lambda: Decimal(0))
+    owe_totals = defaultdict(lambda: Decimal(0))
+
     loan_positions = []
     try:
         for entry in positions.values():
@@ -321,6 +291,14 @@ def loans_page():
             if outstanding < 0:
                 # Avoid showing negative outstanding (e.g., data issues or overpayment).
                 outstanding = Decimal(0)
+
+            ccy = (str(entry.get('currency') or '').strip().upper() or base_currency)
+            if outstanding > 0:
+                if entry.get('type') == 'lend':
+                    receive_totals[ccy] += outstanding
+                else:
+                    # borrow + loan
+                    owe_totals[ccy] += outstanding
 
             repaid_pct = Decimal(0)
             if principal > 0:
@@ -376,6 +354,10 @@ def loans_page():
             })
     except Exception:
         loan_positions = []
+
+    # Legacy single totals for older templates: prefer base currency bucket.
+    receive_total = receive_totals.get(base_currency, Decimal(0))
+    owe_total = owe_totals.get(base_currency, Decimal(0))
 
     # Sort: open first, then lend/borrow, then counterparty, then currency.
     loan_positions.sort(key=lambda p: (
