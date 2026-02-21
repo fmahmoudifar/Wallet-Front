@@ -223,6 +223,35 @@
     const borderNow = 'rgba(76, 180, 100, 0.9)';
     const borderPaid = 'rgba(240, 87, 87, 0.9)';
 
+    const cssVar = (name) => {
+        try {
+            return (getComputedStyle(document.documentElement).getPropertyValue(name) || '').trim();
+        } catch (_e) {
+            return '';
+        }
+    };
+
+    const hexToRgba = (hex, alpha) => {
+        const raw = String(hex || '').trim().replace('#', '');
+        const isShort = raw.length === 3;
+        const isLong = raw.length === 6;
+        if (!isShort && !isLong) return null;
+        const r = parseInt(isShort ? raw[0] + raw[0] : raw.slice(0, 2), 16);
+        const g = parseInt(isShort ? raw[1] + raw[1] : raw.slice(2, 4), 16);
+        const b = parseInt(isShort ? raw[2] + raw[2] : raw.slice(4, 6), 16);
+        if ([r, g, b].some(n => Number.isNaN(n))) return null;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+
+    // Type colors (reuse existing theme/bootstrap variables)
+    const bsPrimary = cssVar('--bs-primary');
+    const titleAccentHex = cssVar('--title-accent') || '#6c757d';
+    const lendHex = bsPrimary || titleAccentHex;
+    const lendOutstandingColor = hexToRgba(lendHex, 0.35) || colorPaid;
+    const lendOutstandingBorder = hexToRgba(lendHex, 0.9) || borderPaid;
+    const loanOutstandingColor = hexToRgba(titleAccentHex, 0.35) || colorPaid;
+    const loanOutstandingBorder = hexToRgba(titleAccentHex, 0.9) || borderPaid;
+
     // Pie start angle: put the dividing line at 12 o'clock.
     // Chart.js uses radians for rotation.
     const pieTopRotation = -0.5 * Math.PI;
@@ -247,7 +276,7 @@
 
                 const fmt = (v) => Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
                 const totalText = `${fmt(total)}${ccy ? ' ' + ccy : ''}`;
-                const displayLabel = ccy ? `${name} (${ccy})` : name;
+                const displayLabel = name;
 
                 return {
                     label: [displayLabel, totalText],
@@ -264,7 +293,45 @@
 
             const loanLabels = loanMeta.map(x => x.label);
             const repaidPctData = loanMeta.map(x => x.repaidPct);
-            const remainingPctData = loanMeta.map(x => x.remainingPct);
+
+            const typeKey = (m) => String(m?.typeLabel || '').trim().toLowerCase();
+            const isBorrow = (m) => typeKey(m).includes('borrow');
+            const isLend = (m) => typeKey(m).includes('lend');
+            const isLoan = (m) => typeKey(m).includes('loan');
+
+            const remainingBorrowPctData = loanMeta.map(m => (isBorrow(m) ? m.remainingPct : 0));
+            const remainingLendPctData = loanMeta.map(m => (isLend(m) ? m.remainingPct : 0));
+            const remainingLoanPctData = loanMeta.map(m => (isLoan(m) ? m.remainingPct : 0));
+
+            const segmentRadius = (ctx) => {
+                const v = Number(ctx?.raw || 0);
+                if (!(v > 0)) return 0;
+
+                const chart = ctx?.chart;
+                const dataIndex = ctx?.dataIndex;
+                const datasetIndex = ctx?.datasetIndex;
+                const ds = chart?.data?.datasets || [];
+
+                const vals = ds.map(d => Number(d?.data?.[dataIndex] || 0));
+                const nonZero = vals
+                    .map((val, idx) => ({ val, idx }))
+                    .filter(x => x.val > 0);
+                if (nonZero.length <= 1) return 6;
+
+                const firstIdx = nonZero[0].idx;
+                const lastIdx = nonZero[nonZero.length - 1].idx;
+
+                const left = datasetIndex === firstIdx;
+                const right = datasetIndex === lastIdx;
+
+                if (left && right) return 6;
+                return {
+                    topLeft: left ? 6 : 0,
+                    bottomLeft: left ? 6 : 0,
+                    topRight: right ? 6 : 0,
+                    bottomRight: right ? 6 : 0,
+                };
+            };
 
             new Chart(loanCanvas, {
                 type: 'bar',
@@ -276,18 +343,38 @@
                             data: repaidPctData,
                             backgroundColor: colorNow,
                             borderColor: borderNow,
-                            borderWidth: 1,
-                            borderRadius: 6,
+                            borderWidth: 0,
+                            borderRadius: segmentRadius,
                             borderSkipped: false,
                             barThickness: 14,
                         },
                         {
-                            label: 'Outstanding',
-                            data: remainingPctData,
+                            label: 'Borrow',
+                            data: remainingBorrowPctData,
                             backgroundColor: colorPaid,
                             borderColor: borderPaid,
-                            borderWidth: 1,
-                            borderRadius: 6,
+                            borderWidth: 0,
+                            borderRadius: segmentRadius,
+                            borderSkipped: false,
+                            barThickness: 14,
+                        },
+                        {
+                            label: 'Lend',
+                            data: remainingLendPctData,
+                            backgroundColor: lendOutstandingColor,
+                            borderColor: lendOutstandingBorder,
+                            borderWidth: 0,
+                            borderRadius: segmentRadius,
+                            borderSkipped: false,
+                            barThickness: 14,
+                        },
+                        {
+                            label: 'Loan',
+                            data: remainingLoanPctData,
+                            backgroundColor: loanOutstandingColor,
+                            borderColor: loanOutstandingBorder,
+                            borderWidth: 0,
+                            borderRadius: segmentRadius,
                             borderSkipped: false,
                             barThickness: 14,
                         }
@@ -297,6 +384,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     indexAxis: 'y',
+                    interaction: { mode: 'index', axis: 'y', intersect: false },
                     plugins: {
                         legend: {
                             display: true,
@@ -307,6 +395,10 @@
                             }
                         },
                         tooltip: {
+                            filter: function(context) {
+                                const v = Number(context?.parsed?.x ?? 0);
+                                return v > 0;
+                            },
                             callbacks: {
                                 title: function(context) {
                                     const idx = context && context[0] ? context[0].dataIndex : 0;
@@ -316,10 +408,21 @@
                                 label: function(context) {
                                     const idx = context?.dataIndex ?? 0;
                                     const m = loanMeta[idx] || {};
-                                    const pct = Number(context.parsed?.x ?? 0);
-                                    const amt = context.datasetIndex === 0 ? Number(m.repaidVal || 0) : Number(m.remainingVal || 0);
-                                    const amtText = amt.toLocaleString(undefined, { maximumFractionDigits: 2 });
-                                    return `${context.dataset.label}: ${pct.toLocaleString(undefined, { maximumFractionDigits: 0 })}% (${amtText}${m.ccy ? ' ' + m.ccy : ''})`;
+                                    const repaidPct = Number(m.repaidPct || 0);
+                                    const remainingPct = Number(m.remainingPct || 0);
+                                    const repaidAmt = Number(m.repaidVal || 0);
+                                    const remainingAmt = Number(m.remainingVal || 0);
+                                    const ccy = m.ccy ? ' ' + m.ccy : '';
+                                    const repaidText = repaidAmt.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                                    const remainingText = remainingAmt.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+                                    const dsLabel = String(context?.dataset?.label || '').trim();
+                                    const pct = Number(context?.parsed?.x ?? 0);
+                                    const isRepaid = dsLabel === 'Repaid';
+                                    const amtText = isRepaid ? repaidText : remainingText;
+                                    const pctText = (isRepaid ? repaidPct : remainingPct).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                                    const label = isRepaid ? 'Repaid' : dsLabel;
+                                    return `${label}: ${pctText}% (${amtText}${ccy})`;
                                 }
                             }
                         }
