@@ -12,10 +12,9 @@ from app.services.user_scope import filter_records_by_user
 
 crypto_bp = Blueprint('crypto', __name__)
 
-# CoinGecko markets cache (in-process) to reduce rate-limit and avoid showing 0 prices.
-# Cache is keyed by vs_currency so EUR/USD results don't get mixed.
-_COINGECKO_MARKETS_CACHE = {}
-_COINGECKO_MARKETS_TTL_SECONDS = 300
+# DexScreener search cache (in-process) to reduce rate-limit and avoid showing 0 prices.
+_DEXSCREENER_SEARCH_CACHE = {}
+_DEXSCREENER_SEARCH_TTL_SECONDS = 300
 
 # FX rates cache (in-process) to convert transaction currency -> website currency
 _FX_RATES_CACHE = {}
@@ -125,6 +124,179 @@ def _format_number_trim(val, max_decimals: int) -> str:
         s = '0'
     return s or '0'
 
+
+def _dexscreener_search(query: str) -> list:
+    q = (query or '').strip()
+    if not q:
+        return []
+
+    now = time.time()
+    cached = _DEXSCREENER_SEARCH_CACHE.get(q.lower())
+    if cached and (now - cached.get('ts', 0.0) < _DEXSCREENER_SEARCH_TTL_SECONDS):
+        return cached.get('pairs') or []
+
+    url = "https://api.dexscreener.com/latest/dex/search"
+    headers = {
+        'Accept': 'application/json',
+        'User-Agent': 'Wallet-Front/1.0'
+    }
+    try:
+        r = requests.get(url, params={'q': q}, headers=headers, timeout=10)
+        if r.status_code != 200:
+            # Fall back to cache if available.
+            if cached:
+                return cached.get('pairs') or []
+            return []
+        data = r.json() if r.content else {}
+        pairs = data.get('pairs') if isinstance(data, dict) else []
+        if not isinstance(pairs, list):
+            pairs = []
+        _DEXSCREENER_SEARCH_CACHE[q.lower()] = {'ts': now, 'pairs': pairs}
+        return pairs
+    except Exception:
+        if cached:
+            return cached.get('pairs') or []
+        return []
+
+
+def _dexscreener_best_price_usd(query: str) -> Decimal:
+    """Return best-effort USD price for a token-like query.
+
+    DexScreener returns many pairs; we pick the most liquid/high-volume match.
+    """
+    q = (query or '').strip()
+    if not q:
+        return Decimal(0)
+    q_upper = q.upper()
+
+    pairs = _dexscreener_search(q)
+    if not pairs:
+        return Decimal(0)
+
+    def to_float(x) -> float:
+        try:
+            if x is None:
+                return 0.0
+            return float(x)
+        except Exception:
+            return 0.0
+
+    def score_pair(p: dict) -> tuple:
+        try:
+            base = (p.get('baseToken') or {}) if isinstance(p, dict) else {}
+            base_sym = str(base.get('symbol') or '').strip().upper()
+            base_name = str(base.get('name') or '').strip().upper()
+            quote = (p.get('quoteToken') or {}) if isinstance(p, dict) else {}
+            quote_sym = str(quote.get('symbol') or '').strip().upper()
+
+            liquidity_usd = to_float(((p.get('liquidity') or {}) if isinstance(p, dict) else {}).get('usd'))
+            vol_h24 = to_float(((p.get('volume') or {}) if isinstance(p, dict) else {}).get('h24'))
+
+            # Prefer exact symbol match; then name contains; then anything.
+            exact_sym = 1 if (base_sym == q_upper) else 0
+            name_hit = 1 if (q_upper in base_name and base_name) else 0
+
+            # Prefer stable-quoted pairs for cleaner USD pricing.
+            stable_quote = 1 if quote_sym in ('USD', 'USDT', 'USDC', 'DAI', 'BUSD', 'FDUSD') else 0
+
+            return (exact_sym, name_hit, stable_quote, liquidity_usd, vol_h24)
+        except Exception:
+            return (0, 0, 0, 0.0, 0.0)
+
+    best = None
+    best_score = None
+    for p in pairs:
+        if not isinstance(p, dict):
+            continue
+        price_usd_raw = p.get('priceUsd')
+        if price_usd_raw is None:
+            continue
+        s = score_pair(p)
+        if best is None or s > (best_score or (0, 0, 0, 0.0, 0.0)):
+            best = p
+            best_score = s
+
+    if not best:
+        return Decimal(0)
+
+    try:
+        return Decimal(str(best.get('priceUsd') or '0'))
+    except Exception:
+        return Decimal(0)
+
+
+@crypto_bp.get('/crypto/search')
+def crypto_search():
+    """Autocomplete helper: return a small list of token suggestions from DexScreener.
+
+    Response shape matches the client-side expectations: {coins:[{id,symbol,name}, ...]}.
+    """
+    user = session.get('user')
+    if not user:
+        return jsonify({'coins': []})
+
+    q = (request.args.get('q') or '').strip()
+    if len(q) < 2:
+        return jsonify({'coins': []})
+
+    pairs = _dexscreener_search(q)
+    if not pairs:
+        return jsonify({'coins': []})
+
+    q_upper = q.upper()
+
+    def to_float(x) -> float:
+        try:
+            if x is None:
+                return 0.0
+            return float(x)
+        except Exception:
+            return 0.0
+
+    def score_pair(p: dict) -> tuple:
+        try:
+            base = (p.get('baseToken') or {}) if isinstance(p, dict) else {}
+            base_sym = str(base.get('symbol') or '').strip().upper()
+            base_name = str(base.get('name') or '').strip().upper()
+            quote = (p.get('quoteToken') or {}) if isinstance(p, dict) else {}
+            quote_sym = str(quote.get('symbol') or '').strip().upper()
+
+            liquidity_usd = to_float(((p.get('liquidity') or {}) if isinstance(p, dict) else {}).get('usd'))
+            vol_h24 = to_float(((p.get('volume') or {}) if isinstance(p, dict) else {}).get('h24'))
+
+            exact_sym = 1 if (base_sym == q_upper) else 0
+            sym_hit = 1 if (q_upper in base_sym and base_sym) else 0
+            name_hit = 1 if (q_upper in base_name and base_name) else 0
+            stable_quote = 1 if quote_sym in ('USD', 'USDT', 'USDC', 'DAI', 'BUSD', 'FDUSD') else 0
+
+            return (exact_sym, sym_hit, name_hit, stable_quote, liquidity_usd, vol_h24)
+        except Exception:
+            return (0, 0, 0, 0, 0.0, 0.0)
+
+    # Pick the best representative pair per base symbol.
+    best_by_symbol = {}
+    for p in pairs:
+        if not isinstance(p, dict):
+            continue
+        base = p.get('baseToken') or {}
+        sym = str(base.get('symbol') or '').strip().upper()
+        if not sym:
+            continue
+        s = score_pair(p)
+        existing = best_by_symbol.get(sym)
+        if (existing is None) or (s > existing['score']):
+            best_by_symbol[sym] = {
+                'score': s,
+                'name': str(base.get('name') or '').strip() or sym,
+            }
+
+    ranked = sorted(best_by_symbol.items(), key=lambda kv: kv[1]['score'], reverse=True)
+    coins = []
+    for sym, meta in ranked[:20]:
+        coins.append({'id': sym.lower(), 'symbol': sym, 'name': meta.get('name') or sym})
+
+    return jsonify({'coins': coins})
+
 @crypto_bp.route('/crypto', methods=['GET'])
 def crypto_page():
     user = session.get('user')
@@ -132,10 +304,6 @@ def crypto_page():
         userId = user.get('username')
 
         base_currency = _get_user_base_currency(userId)
-        # CoinGecko vs_currency must be lowercase; only use commonly supported fiats here.
-        cg_vs_currency = (base_currency or 'EUR').lower()
-        if cg_vs_currency not in ('eur', 'usd'):
-            cg_vs_currency = 'eur'
 
         # --- Fetch Cryptos ---
         try:
@@ -178,42 +346,108 @@ def crypto_page():
                 return s
             return wallet_id_by_name.get(s, s)
 
-        # --- Fetch top coins from CoinGecko (markets) to populate dropdown ---
+        # --- Build coin list for autocomplete from the user's saved crypto names ---
+        # This keeps the current UX (selection-only autocomplete) without relying on a provider-wide coin list.
         coins = []
         try:
-            cg_url = "https://api.coingecko.com/api/v3/coins/markets"
-            cg_params = {"vs_currency": cg_vs_currency, "order": "market_cap_desc", "per_page": 500, "page": 1}
-            now = time.time()
+            seen = set()
+            for tx in (cryptos or []):
+                raw = (tx.get('cryptoName') or '').strip()
+                if not raw:
+                    continue
+                sym = raw
+                name = raw
+                if ' - ' in raw:
+                    left, right = raw.split(' - ', 1)
+                    sym = left.strip() or raw
+                    name = right.strip() or raw
+                sym_up = sym.strip().upper()
+                if not sym_up or sym_up in seen:
+                    continue
+                seen.add(sym_up)
+                coins.append({
+                    'id': sym_up.lower(),
+                    'symbol': sym_up,
+                    'name': name.strip() or sym_up,
+                })
 
-            cache_bucket = _COINGECKO_MARKETS_CACHE.get(cg_vs_currency) or {'ts': 0.0, 'data': []}
+            # Enrich coins that only have SYMBOL as name (e.g. 'BTC' -> 'Bitcoin').
+            # Uses DexScreener search so autocomplete shows "SYMBOL - Full Name".
+            def _best_token_name_for_symbol(symbol: str) -> str:
+                sym_q = (symbol or '').strip().upper()
+                if not sym_q:
+                    return ''
+                pairs = _dexscreener_search(sym_q)
+                if not pairs:
+                    return ''
 
-            # Serve from cache if still fresh
-            if cache_bucket['data'] and (now - cache_bucket['ts'] < _COINGECKO_MARKETS_TTL_SECONDS):
-                coins = cache_bucket['data']
-            else:
-                cg_headers = {
-                    'Accept': 'application/json',
-                    'User-Agent': 'Wallet-Front/1.0'
-                }
-                cg_resp = requests.get(cg_url, params=cg_params, headers=cg_headers, timeout=10)
-                if cg_resp.status_code == 200:
-                    coins = cg_resp.json()
-                    _COINGECKO_MARKETS_CACHE[cg_vs_currency] = {'data': coins, 'ts': now}
-                else:
-                    # If CoinGecko fails (e.g. rate limit), fall back to the last cached data.
-                    if cache_bucket['data']:
-                        coins = cache_bucket['data']
-                        print(f"CoinGecko returned status {cg_resp.status_code}; using cached markets")
+                def to_float(x) -> float:
+                    try:
+                        if x is None:
+                            return 0.0
+                        return float(x)
+                    except Exception:
+                        return 0.0
+
+                def score_pair(p: dict) -> tuple:
+                    try:
+                        base = (p.get('baseToken') or {}) if isinstance(p, dict) else {}
+                        base_sym = str(base.get('symbol') or '').strip().upper()
+                        quote = (p.get('quoteToken') or {}) if isinstance(p, dict) else {}
+                        quote_sym = str(quote.get('symbol') or '').strip().upper()
+                        liquidity_usd = to_float(((p.get('liquidity') or {}) if isinstance(p, dict) else {}).get('usd'))
+                        vol_h24 = to_float(((p.get('volume') or {}) if isinstance(p, dict) else {}).get('h24'))
+                        exact_sym = 1 if base_sym == sym_q else 0
+                        stable_quote = 1 if quote_sym in ('USD', 'USDT', 'USDC', 'DAI', 'BUSD', 'FDUSD') else 0
+                        return (exact_sym, stable_quote, liquidity_usd, vol_h24)
+                    except Exception:
+                        return (0, 0, 0.0, 0.0)
+
+                best = None
+                best_score = None
+                for p in pairs:
+                    if not isinstance(p, dict):
+                        continue
+                    base = p.get('baseToken') or {}
+                    if str(base.get('symbol') or '').strip().upper() != sym_q:
+                        continue
+                    s = score_pair(p)
+                    if best is None or s > (best_score or (0, 0, 0.0, 0.0)):
+                        best = p
+                        best_score = s
+                if not best:
+                    return ''
+                base = best.get('baseToken') or {}
+                return str(base.get('name') or '').strip()
+
+            name_cache = {}
+            remaining_lookups = 20
+            for c in coins:
+                try:
+                    sym_up = (c.get('symbol') or '').strip().upper()
+                    nm = (c.get('name') or '').strip()
+                    if not sym_up:
+                        continue
+                    if nm and nm.upper() != sym_up:
+                        continue
+                    if remaining_lookups <= 0 and sym_up not in name_cache:
+                        continue
+
+                    if sym_up in name_cache:
+                        full = name_cache[sym_up]
                     else:
-                        print(f"CoinGecko returned status {cg_resp.status_code}")
-        except Exception as e:
-            # On transient network errors, prefer cache rather than showing 0s everywhere.
-            cache_bucket = _COINGECKO_MARKETS_CACHE.get(cg_vs_currency) or {'ts': 0.0, 'data': []}
-            if cache_bucket['data']:
-                coins = cache_bucket['data']
-                print(f"Error fetching CoinGecko coins: {e}; using cached markets")
-            else:
-                print(f"Error fetching CoinGecko coins: {e}")
+                        full = _best_token_name_for_symbol(sym_up)
+                        name_cache[sym_up] = full
+                        remaining_lookups -= 1
+
+                    if full and full.strip() and full.strip().upper() != sym_up:
+                        c['name'] = full.strip()
+                except Exception:
+                    continue
+
+            coins.sort(key=lambda c: (c.get('symbol') or '').lower())
+        except Exception:
+            coins = []
 
         # --- Compute totals per crypto using weighted average price method ---
         totals_map = {}
@@ -412,60 +646,34 @@ def crypto_page():
         except Exception as e:
             print(f"Error computing crypto totals: {e}")
 
-        # --- Compute live prices from CoinGecko coins list and attach live totals ---
+        # --- Compute live prices from DexScreener and attach live totals ---
         try:
-            # helper: find coin from coins list by matching symbol/name/id (case-insensitive)
-            def find_coin_for_name(name_to_find):
-                """Try multiple heuristics to match stored cryptoName to a CoinGecko coin entry.
-                Handles values like 'BTC', 'Bitcoin', 'BTC - Bitcoin', and case/whitespace differences.
-                """
-                if not name_to_find:
-                    return None
-                s = (name_to_find or '').strip()
-                # common pattern: 'SYMBOL - Name'
-                parts = [s]
-                if ' - ' in s:
-                    left, right = s.split(' - ', 1)
-                    parts.insert(0, left.strip())
-                    parts.append(right.strip())
-                # also try removing spaces and parentheses
-                parts.append(s.replace(' ', '').strip())
-                parts = [p.lower() for p in parts if p]
-
-                for coin in coins:
-                    if not coin:
-                        continue
-                    c_sym = (coin.get('symbol') or '').lower()
-                    c_name = (coin.get('name') or '').lower()
-                    c_id = (coin.get('id') or '').lower()
-
-                    for cand in parts:
-                        if not cand:
-                            continue
-                        # exact matches
-                        if cand == c_sym or cand == c_name or cand == c_id:
-                            return coin
-                        # substring matches (handle 'bitcoin' vs 'bitcoin cash' etc.)
-                        if cand in c_sym or cand in c_name or cand in c_id:
-                            return coin
-                        if c_sym in cand or c_name in cand or c_id in cand:
-                            return coin
-
-                # no match found
-                print(f"[DEBUG] No CoinGecko match for crypto name: '{name_to_find}'")
-                return None
+            # Convert USD prices into the user's base currency (fiat).
+            # If base currency conversion fails, fall back to USD.
+            price_currency = base_currency
+            usd_to_base = Decimal(1)
+            try:
+                usd_to_base = _get_fx_rate('USD', price_currency)
+            except Exception:
+                price_currency = 'USD'
+                usd_to_base = Decimal(1)
 
             for v in totals_map.values():
-                    # try to find latest price for this crypto name
-                    found = find_coin_for_name(v['cryptoName'])
-                    if found and found.get('current_price') is not None:
-                        try:
-                            v['latest_price'] = Decimal(str(found.get('current_price', 0)))
-                        except Exception:
-                            v['latest_price'] = Decimal(0)
-                    else:
-                        # fallback: use 0 for latest price if not found
-                        v['latest_price'] = Decimal(0)
+                    # Prefer the leading symbol in 'SYMBOL - Name'
+                    raw_name = v.get('cryptoName') or ''
+                    q1 = raw_name
+                    if ' - ' in str(raw_name):
+                        q1 = str(raw_name).split(' - ', 1)[0].strip()
+                    q2 = str(raw_name).split(' - ', 1)[1].strip() if ' - ' in str(raw_name) else ''
+
+                    price_usd = _dexscreener_best_price_usd(q1)
+                    if (not price_usd or price_usd == 0) and q2:
+                        price_usd = _dexscreener_best_price_usd(q2)
+                    if not price_usd or price_usd == 0:
+                        price_usd = _dexscreener_best_price_usd(str(raw_name).strip())
+
+                    v['latest_price'] = (price_usd * usd_to_base) if (price_currency != 'USD') else price_usd
+                    v['currency'] = price_currency
 
                     # compute live total value based on latest price
                     v['total_value_live'] = v['total_qty'] * (v['latest_price'] or Decimal(0))
@@ -503,16 +711,16 @@ def crypto_page():
         # --- Compute holdings by wallet (qty + live value) ---
         wallet_holdings = []
         try:
-            # Map SYMBOL -> latest unit price in base currency (CoinGecko vs_currency)
+            # Map SYMBOL -> latest unit price in base currency (DexScreener USD price converted to base)
             latest_price_by_symbol = {}
-            for coin in (coins or []):
-                try:
-                    sym = (coin.get('symbol') or '').strip().upper()
-                    cp = coin.get('current_price', None)
-                    if sym and cp is not None:
-                        latest_price_by_symbol[sym] = Decimal(str(cp))
-                except Exception:
-                    continue
+            try:
+                for v in totals_map.values():
+                    raw_name = v.get('cryptoName') or ''
+                    sym = str(raw_name).split(' - ', 1)[0].strip().upper() if raw_name else ''
+                    if sym:
+                        latest_price_by_symbol[sym] = (v.get('latest_price') or Decimal(0))
+            except Exception:
+                latest_price_by_symbol = {}
 
             # Wallet id -> wallet name
             wallet_name_by_id = {}

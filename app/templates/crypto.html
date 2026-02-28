@@ -221,6 +221,82 @@
         if (coinsDataElem && coinsDataElem.dataset && coinsDataElem.dataset.coins) {
             try { coinsList = JSON.parse(coinsDataElem.dataset.coins); } catch(e) { coinsList = []; }
         }
+
+        // DexScreener-backed remote suggestions (keeps selection-only UX, but allows new tokens)
+        function mergeCoinsInPlace(newCoins) {
+            try {
+                if (!Array.isArray(newCoins) || !newCoins.length) return;
+                const seen = new Set();
+                for (let c of coinsList) {
+                    const sym = String((c && c.symbol) || '').trim().toUpperCase();
+                    if (sym) seen.add(sym);
+                }
+                for (let c of newCoins) {
+                    if (!c) continue;
+                    const sym = String(c.symbol || '').trim().toUpperCase();
+                    const name = String(c.name || '').trim() || sym;
+                    if (!sym || seen.has(sym)) continue;
+                    seen.add(sym);
+                    coinsList.push({ id: sym.toLowerCase(), symbol: sym, name });
+                }
+            } catch (e) {}
+        }
+
+        // Upgrade existing items when remote results provide a better full name.
+        // Example: local has {symbol:'BTC', name:'BTC'} but DexScreener suggests name:'Bitcoin'.
+        function upgradeCoinNamesInPlace(newCoins) {
+            try {
+                if (!Array.isArray(newCoins) || !newCoins.length) return;
+                const bySym = new Map();
+                for (let i = 0; i < coinsList.length; i++) {
+                    const sym = String((coinsList[i] && coinsList[i].symbol) || '').trim().toUpperCase();
+                    if (sym) bySym.set(sym, i);
+                }
+                for (let c of newCoins) {
+                    const sym = String((c && c.symbol) || '').trim().toUpperCase();
+                    const name = String((c && c.name) || '').trim();
+                    if (!sym || !name) continue;
+                    const idx = bySym.get(sym);
+                    if (idx === undefined) continue;
+                    const curName = String((coinsList[idx] && coinsList[idx].name) || '').trim();
+                    if (!curName || curName.toUpperCase() === sym) {
+                        if (name.toUpperCase() !== sym) coinsList[idx].name = name;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        async function fetchDexSuggestions(query) {
+            const q = String(query || '').trim();
+            if (q.length < 2) return;
+            try {
+                const url = `/crypto/search?q=${encodeURIComponent(q)}`;
+                const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                if (!resp || !resp.ok) return;
+                const data = await resp.json();
+                const incoming = (data && data.coins) ? data.coins : [];
+                upgradeCoinNamesInPlace(incoming);
+                mergeCoinsInPlace(incoming);
+            } catch (e) {}
+        }
+
+        function attachDexSuggestions(inputElem) {
+            if (!inputElem) return;
+            let timer = null;
+            let lastQ = '';
+            inputElem.addEventListener('input', function() {
+                const q = String(inputElem.value || '').trim();
+                if (q.length < 2 || q === lastQ) return;
+                lastQ = q;
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(() => { fetchDexSuggestions(q); }, 200);
+            });
+        }
+
+        // Attach before initAutocomplete so early typing gets suggestions too.
+        attachDexSuggestions(document.getElementById('cryptoSearch'));
+        attachDexSuggestions(document.getElementById('updateCryptoSearch'));
+
         initAutocomplete('cryptoSearch','cryptoSearchList','cryptoName', coinsList);
         initAutocomplete('updateCryptoSearch','updateCryptoSearchList','updateCryptoName', coinsList);
         // No autocomplete for the history filter crypto field (free text filter)

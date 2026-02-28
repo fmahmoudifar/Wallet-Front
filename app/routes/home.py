@@ -6,14 +6,13 @@ from decimal import Decimal
 from datetime import datetime
 import time
 
-# Reuse the same currency/FX/CoinGecko helpers used by the Crypto page
+# Reuse the same currency/FX/DexScreener helpers used by the Crypto page
 from .crypto import (
     _get_user_base_currency,
     _get_fx_rate,
     _normalize_currency,
     _format_number_trim,
-    _COINGECKO_MARKETS_CACHE,
-    _COINGECKO_MARKETS_TTL_SECONDS,
+    _dexscreener_best_price_usd,
 )
 
 # Reuse stock quote + scaling helpers for the Home stock pie
@@ -561,113 +560,52 @@ def users():
             print(f"Error computing stock totals: {e}")
             stock_totals_map = {}
 
-        # Fetch live prices from CoinGecko for chart values and compute per-wallet live values
+        # Fetch live prices from DexScreener for chart values and compute per-wallet live values
         crypto_chart_now = {}
         crypto_chart_paid = {}
         wallet_live_values = defaultdict(lambda: Decimal(0))
         try:
-            # Get top coins from CoinGecko
-            cg_url = "https://api.coingecko.com/api/v3/coins/markets"
-            cg_params = {"vs_currency": cg_vs_currency, "order": "market_cap_desc", "per_page": 500, "page": 1}
+            # Convert USD prices into the user's base currency (fiat). If conversion fails, fall back to USD.
+            price_currency = base_currency
+            usd_to_base = Decimal(1)
+            try:
+                usd_to_base = _get_fx_rate('USD', price_currency)
+            except Exception:
+                price_currency = 'USD'
+                usd_to_base = Decimal(1)
 
-            now_ts = time.time()
-            cache_bucket = _COINGECKO_MARKETS_CACHE.get(cg_vs_currency) or {'ts': 0.0, 'data': []}
-            if cache_bucket['data'] and (now_ts - cache_bucket['ts'] < _COINGECKO_MARKETS_TTL_SECONDS):
-                coins = cache_bucket['data']
-            else:
-                cg_headers = {
-                    'Accept': 'application/json',
-                    'User-Agent': 'Wallet-Front/1.0'
-                }
-                cg_resp = requests.get(cg_url, params=cg_params, headers=cg_headers, timeout=10)
-                if cg_resp.status_code == 200:
-                    coins = cg_resp.json()
-                    _COINGECKO_MARKETS_CACHE[cg_vs_currency] = {'data': coins, 'ts': now_ts}
-                else:
-                    if cache_bucket['data']:
-                        coins = cache_bucket['data']
-                        print(f"CoinGecko returned status {cg_resp.status_code}; using cached markets")
-                    else:
-                        coins = []
-                        print(f"CoinGecko returned status {cg_resp.status_code}")
+            # Calculate total values with live prices (same matching approach as crypto.py)
+            price_by_name = {}
+            for name, entry in crypto_totals_map.items():
+                raw_name = entry.get('cryptoName') or ''
+                q1 = raw_name
+                if ' - ' in str(raw_name):
+                    q1 = str(raw_name).split(' - ', 1)[0].strip()
+                q2 = str(raw_name).split(' - ', 1)[1].strip() if ' - ' in str(raw_name) else ''
 
-            if coins:
-                
-                # Helper function to find coin by name
-                def find_coin_for_name(name_to_find):
-                    if not name_to_find:
-                        return None
-                    s = (name_to_find or '').strip()
-                    parts = [s]
-                    if ' - ' in s:
-                        left, right = s.split(' - ', 1)
-                        parts.insert(0, left.strip())
-                        parts.append(right.strip())
-                    parts.append(s.replace(' ', '').strip())
-                    parts = [p.lower() for p in parts if p]
+                price_usd = _dexscreener_best_price_usd(q1)
+                if (not price_usd or price_usd == 0) and q2:
+                    price_usd = _dexscreener_best_price_usd(q2)
+                if not price_usd or price_usd == 0:
+                    price_usd = _dexscreener_best_price_usd(str(raw_name).strip())
 
-                    for coin in coins:
-                        coin_id = (coin.get('id') or '').lower()
-                        coin_symbol = (coin.get('symbol') or '').lower()
-                        coin_name = (coin.get('name') or '').lower()
-                        
-                        for part in parts:
-                            if part in [coin_id, coin_symbol, coin_name]:
-                                return coin
-                    return None
-                
-                # Calculate total values with live prices (exact same logic as crypto.py)
-                price_by_name = {}
-                for name, entry in crypto_totals_map.items():
-                    # Show ALL cryptos (including zero/negative holdings) to match crypto page
-                    # Try to find latest price for this crypto name (same as crypto.py)
-                    coin = find_coin_for_name(entry['cryptoName'])
-                    if coin and coin.get('current_price') is not None:
-                        try:
-                            latest_price = Decimal(str(coin.get('current_price', 0)))
-                        except Exception:
-                            latest_price = Decimal(0)
-                    else:
-                        # fallback: use 0 for latest price if not found (same as crypto.py)
-                        latest_price = Decimal(0)
-                    price_by_name[name] = latest_price
-                    
-                    # Compute live total value based on latest price (exact same formula as crypto.py)
-                    total_value_live = entry['total_qty'] * (latest_price or Decimal(0))
-                    crypto_chart_now[name] = float(total_value_live) if total_value_live > 0 else 0.0
-                    crypto_chart_paid[name] = float(entry.get('total_value_buy', Decimal(0)) or Decimal(0))
+                latest_price = (price_usd * usd_to_base) if (price_currency != 'USD') else price_usd
+                price_by_name[name] = latest_price
 
-                # Compute live values per wallet: sum(qty_by_wallet_crypto * latest_price)
-                for w_id, per_crypto in wallet_crypto_qty.items():
-                    total_live = Decimal(0)
-                    for cname, q in per_crypto.items():
-                        p = price_by_name.get(cname, Decimal(0)) or Decimal(0)
-                        total_live += (q * p)
-                    wallet_live_values[w_id] = total_live
+                total_value_live = entry['total_qty'] * (latest_price or Decimal(0))
+                crypto_chart_now[name] = float(total_value_live) if total_value_live > 0 else 0.0
+                crypto_chart_paid[name] = float(entry.get('total_value_buy', Decimal(0)) or Decimal(0))
 
-                # DEBUG: Print wallet live valuation details
-                print("=== WALLET LIVE VALUES DEBUG ===")
-                for w_id, per_crypto in wallet_crypto_qty.items():
-                    print(f"Wallet {w_id}:")
-                    for cname, q in per_crypto.items():
-                        p = price_by_name.get(cname, Decimal(0)) or Decimal(0)
-                        print(f"  {cname}: qty={q} latest_price={p} live_value={(q*p):.4f}")
-                    print(f"  Total Live Value: {wallet_live_values.get(w_id, Decimal(0)):.4f}")
-                print("===============================")
-                            
-            else:
-                print(f"CoinGecko returned status {cg_resp.status_code}")
-                # Fallback: use 0 for live values if no price available (same as crypto.py)
-                for name, entry in crypto_totals_map.items():
-                    # Show ALL cryptos (including zero/negative holdings) to match crypto page
-                    total_value_live = entry['total_qty'] * Decimal(0)  # No price = 0 value
-                    crypto_chart_now[name] = 0.0
-                    crypto_chart_paid[name] = float(entry.get('total_value_buy', Decimal(0)) or Decimal(0))
-                # Without prices, wallet live values are 0
-                wallet_live_values = defaultdict(lambda: Decimal(0))
+            # Compute live values per wallet: sum(qty_by_wallet_crypto * latest_price)
+            for w_id, per_crypto in wallet_crypto_qty.items():
+                total_live = Decimal(0)
+                for cname, q in per_crypto.items():
+                    p = price_by_name.get(cname, Decimal(0)) or Decimal(0)
+                    total_live += (q * p)
+                wallet_live_values[w_id] = total_live
                         
         except Exception as e:
-            print(f"Error fetching CoinGecko prices: {e}")
+            print(f"Error fetching DexScreener prices: {e}")
             # Fallback: use 0 for live values if no price available (same as crypto.py)
             for name, entry in crypto_totals_map.items():
                 # Show ALL cryptos (including zero/negative holdings) to match crypto page
