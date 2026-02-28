@@ -1110,6 +1110,20 @@
                 <input type="text" id="tdate" name="tdate" data-dt-picker="1" required>
             </div>
             <div>
+                <label for="operation">Operation:</label>
+                <select name="operation" id="operation" required>
+                    <option value="">-- Select Operation --</option> 
+                    <option value="Buy">Buy</option>
+                    <option value="Sell">Sell</option>
+                    <option value="Transfer">Transfer</option>
+                </select>
+            </div>
+            <input type="hidden" name="feeUnit" id="feeUnit" value="fiat" />
+            <div>
+                <label for="quantity">Quantity:</label>
+                <input type="number" id="quantity" name="quantity" step="any" inputmode="decimal" required>
+            </div>
+            <div>
                 <label for="fromWallet">From Wallet:</label>
                 <select name="fromWallet" id="fromWallet">
                     <option value="">-- Select Wallet --</option> 
@@ -1128,20 +1142,6 @@
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
-            </div>
-            <div>
-                <label for="operation">Operation:</label>
-                <select name="operation" id="operation" required>
-                    <option value="">-- Select Operation --</option> 
-                    <option value="Buy">Buy</option>
-                    <option value="Sell">Sell</option>
-                    <option value="Transfer">Transfer</option>
-                </select>
-            </div>
-            <input type="hidden" name="feeUnit" id="feeUnit" value="fiat" />
-            <div>
-                <label for="quantity">Quantity:</label>
-                <input type="number" id="quantity" name="quantity" step="any" inputmode="decimal" required>
             </div>
             <div>
                 <label for="price">Price:</label>
@@ -1295,6 +1295,20 @@
                 <input type="text" id="updateTdate" name="tdate" data-dt-picker="1">
             </div>
             <div>
+                <label for="updateOperation">Operation:</label>
+                <select name="operation" id="updateOperation" required>
+                    <option value="">-- Select Operation --</option> 
+                    <option value="Buy">Buy</option>
+                    <option value="Sell">Sell</option>
+                    <option value="Transfer">Transfer</option>
+                </select>
+            </div>
+            <input type="hidden" name="feeUnit" id="updateFeeUnit" value="fiat" />
+            <div>
+                <label for="updateQuantity">Quantity:</label>
+                <input type="number" id="updateQuantity" name="quantity" step="any" inputmode="decimal">
+            </div>
+            <div>
                 <label for="updateFromWallet">From Wallet:</label>
                 <select name="fromWallet" id="updateFromWallet">
                     <option value="">-- Select Wallet --</option>
@@ -1311,20 +1325,6 @@
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
-            </div>
-            <div>
-                <label for="updateOperation">Operation:</label>
-                <select name="operation" id="updateOperation" required>
-                    <option value="">-- Select Operation --</option> 
-                    <option value="Buy">Buy</option>
-                    <option value="Sell">Sell</option>
-                    <option value="Transfer">Transfer</option>
-                </select>
-            </div>
-            <input type="hidden" name="feeUnit" id="updateFeeUnit" value="fiat" />
-            <div>
-                <label for="updateQuantity">Quantity:</label>
-                <input type="number" id="updateQuantity" name="quantity" step="any" inputmode="decimal">
             </div>
             <div>
                 <label for="updatePrice">Price:</label>
