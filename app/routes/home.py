@@ -12,7 +12,7 @@ from .crypto import (
     _get_fx_rate,
     _normalize_currency,
     _format_number_trim,
-    _dexscreener_best_price_usd,
+    _best_price_usd,
 )
 
 # Reuse stock quote + scaling helpers for the Home stock pie
@@ -583,11 +583,11 @@ def users():
                     q1 = str(raw_name).split(' - ', 1)[0].strip()
                 q2 = str(raw_name).split(' - ', 1)[1].strip() if ' - ' in str(raw_name) else ''
 
-                price_usd = _dexscreener_best_price_usd(q1)
+                price_usd = _best_price_usd(q1)
                 if (not price_usd or price_usd == 0) and q2:
-                    price_usd = _dexscreener_best_price_usd(q2)
+                    price_usd = _best_price_usd(q2)
                 if not price_usd or price_usd == 0:
-                    price_usd = _dexscreener_best_price_usd(str(raw_name).strip())
+                    price_usd = _best_price_usd(str(raw_name).strip())
 
                 latest_price = (price_usd * usd_to_base) if (price_currency != 'USD') else price_usd
                 price_by_name[name] = latest_price

@@ -16,6 +16,12 @@ crypto_bp = Blueprint('crypto', __name__)
 _DEXSCREENER_SEARCH_CACHE = {}
 _DEXSCREENER_SEARCH_TTL_SECONDS = 300
 
+# Binance spot price cache (in-process). Used to avoid DexScreener symbol-collision issues
+# for well-known assets (ADA, DOGE, etc.). Prices are pulled from SYMBOLUSDT and treated
+# as USD-equivalent for downstream FX conversion.
+_BINANCE_PRICE_CACHE = {}
+_BINANCE_PRICE_TTL_SECONDS = 60
+
 # FX rates cache (in-process) to convert transaction currency -> website currency
 _FX_RATES_CACHE = {}
 _FX_RATES_TTL_SECONDS = 3600
@@ -164,12 +170,45 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
 
     DexScreener returns many pairs; we pick the most liquid/high-volume match.
     """
-    q = (query or '').strip()
-    if not q:
+    q_raw = (query or '').strip()
+    if not q_raw:
         return Decimal(0)
-    q_upper = q.upper()
 
-    pairs = _dexscreener_search(q)
+    # DexScreener is symbol-driven and many symbols are reused by unrelated tokens.
+    # Prefer canonical contract address queries for some well-known assets.
+    # (These are the wrapped/pegged representations most likely to have deep liquidity.)
+    CANONICAL_ADDRESS_BY_SYMBOL = {
+        # Binance-Peg Dogecoin (BSC)
+        'DOGE': '0xba2ae424d960c26247dd6c32edc70b295c744c43',
+        # Wrapped BTC (Ethereum)
+        'WBTC': '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
+    }
+
+    def _extract_symbol_and_name(s: str) -> tuple[str, str]:
+        s = (s or '').strip()
+        if ' - ' in s:
+            a, b = s.split(' - ', 1)
+            return (a.strip().upper(), b.strip())
+        # If user passed "SYM Name" try to treat the first token as a symbol.
+        parts = s.split()
+        if len(parts) >= 2 and 1 <= len(parts[0]) <= 10 and parts[0].replace('-', '').isalnum():
+            return (parts[0].strip().upper(), ' '.join(parts[1:]).strip())
+        # Symbol-only (common case)
+        if s and ' ' not in s and len(s) <= 10:
+            return (s.strip().upper(), '')
+        return ('', s)
+
+    q_symbol, q_name = _extract_symbol_and_name(q_raw)
+
+    # If the query is DOGE, always use the canonical (pegged) token address to avoid fake DOGE pairs.
+    # If the query is BTC, we'll still try symbol search first, but may proxy to WBTC below.
+    search_query = q_raw
+    expected_symbol = q_symbol or q_raw.upper()
+    if q_symbol in CANONICAL_ADDRESS_BY_SYMBOL and q_symbol in ('DOGE', 'WBTC'):
+        search_query = CANONICAL_ADDRESS_BY_SYMBOL[q_symbol]
+        expected_symbol = q_symbol
+
+    pairs = _dexscreener_search(search_query)
     if not pairs:
         return Decimal(0)
 
@@ -192,9 +231,15 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
             liquidity_usd = to_float(((p.get('liquidity') or {}) if isinstance(p, dict) else {}).get('usd'))
             vol_h24 = to_float(((p.get('volume') or {}) if isinstance(p, dict) else {}).get('h24'))
 
-            # Prefer exact symbol match; then name contains; then anything.
-            exact_sym = 1 if (base_sym == q_upper) else 0
-            name_hit = 1 if (q_upper in base_name and base_name) else 0
+            # Prefer exact symbol match when we have one.
+            exact_sym = 1 if (expected_symbol and base_sym == expected_symbol) else 0
+
+            # Prefer name hits if the caller provided a name (e.g. "DOGE - Dogecoin").
+            name_hit = 0
+            if q_name:
+                want = str(q_name).strip().upper()
+                if want and want in base_name:
+                    name_hit = 1
 
             # Prefer stable-quoted pairs for cleaner USD pricing.
             stable_quote = 1 if quote_sym in ('USD', 'USDT', 'USDC', 'DAI', 'BUSD', 'FDUSD') else 0
@@ -229,14 +274,106 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
     # search can produce a very low "BTC" price that is not actually Bitcoin.
     # If we detect an implausibly low price for BTC, proxy to WBTC.
     try:
-        if q_upper in ('BTC', 'BITCOIN') and (price is None or price < Decimal('1000')):
-            proxy = _dexscreener_best_price_usd('WBTC')
+        if (q_symbol or q_raw.upper()) in ('BTC', 'BITCOIN') and (price is None or price < Decimal('1000')):
+            # Prefer canonical WBTC address.
+            proxy = _dexscreener_best_price_usd(CANONICAL_ADDRESS_BY_SYMBOL.get('WBTC') or 'WBTC')
             if proxy and proxy > 0:
                 return proxy
     except Exception:
         pass
 
     return price
+
+
+def _binance_price_usd(symbol: str) -> Decimal:
+    """Return best-effort USD price for a spot symbol using Binance.
+
+    We query SYMBOLUSDT and treat USDT as USD-equivalent.
+    """
+    sym = (symbol or '').strip().upper()
+    if not sym:
+        return Decimal(0)
+
+    # Skip contract addresses / odd queries
+    if sym.startswith('0X') or ':' in sym or '/' in sym:
+        return Decimal(0)
+
+    # Common stablecoins
+    if sym in ('USD', 'USDT', 'USDC', 'DAI', 'FDUSD', 'BUSD'):
+        return Decimal(1)
+
+    # Conservative symbol validation
+    if not sym.replace('-', '').isalnum() or len(sym) > 15:
+        return Decimal(0)
+
+    now = time.time()
+    cached = _BINANCE_PRICE_CACHE.get(sym)
+    if cached and (now - cached.get('ts', 0.0) < _BINANCE_PRICE_TTL_SECONDS):
+        try:
+            return Decimal(str(cached.get('price') or '0'))
+        except Exception:
+            return Decimal(0)
+
+    url = 'https://api.binance.com/api/v3/ticker/price'
+    headers = {
+        'Accept': 'application/json',
+        'User-Agent': 'Wallet-Front/1.0'
+    }
+    pair = f"{sym}USDT"
+    try:
+        r = requests.get(url, params={'symbol': pair}, headers=headers, timeout=10)
+        if r.status_code != 200:
+            if cached:
+                return Decimal(str(cached.get('price') or '0'))
+            return Decimal(0)
+        data = r.json() if r.content else {}
+        price_raw = data.get('price') if isinstance(data, dict) else None
+        if price_raw is None:
+            return Decimal(0)
+        price = Decimal(str(price_raw))
+        if price and price > 0:
+            _BINANCE_PRICE_CACHE[sym] = {'ts': now, 'price': str(price)}
+        return price
+    except Exception:
+        if cached:
+            return Decimal(str(cached.get('price') or '0'))
+        return Decimal(0)
+
+
+def _best_price_usd(query: str) -> Decimal:
+    """Unified price lookup.
+
+    Prefer Binance for plain symbols (reduces symbol-collision errors), then fall back
+    to DexScreener for long-tail tokens.
+    """
+    q = (query or '').strip()
+    if not q:
+        return Decimal(0)
+
+    # If user passed "SYMBOL - Name" prefer the symbol part.
+    sym = ''
+    if ' - ' in q:
+        sym = q.split(' - ', 1)[0].strip().upper()
+    else:
+        # If query looks like a symbol, treat it as such
+        if ' ' not in q and len(q) <= 15:
+            sym = q.strip().upper()
+        else:
+            parts = q.split()
+            if parts and 1 <= len(parts[0]) <= 15:
+                sym = parts[0].strip().upper()
+
+    # Skip Binance for contract address searches
+    if q.lower().startswith('0x') or ':' in q or '/' in q:
+        return _dexscreener_best_price_usd(q)
+
+    # Try Binance first for symbol-like queries
+    if sym:
+        p = _binance_price_usd(sym)
+        if p and p > 0:
+            return p
+
+    return _dexscreener_best_price_usd(q)
 
 
 @crypto_bp.get('/crypto/search')
@@ -680,11 +817,11 @@ def crypto_page():
                         q1 = str(raw_name).split(' - ', 1)[0].strip()
                     q2 = str(raw_name).split(' - ', 1)[1].strip() if ' - ' in str(raw_name) else ''
 
-                    price_usd = _dexscreener_best_price_usd(q1)
+                    price_usd = _best_price_usd(q1)
                     if (not price_usd or price_usd == 0) and q2:
-                        price_usd = _dexscreener_best_price_usd(q2)
+                        price_usd = _best_price_usd(q2)
                     if not price_usd or price_usd == 0:
-                        price_usd = _dexscreener_best_price_usd(str(raw_name).strip())
+                        price_usd = _best_price_usd(str(raw_name).strip())
 
                     v['latest_price'] = (price_usd * usd_to_base) if (price_currency != 'USD') else price_usd
                     v['currency'] = price_currency

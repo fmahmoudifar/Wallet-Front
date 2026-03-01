@@ -768,6 +768,32 @@ button.pct-positive:hover {
     margin-bottom: 12px;
 }
 
+/* Keep wallet cards a consistent size; scroll the holdings list within */
+.crypto-wallets-panel .totals-card {
+    max-height: 340px;
+    overflow: hidden;
+}
+
+.crypto-wallets-panel .crypto-wallets-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+/* Stock: Wallet Contents panel (same behavior) */
+#stockWalletsPanel .totals-card {
+    max-height: 340px;
+    overflow: hidden;
+}
+
+#stockWalletsPanel .wallet-contents-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
 .crypto-wallets-header-title {
     font-size: 1rem;
     font-weight: 700;
