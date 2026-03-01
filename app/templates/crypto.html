@@ -1255,9 +1255,12 @@
 
             <div class="crypto-history-right">
                 <div class="crypto-history-amount">{{ crypto.quantity }}</div>
-                <div class="crypto-history-sub">
-                    {{ crypto.price }}{% if crypto.currency %} {{ crypto.currency }}{% endif %}
-                </div>
+                {% set _op = (crypto.operation|default(crypto.side)) %}
+                {% if (_op|string)|lower != 'transfer' %}
+                    <div class="crypto-history-sub">
+                        {{ crypto.price }}{% if crypto.currency %} {{ crypto.currency }}{% endif %}
+                    </div>
+                {% endif %}
                 {% if crypto.note %}
                 <div class="crypto-history-sub">{{ crypto.note }}</div>
                 {% endif %}

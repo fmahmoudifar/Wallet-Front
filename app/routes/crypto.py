@@ -220,9 +220,23 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
         return Decimal(0)
 
     try:
-        return Decimal(str(best.get('priceUsd') or '0'))
+        price = Decimal(str(best.get('priceUsd') or '0'))
     except Exception:
-        return Decimal(0)
+        price = Decimal(0)
+
+    # DexScreener is DEX-pair based. Some L1 symbols (especially BTC) are commonly
+    # used by unrelated tokens on various chains. In that case, a direct symbol
+    # search can produce a very low "BTC" price that is not actually Bitcoin.
+    # If we detect an implausibly low price for BTC, proxy to WBTC.
+    try:
+        if q_upper in ('BTC', 'BITCOIN') and (price is None or price < Decimal('1000')):
+            proxy = _dexscreener_best_price_usd('WBTC')
+            if proxy and proxy > 0:
+                return proxy
+    except Exception:
+        pass
+
+    return price
 
 
 @crypto_bp.get('/crypto/search')
