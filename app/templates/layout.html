@@ -82,10 +82,7 @@
                     {% endif %}
 
                     <a class="app-nav-link" href="/settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>Settings</a>
-                    {% set _user = session.get('user') %}
-                    {% set _sub = (_user.get('sub') if (_user is mapping) else None) %}
-                    {% if not _sub %}{% set _sub = session.get('sub') %}{% endif %}
-                    {% if admin_tools_allowed_sub and _sub == admin_tools_allowed_sub %}
+                    {% if is_admin %}
                         <a class="app-nav-link" href="/admin/userid-migrate" {% if request.path.startswith('/admin') %}aria-current="page"{% endif %}>Admin Tools</a>
                     {% endif %}
                     <a class="app-nav-link app-nav-link-logout" href="/logout">Logout</a>

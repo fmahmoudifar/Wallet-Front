@@ -4,9 +4,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from flask import Blueprint, abort, flash, render_template, request, session
 
-admin_tools_bp = Blueprint("admin_tools", __name__, url_prefix="/admin")
+from app.services.authz import is_admin_user
 
-ALLOWED_ADMIN_SUB = (os.getenv("ADMIN_TOOLS_ALLOWED_SUB") or "").strip()
+admin_tools_bp = Blueprint("admin_tools", __name__, url_prefix="/admin")
 
 
 def _session_user_sub() -> str:
@@ -16,17 +16,12 @@ def _session_user_sub() -> str:
     return str(session.get("sub") or "").strip()
 
 
-def _is_allowed_admin_user() -> bool:
-    sub = _session_user_sub()
-    return bool(ALLOWED_ADMIN_SUB) and bool(sub) and sub == ALLOWED_ADMIN_SUB
-
-
 def _require_allowed_admin_user() -> None:
-    """Hard gate: only the explicitly allowed Cognito `sub` may access this page.
+    """Hard gate: only users in the configured Cognito admin group may access.
 
     Use 404 to avoid revealing the page exists.
     """
-    if not _is_allowed_admin_user():
+    if not is_admin_user():
         abort(404)
 
 

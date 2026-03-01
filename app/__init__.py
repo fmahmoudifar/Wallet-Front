@@ -1,6 +1,7 @@
 
 from flask import Flask
 import os
+from app.services.authz import is_admin_user
 from app.routes.home import home_bp
 from app.routes.wallet import wallet_bp
 from app.routes.fiat import fiat_bp
@@ -11,19 +12,20 @@ from app.routes.loans import loans_bp
 from app.routes.auth import auth_bp
 from app.routes.admin_tools import admin_tools_bp
 
-FLASK_SECRET_KEY = os.urandom(24)
-
 def create_app():
     app = Flask(__name__)
-    # app.config['SECRET_KEY'] = os.getenv('CLIENT_SECRET', 'your_default_secret_key_here')
-    app.config['SECRET_KEY'] = os.urandom(24)
 
-    app.config['ADMIN_TOOLS_ALLOWED_SUB'] = (os.getenv('ADMIN_TOOLS_ALLOWED_SUB') or '').strip()
+    # Use a stable secret key when provided (prevents session/nonce loss during OIDC redirects).
+    env_secret = (
+        os.getenv('FLASK_SECRET_KEY')
+        or os.getenv('APP_SECRET_KEY')
+    )
+    app.config['SECRET_KEY'] = env_secret if env_secret else os.urandom(24)
 
     @app.context_processor
     def _inject_admin_tools_config():
         return {
-            'admin_tools_allowed_sub': app.config.get('ADMIN_TOOLS_ALLOWED_SUB', ''),
+            'is_admin': is_admin_user(),
         }
 
     app.register_blueprint(home_bp)

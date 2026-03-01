@@ -1001,7 +1001,7 @@
     <!-- <h2 class="page-title">Totals by Crypto</h2> -->
     {% if totals and totals|length > 0 %}
         <div class="totals-grid">
-            {% for t in totals %}
+            {% for t in totals|sort(attribute='cryptoName', case_sensitive=false) %}
             <div class="totals-card">
                 <div class="totals-header">
                     <div>
@@ -1062,9 +1062,10 @@
 </div>
 
 <div id="cryptoWalletsPanel" class="panel crypto-wallets-panel" style="display:none;">
-    {% if walletHoldings and walletHoldings|length > 0 %}
+    {% set walletsWithHoldings = (walletHoldings|selectattr('holdings')|list) if walletHoldings else [] %}
+    {% if walletsWithHoldings and walletsWithHoldings|length > 0 %}
         <div class="totals-grid">
-            {% for w in walletHoldings %}
+            {% for w in walletsWithHoldings|sort(attribute='walletName', case_sensitive=false) %}
                 <div class="totals-card">
                     <div class="totals-header">
                         <div class="crypto-wallets-header-title">{{ w.walletName|default(w.walletId) }}</div>
@@ -1072,25 +1073,21 @@
                     </div>
 
                     <div class="totals-meta crypto-wallets-list">
-                        {% if w.holdings and w.holdings|length > 0 %}
-                            {% for h in w.holdings %}
-                                <div class="crypto-wallets-row">
-                                    <div class="crypto-wallets-left">
-                                        <span class="crypto-wallets-symbol">{{ h.cryptoName }}</span>
-                                        <span class="crypto-wallets-qty small-muted">{{ h.qty_display }}</span>
-                                    </div>
-                                    <div class="crypto-wallets-right small-muted">{{ h.value_live_display }} {{ baseCurrency|default('EUR') }}</div>
+                        {% for h in w.holdings|sort(attribute='cryptoName', case_sensitive=false) %}
+                            <div class="crypto-wallets-row">
+                                <div class="crypto-wallets-left">
+                                    <span class="crypto-wallets-symbol">{{ h.cryptoName }}</span>
+                                    <span class="crypto-wallets-qty small-muted">{{ h.qty_display }}</span>
                                 </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="small-muted">No current holdings.</div>
-                        {% endif %}
+                                <div class="crypto-wallets-right small-muted">{{ h.value_live_display }} {{ baseCurrency|default('EUR') }}</div>
+                            </div>
+                        {% endfor %}
                     </div>
                 </div>
             {% endfor %}
         </div>
     {% else %}
-        <div class="small-muted">No wallets with crypto transactions yet.</div>
+        <div class="small-muted">No wallets with current holdings.</div>
     {% endif %}
 </div>
 
