@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Iterable, List, Optional
+from collections.abc import Iterable
+from typing import Any
 
 from flask import session
 
 
-def _as_list(val: Any) -> List[str]:
+def _as_list(val: Any) -> list[str]:
     if val is None:
         return []
-    if isinstance(val, (list, tuple, set)):
+    if isinstance(val, list | tuple | set):
         return [str(x) for x in val if str(x).strip()]
     # Cognito sometimes returns a single string; also handle comma-separated.
     s = str(val).strip()
@@ -30,12 +31,12 @@ def session_user() -> dict:
     return u if isinstance(u, dict) else {}
 
 
-def user_groups() -> List[str]:
+def user_groups() -> list[str]:
     claims = session_claims()
-    groups: List[str] = []
+    groups: list[str] = []
 
     # If we stored it explicitly at login.
-    groups.extend(_as_list(session.get('cognito_groups')))
+    groups.extend(_as_list(session.get("cognito_groups")))
 
     # Cognito standard claim name
     groups.extend(_as_list(claims.get("cognito:groups")))
@@ -48,7 +49,7 @@ def user_groups() -> List[str]:
     groups.extend(_as_list(u.get("groups")))
 
     # Deduplicate, preserve order
-    out: List[str] = []
+    out: list[str] = []
     seen = set()
     for g in groups:
         key = g.strip()
@@ -61,7 +62,7 @@ def user_groups() -> List[str]:
     return out
 
 
-def is_user_in_group(group_name: str, groups: Optional[Iterable[str]] = None) -> bool:
+def is_user_in_group(group_name: str, groups: Iterable[str] | None = None) -> bool:
     wanted = (group_name or "").strip()
     if not wanted:
         return False

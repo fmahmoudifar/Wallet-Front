@@ -1,18 +1,19 @@
-from flask import Blueprint, render_template, session, request, redirect, url_for, jsonify
-import requests
 import uuid
-from config import API_URL, aws_auth
-from decimal import Decimal
-from datetime import datetime
+
+import requests
+from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
+
 from app.services.user_scope import filter_records_by_user
+from config import API_URL, aws_auth
 
-wallet_bp = Blueprint('wallet', __name__)
+wallet_bp = Blueprint("wallet", __name__)
 
-@wallet_bp.route('/wallet', methods=['GET'])
+
+@wallet_bp.route("/wallet", methods=["GET"])
 def wallet_page():
-    user = session.get('user')
+    user = session.get("user")
     if user:
-        userId = user.get('username')
+        userId = user.get("username")
         try:
             response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
             wallets = response.json().get("wallets", []) if response.status_code == 200 else []
@@ -23,12 +24,13 @@ def wallet_page():
         return render_template("wallet.html", wallets=wallets, userId=userId)
     else:
         return render_template("home.html")
-    
-@wallet_bp.route('/wallet', methods=['POST'])
+
+
+@wallet_bp.route("/wallet", methods=["POST"])
 def create_wallet():
     wallet_id = str(uuid.uuid4())
-    user = session.get('user')
-    user_id = user.get('username')
+    user = session.get("user")
+    user_id = user.get("username")
     data = {
         "walletId": wallet_id,
         "userId": user_id,
@@ -38,8 +40,7 @@ def create_wallet():
         "note": request.form["note"],
         "currency": request.form["currency"],
         # Wallet balances are derived from transactions; keep a safe default for any legacy backend schema.
-        "balance": request.form.get("balance", "0")
-
+        "balance": request.form.get("balance", "0"),
     }
     print(data)
 
@@ -52,12 +53,13 @@ def create_wallet():
         print(f"❌ [ERROR] Failed to create wallet: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
-@wallet_bp.route('/updateWallet', methods=['POST'])
+
+@wallet_bp.route("/updateWallet", methods=["POST"])
 def update_wallet():
-    user = session.get('user')
+    user = session.get("user")
     if not user:
-        return redirect(url_for('home.home_page'))
-    user_id = user.get('username')
+        return redirect(url_for("home.home_page"))
+    user_id = user.get("username")
 
     data = {
         "walletId": request.form["walletId"],
@@ -68,10 +70,10 @@ def update_wallet():
         "walletType": request.form["walletType"],
         "accountNumber": request.form["accountNumber"],
         "balance": request.form.get("balance", "0"),
-        "note": request.form["note"]
+        "note": request.form["note"],
     }
     print(f"🔄 [DEBUG] Updating wallet: {data}")
-    
+
     try:
         response = requests.patch(f"{API_URL}/wallet", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {response.json()}")
@@ -81,13 +83,14 @@ def update_wallet():
         print(f"❌ [ERROR] Failed to update wallet: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
-@wallet_bp.route('/deleteWallet/<wallet_id>/<user_id>', methods=['POST'])
+
+@wallet_bp.route("/deleteWallet/<wallet_id>/<user_id>", methods=["POST"])
 def delete_wallet(wallet_id, user_id):
     """Delete a wallet."""
-    user = session.get('user')
+    user = session.get("user")
     if not user:
-        return redirect(url_for('home.home_page'))
-    session_user_id = user.get('username')
+        return redirect(url_for("home.home_page"))
+    session_user_id = user.get("username")
 
     data = {
         "walletId": wallet_id,
@@ -107,6 +110,6 @@ def delete_wallet(wallet_id, user_id):
 
 
 # Backward compatible route (older template path)
-@wallet_bp.route('/delete/<wallet_id>/<user_id>', methods=['POST'])
+@wallet_bp.route("/delete/<wallet_id>/<user_id>", methods=["POST"])
 def delete_wallet_legacy(wallet_id, user_id):
     return delete_wallet(wallet_id, user_id)

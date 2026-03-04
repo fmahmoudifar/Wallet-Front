@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 from requests_aws4auth import AWS4Auth
 
@@ -23,7 +24,8 @@ ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY") or os.getenv("AV_API_
 # - yahoo: Yahoo Finance only
 STOCK_DATA_PROVIDER = (os.getenv("STOCK_DATA_PROVIDER") or "yahoo").strip().lower()
 
-AUTHORITY  = "https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_dBBGtdFWv"
-SERVER_METADATA_URL = "https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_dBBGtdFWv/.well-known/openid-configuration"
+AUTHORITY = "https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_dBBGtdFWv"
+SERVER_METADATA_URL = (
+    "https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_dBBGtdFWv/.well-known/openid-configuration"
+)
 URL = "https://jubilant-meme-jgxqwvqxpjh9wr-5000.app.github.dev"
-

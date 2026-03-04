@@ -1,0 +1,33 @@
+[tool.black]
+line-length = 110
+target-version = ["py311"]
+include = "\\.pyi?$"
+exclude = """
+(
+  /\\.venv/
+  | /__pycache__/
+  | /\\.pytest_cache/
+  /0-old/
+)
+"""
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+exclude = ["0-old", ".venv", "__pycache__", ".pytest_cache"]
+
+[tool.ruff.lint]
+# Keep this conservative to reduce behavior-changing refactors.
+select = [
+  "E",    # pycodestyle errors
+  "F",    # pyflakes
+  "I",    # isort
+  "UP",   # pyupgrade
+  "B",    # flake8-bugbear (safe-ish)
+]
+ignore = [
+  "E501", # handled by black
+]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true

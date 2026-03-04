@@ -1,9 +1,4 @@
-from flask import Blueprint, render_template, session, request, redirect, url_for, jsonify
-import requests
-from collections import defaultdict
-from config import API_URL, aws_auth
-from decimal import Decimal
-from datetime import datetime
+from flask import Blueprint
 
 layout_bp = Blueprint("layout", __name__)
 
@@ -36,7 +31,7 @@ layout_bp = Blueprint("layout", __name__)
 # else:
 #     URL = '''<li class="nav-item">
 #                 <a class="nav-link" href="/">Home</a>
-#             </li>        
+#             </li>
 #             <li class="nav-item">
 #                 <a class="nav-link" href="/login">Login</a>
 #             </li>'''

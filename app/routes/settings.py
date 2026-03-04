@@ -1,18 +1,17 @@
-from flask import Blueprint, render_template, session, request, redirect, url_for, jsonify
 import requests
-import uuid
-from config import API_URL, aws_auth
-from decimal import Decimal
-from datetime import datetime
+from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
+
 from app.services.user_scope import filter_records_by_user
+from config import API_URL, aws_auth
 
-settings_bp = Blueprint('settings', __name__)
+settings_bp = Blueprint("settings", __name__)
 
-@settings_bp.route('/settings', methods=['GET'])
+
+@settings_bp.route("/settings", methods=["GET"])
 def settings_page():
-    user = session.get('user')
+    user = session.get("user")
     if user:
-        userId = user.get('username')
+        userId = user.get("username")
 
         # --- Fetch settings ---
         try:
@@ -27,18 +26,18 @@ def settings_page():
         # Store theme in session (used by base layout for light/dark mode)
         try:
             if settings and isinstance(settings, list):
-                theme = (settings[0] or {}).get('theme')
+                theme = (settings[0] or {}).get("theme")
                 if theme:
-                    session['theme'] = theme
+                    session["theme"] = theme
         except Exception:
             pass
 
         # Store website currency in session so portfolio pages can calculate/display in base currency
         try:
             if settings and isinstance(settings, list):
-                currency = (settings[0] or {}).get('currency')
+                currency = (settings[0] or {}).get("currency")
                 if currency:
-                    session['currency'] = currency
+                    session["currency"] = currency
         except Exception:
             pass
 
@@ -48,29 +47,25 @@ def settings_page():
         return render_template("home.html")
 
 
-@settings_bp.route('/updateSettings', methods=['POST'])
+@settings_bp.route("/updateSettings", methods=["POST"])
 def update_settings():
-    user = session.get('user')
-    user_id = user.get('username')
-    data = {
-        "userId": user_id,
-        "currency": request.form["currency"],
-        "theme": request.form["theme"]
-    }
+    user = session.get("user")
+    user_id = user.get("username")
+    data = {"userId": user_id, "currency": request.form["currency"], "theme": request.form["theme"]}
     print(f"🔄 [DEBUG] Updating settings: {data}")
 
     # Update theme in session immediately
     try:
-        session['theme'] = data.get('theme')
+        session["theme"] = data.get("theme")
     except Exception:
         pass
 
     # Update currency in session immediately
     try:
-        session['currency'] = data.get('currency')
+        session["currency"] = data.get("currency")
     except Exception:
         pass
-    
+
     try:
         response = requests.patch(f"{API_URL}/settings", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {response.json()}")
@@ -79,6 +74,3 @@ def update_settings():
     except Exception as e:
         print(f"❌ [ERROR] Failed to update settings: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
-
-
-    

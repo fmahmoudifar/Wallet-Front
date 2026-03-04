@@ -1,16 +1,16 @@
-from flask import Blueprint, render_template, session, request, redirect, url_for, jsonify
-import requests
-import uuid
-from config import API_URL, aws_auth
-from collections import defaultdict
-from decimal import Decimal
-from decimal import ROUND_HALF_UP
 import math
-from datetime import datetime
 import time
-from app.services.user_scope import filter_records_by_user
+import uuid
+from collections import defaultdict
+from decimal import ROUND_HALF_UP, Decimal
 
-crypto_bp = Blueprint('crypto', __name__)
+import requests
+from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
+
+from app.services.user_scope import filter_records_by_user
+from config import API_URL, aws_auth
+
+crypto_bp = Blueprint("crypto", __name__)
 
 # DexScreener search cache (in-process) to reduce rate-limit and avoid showing 0 prices.
 _DEXSCREENER_SEARCH_CACHE = {}
@@ -27,9 +27,9 @@ _FX_RATES_CACHE = {}
 _FX_RATES_TTL_SECONDS = 3600
 
 
-def _normalize_currency(code: str, default: str = '') -> str:
+def _normalize_currency(code: str, default: str = "") -> str:
     try:
-        c = (code or '').strip().upper()
+        c = (code or "").strip().upper()
         return c if c else default
     except Exception:
         return default
@@ -38,7 +38,7 @@ def _normalize_currency(code: str, default: str = '') -> str:
 def _get_user_base_currency(user_id: str) -> str:
     """Return the website/base currency (from Settings). Defaults to EUR."""
     # Prefer session value (updated when visiting/updating settings)
-    base = _normalize_currency(session.get('currency'), '')
+    base = _normalize_currency(session.get("currency"), "")
     if base:
         return base
 
@@ -46,16 +46,16 @@ def _get_user_base_currency(user_id: str) -> str:
     try:
         resp = requests.get(f"{API_URL}/settings", params={"userId": user_id}, auth=aws_auth, timeout=10)
         if resp.status_code == 200:
-            settings = resp.json().get('settings', [])
+            settings = resp.json().get("settings", [])
             if settings and isinstance(settings, list):
-                currency = _normalize_currency((settings[0] or {}).get('currency'), 'EUR')
+                currency = _normalize_currency((settings[0] or {}).get("currency"), "EUR")
                 if currency:
-                    session['currency'] = currency
+                    session["currency"] = currency
                     return currency
     except Exception:
         pass
 
-    return 'EUR'
+    return "EUR"
 
 
 def _get_fx_rate(from_currency: str, to_currency: str) -> Decimal:
@@ -68,21 +68,18 @@ def _get_fx_rate(from_currency: str, to_currency: str) -> Decimal:
     key = (from_ccy, to_ccy)
     now = time.time()
     cached = _FX_RATES_CACHE.get(key)
-    if cached and (now - cached.get('ts', 0.0) < _FX_RATES_TTL_SECONDS):
-        return cached['rate']
+    if cached and (now - cached.get("ts", 0.0) < _FX_RATES_TTL_SECONDS):
+        return cached["rate"]
 
     # Frankfurter supports many fiat currencies. Crypto tx currencies should be normalized before calling.
     url = "https://api.frankfurter.app/latest"
     params = {"from": from_ccy, "to": to_ccy}
-    headers = {
-        'Accept': 'application/json',
-        'User-Agent': 'Wallet-Front/1.0'
-    }
+    headers = {"Accept": "application/json", "User-Agent": "Wallet-Front/1.0"}
     try:
         r = requests.get(url, params=params, headers=headers, timeout=10)
         if r.status_code == 200:
             data = r.json() or {}
-            rates = data.get('rates') or {}
+            rates = data.get("rates") or {}
             rate_val = rates.get(to_ccy)
             if rate_val is None:
                 raise ValueError(f"Missing FX rate {from_ccy}->{to_ccy}")
@@ -92,12 +89,12 @@ def _get_fx_rate(from_currency: str, to_currency: str) -> Decimal:
 
         # Non-200: fall back to cached, if available
         if cached:
-            return cached['rate']
+            return cached["rate"]
         raise RuntimeError(f"FX API returned {r.status_code}")
     except Exception:
         # On network/parsing errors, prefer cache rather than breaking totals.
         if cached:
-            return cached['rate']
+            return cached["rate"]
         raise
 
 
@@ -111,57 +108,54 @@ def _format_number_trim(val, max_decimals: int) -> str:
     try:
         d = Decimal(str(val))
     except Exception:
-        return '0'
+        return "0"
 
     try:
         if max_decimals is None:
-            s = format(d, 'f')
+            s = format(d, "f")
         else:
-            q = Decimal('1').scaleb(-int(max_decimals))  # 10^-max_decimals
+            q = Decimal("1").scaleb(-int(max_decimals))  # 10^-max_decimals
             d = d.quantize(q, rounding=ROUND_HALF_UP)
-            s = format(d, 'f')
+            s = format(d, "f")
     except Exception:
         s = str(d)
 
-    if '.' in s:
-        s = s.rstrip('0').rstrip('.')
+    if "." in s:
+        s = s.rstrip("0").rstrip(".")
     # avoid showing '-0'
-    if s in ('-0', '-0.0'):
-        s = '0'
-    return s or '0'
+    if s in ("-0", "-0.0"):
+        s = "0"
+    return s or "0"
 
 
 def _dexscreener_search(query: str) -> list:
-    q = (query or '').strip()
+    q = (query or "").strip()
     if not q:
         return []
 
     now = time.time()
     cached = _DEXSCREENER_SEARCH_CACHE.get(q.lower())
-    if cached and (now - cached.get('ts', 0.0) < _DEXSCREENER_SEARCH_TTL_SECONDS):
-        return cached.get('pairs') or []
+    if cached and (now - cached.get("ts", 0.0) < _DEXSCREENER_SEARCH_TTL_SECONDS):
+        return cached.get("pairs") or []
 
     url = "https://api.dexscreener.com/latest/dex/search"
-    headers = {
-        'Accept': 'application/json',
-        'User-Agent': 'Wallet-Front/1.0'
-    }
+    headers = {"Accept": "application/json", "User-Agent": "Wallet-Front/1.0"}
     try:
-        r = requests.get(url, params={'q': q}, headers=headers, timeout=10)
+        r = requests.get(url, params={"q": q}, headers=headers, timeout=10)
         if r.status_code != 200:
             # Fall back to cache if available.
             if cached:
-                return cached.get('pairs') or []
+                return cached.get("pairs") or []
             return []
         data = r.json() if r.content else {}
-        pairs = data.get('pairs') if isinstance(data, dict) else []
+        pairs = data.get("pairs") if isinstance(data, dict) else []
         if not isinstance(pairs, list):
             pairs = []
-        _DEXSCREENER_SEARCH_CACHE[q.lower()] = {'ts': now, 'pairs': pairs}
+        _DEXSCREENER_SEARCH_CACHE[q.lower()] = {"ts": now, "pairs": pairs}
         return pairs
     except Exception:
         if cached:
-            return cached.get('pairs') or []
+            return cached.get("pairs") or []
         return []
 
 
@@ -170,7 +164,7 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
 
     DexScreener returns many pairs; we pick the most liquid/high-volume match.
     """
-    q_raw = (query or '').strip()
+    q_raw = (query or "").strip()
     if not q_raw:
         return Decimal(0)
 
@@ -179,24 +173,24 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
     # (These are the wrapped/pegged representations most likely to have deep liquidity.)
     CANONICAL_ADDRESS_BY_SYMBOL = {
         # Binance-Peg Dogecoin (BSC)
-        'DOGE': '0xba2ae424d960c26247dd6c32edc70b295c744c43',
+        "DOGE": "0xba2ae424d960c26247dd6c32edc70b295c744c43",
         # Wrapped BTC (Ethereum)
-        'WBTC': '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
+        "WBTC": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
     }
 
     def _extract_symbol_and_name(s: str) -> tuple[str, str]:
-        s = (s or '').strip()
-        if ' - ' in s:
-            a, b = s.split(' - ', 1)
+        s = (s or "").strip()
+        if " - " in s:
+            a, b = s.split(" - ", 1)
             return (a.strip().upper(), b.strip())
         # If user passed "SYM Name" try to treat the first token as a symbol.
         parts = s.split()
-        if len(parts) >= 2 and 1 <= len(parts[0]) <= 10 and parts[0].replace('-', '').isalnum():
-            return (parts[0].strip().upper(), ' '.join(parts[1:]).strip())
+        if len(parts) >= 2 and 1 <= len(parts[0]) <= 10 and parts[0].replace("-", "").isalnum():
+            return (parts[0].strip().upper(), " ".join(parts[1:]).strip())
         # Symbol-only (common case)
-        if s and ' ' not in s and len(s) <= 10:
-            return (s.strip().upper(), '')
-        return ('', s)
+        if s and " " not in s and len(s) <= 10:
+            return (s.strip().upper(), "")
+        return ("", s)
 
     q_symbol, q_name = _extract_symbol_and_name(q_raw)
 
@@ -204,7 +198,7 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
     # If the query is BTC, we'll still try symbol search first, but may proxy to WBTC below.
     search_query = q_raw
     expected_symbol = q_symbol or q_raw.upper()
-    if q_symbol in CANONICAL_ADDRESS_BY_SYMBOL and q_symbol in ('DOGE', 'WBTC'):
+    if q_symbol in CANONICAL_ADDRESS_BY_SYMBOL and q_symbol in ("DOGE", "WBTC"):
         search_query = CANONICAL_ADDRESS_BY_SYMBOL[q_symbol]
         expected_symbol = q_symbol
 
@@ -222,14 +216,14 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
 
     def score_pair(p: dict) -> tuple:
         try:
-            base = (p.get('baseToken') or {}) if isinstance(p, dict) else {}
-            base_sym = str(base.get('symbol') or '').strip().upper()
-            base_name = str(base.get('name') or '').strip().upper()
-            quote = (p.get('quoteToken') or {}) if isinstance(p, dict) else {}
-            quote_sym = str(quote.get('symbol') or '').strip().upper()
+            base = (p.get("baseToken") or {}) if isinstance(p, dict) else {}
+            base_sym = str(base.get("symbol") or "").strip().upper()
+            base_name = str(base.get("name") or "").strip().upper()
+            quote = (p.get("quoteToken") or {}) if isinstance(p, dict) else {}
+            quote_sym = str(quote.get("symbol") or "").strip().upper()
 
-            liquidity_usd = to_float(((p.get('liquidity') or {}) if isinstance(p, dict) else {}).get('usd'))
-            vol_h24 = to_float(((p.get('volume') or {}) if isinstance(p, dict) else {}).get('h24'))
+            liquidity_usd = to_float(((p.get("liquidity") or {}) if isinstance(p, dict) else {}).get("usd"))
+            vol_h24 = to_float(((p.get("volume") or {}) if isinstance(p, dict) else {}).get("h24"))
 
             # Prefer exact symbol match when we have one.
             exact_sym = 1 if (expected_symbol and base_sym == expected_symbol) else 0
@@ -242,7 +236,7 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
                     name_hit = 1
 
             # Prefer stable-quoted pairs for cleaner USD pricing.
-            stable_quote = 1 if quote_sym in ('USD', 'USDT', 'USDC', 'DAI', 'BUSD', 'FDUSD') else 0
+            stable_quote = 1 if quote_sym in ("USD", "USDT", "USDC", "DAI", "BUSD", "FDUSD") else 0
 
             return (exact_sym, name_hit, stable_quote, liquidity_usd, vol_h24)
         except Exception:
@@ -253,7 +247,7 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
     for p in pairs:
         if not isinstance(p, dict):
             continue
-        price_usd_raw = p.get('priceUsd')
+        price_usd_raw = p.get("priceUsd")
         if price_usd_raw is None:
             continue
         s = score_pair(p)
@@ -265,7 +259,7 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
         return Decimal(0)
 
     try:
-        price = Decimal(str(best.get('priceUsd') or '0'))
+        price = Decimal(str(best.get("priceUsd") or "0"))
     except Exception:
         price = Decimal(0)
 
@@ -274,9 +268,9 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
     # search can produce a very low "BTC" price that is not actually Bitcoin.
     # If we detect an implausibly low price for BTC, proxy to WBTC.
     try:
-        if (q_symbol or q_raw.upper()) in ('BTC', 'BITCOIN') and (price is None or price < Decimal('1000')):
+        if (q_symbol or q_raw.upper()) in ("BTC", "BITCOIN") and (price is None or price < Decimal("1000")):
             # Prefer canonical WBTC address.
-            proxy = _dexscreener_best_price_usd(CANONICAL_ADDRESS_BY_SYMBOL.get('WBTC') or 'WBTC')
+            proxy = _dexscreener_best_price_usd(CANONICAL_ADDRESS_BY_SYMBOL.get("WBTC") or "WBTC")
             if proxy and proxy > 0:
                 return proxy
     except Exception:
@@ -290,53 +284,50 @@ def _binance_price_usd(symbol: str) -> Decimal:
 
     We query SYMBOLUSDT and treat USDT as USD-equivalent.
     """
-    sym = (symbol or '').strip().upper()
+    sym = (symbol or "").strip().upper()
     if not sym:
         return Decimal(0)
 
     # Skip contract addresses / odd queries
-    if sym.startswith('0X') or ':' in sym or '/' in sym:
+    if sym.startswith("0X") or ":" in sym or "/" in sym:
         return Decimal(0)
 
     # Common stablecoins
-    if sym in ('USD', 'USDT', 'USDC', 'DAI', 'FDUSD', 'BUSD'):
+    if sym in ("USD", "USDT", "USDC", "DAI", "FDUSD", "BUSD"):
         return Decimal(1)
 
     # Conservative symbol validation
-    if not sym.replace('-', '').isalnum() or len(sym) > 15:
+    if not sym.replace("-", "").isalnum() or len(sym) > 15:
         return Decimal(0)
 
     now = time.time()
     cached = _BINANCE_PRICE_CACHE.get(sym)
-    if cached and (now - cached.get('ts', 0.0) < _BINANCE_PRICE_TTL_SECONDS):
+    if cached and (now - cached.get("ts", 0.0) < _BINANCE_PRICE_TTL_SECONDS):
         try:
-            return Decimal(str(cached.get('price') or '0'))
+            return Decimal(str(cached.get("price") or "0"))
         except Exception:
             return Decimal(0)
 
-    url = 'https://api.binance.com/api/v3/ticker/price'
-    headers = {
-        'Accept': 'application/json',
-        'User-Agent': 'Wallet-Front/1.0'
-    }
+    url = "https://api.binance.com/api/v3/ticker/price"
+    headers = {"Accept": "application/json", "User-Agent": "Wallet-Front/1.0"}
     pair = f"{sym}USDT"
     try:
-        r = requests.get(url, params={'symbol': pair}, headers=headers, timeout=10)
+        r = requests.get(url, params={"symbol": pair}, headers=headers, timeout=10)
         if r.status_code != 200:
             if cached:
-                return Decimal(str(cached.get('price') or '0'))
+                return Decimal(str(cached.get("price") or "0"))
             return Decimal(0)
         data = r.json() if r.content else {}
-        price_raw = data.get('price') if isinstance(data, dict) else None
+        price_raw = data.get("price") if isinstance(data, dict) else None
         if price_raw is None:
             return Decimal(0)
         price = Decimal(str(price_raw))
         if price and price > 0:
-            _BINANCE_PRICE_CACHE[sym] = {'ts': now, 'price': str(price)}
+            _BINANCE_PRICE_CACHE[sym] = {"ts": now, "price": str(price)}
         return price
     except Exception:
         if cached:
-            return Decimal(str(cached.get('price') or '0'))
+            return Decimal(str(cached.get("price") or "0"))
         return Decimal(0)
 
 
@@ -346,17 +337,17 @@ def _best_price_usd(query: str) -> Decimal:
     Prefer Binance for plain symbols (reduces symbol-collision errors), then fall back
     to DexScreener for long-tail tokens.
     """
-    q = (query or '').strip()
+    q = (query or "").strip()
     if not q:
         return Decimal(0)
 
     # If user passed "SYMBOL - Name" prefer the symbol part.
-    sym = ''
-    if ' - ' in q:
-        sym = q.split(' - ', 1)[0].strip().upper()
+    sym = ""
+    if " - " in q:
+        sym = q.split(" - ", 1)[0].strip().upper()
     else:
         # If query looks like a symbol, treat it as such
-        if ' ' not in q and len(q) <= 15:
+        if " " not in q and len(q) <= 15:
             sym = q.strip().upper()
         else:
             parts = q.split()
@@ -364,7 +355,7 @@ def _best_price_usd(query: str) -> Decimal:
                 sym = parts[0].strip().upper()
 
     # Skip Binance for contract address searches
-    if q.lower().startswith('0x') or ':' in q or '/' in q:
+    if q.lower().startswith("0x") or ":" in q or "/" in q:
         return _dexscreener_best_price_usd(q)
 
     # Try Binance first for symbol-like queries
@@ -376,23 +367,23 @@ def _best_price_usd(query: str) -> Decimal:
     return _dexscreener_best_price_usd(q)
 
 
-@crypto_bp.get('/crypto/search')
+@crypto_bp.get("/crypto/search")
 def crypto_search():
     """Autocomplete helper: return a small list of token suggestions from DexScreener.
 
     Response shape matches the client-side expectations: {coins:[{id,symbol,name}, ...]}.
     """
-    user = session.get('user')
+    user = session.get("user")
     if not user:
-        return jsonify({'coins': []})
+        return jsonify({"coins": []})
 
-    q = (request.args.get('q') or '').strip()
+    q = (request.args.get("q") or "").strip()
     if len(q) < 2:
-        return jsonify({'coins': []})
+        return jsonify({"coins": []})
 
     pairs = _dexscreener_search(q)
     if not pairs:
-        return jsonify({'coins': []})
+        return jsonify({"coins": []})
 
     q_upper = q.upper()
 
@@ -406,19 +397,19 @@ def crypto_search():
 
     def score_pair(p: dict) -> tuple:
         try:
-            base = (p.get('baseToken') or {}) if isinstance(p, dict) else {}
-            base_sym = str(base.get('symbol') or '').strip().upper()
-            base_name = str(base.get('name') or '').strip().upper()
-            quote = (p.get('quoteToken') or {}) if isinstance(p, dict) else {}
-            quote_sym = str(quote.get('symbol') or '').strip().upper()
+            base = (p.get("baseToken") or {}) if isinstance(p, dict) else {}
+            base_sym = str(base.get("symbol") or "").strip().upper()
+            base_name = str(base.get("name") or "").strip().upper()
+            quote = (p.get("quoteToken") or {}) if isinstance(p, dict) else {}
+            quote_sym = str(quote.get("symbol") or "").strip().upper()
 
-            liquidity_usd = to_float(((p.get('liquidity') or {}) if isinstance(p, dict) else {}).get('usd'))
-            vol_h24 = to_float(((p.get('volume') or {}) if isinstance(p, dict) else {}).get('h24'))
+            liquidity_usd = to_float(((p.get("liquidity") or {}) if isinstance(p, dict) else {}).get("usd"))
+            vol_h24 = to_float(((p.get("volume") or {}) if isinstance(p, dict) else {}).get("h24"))
 
             exact_sym = 1 if (base_sym == q_upper) else 0
             sym_hit = 1 if (q_upper in base_sym and base_sym) else 0
             name_hit = 1 if (q_upper in base_name and base_name) else 0
-            stable_quote = 1 if quote_sym in ('USD', 'USDT', 'USDC', 'DAI', 'BUSD', 'FDUSD') else 0
+            stable_quote = 1 if quote_sym in ("USD", "USDT", "USDC", "DAI", "BUSD", "FDUSD") else 0
 
             return (exact_sym, sym_hit, name_hit, stable_quote, liquidity_usd, vol_h24)
         except Exception:
@@ -429,30 +420,31 @@ def crypto_search():
     for p in pairs:
         if not isinstance(p, dict):
             continue
-        base = p.get('baseToken') or {}
-        sym = str(base.get('symbol') or '').strip().upper()
+        base = p.get("baseToken") or {}
+        sym = str(base.get("symbol") or "").strip().upper()
         if not sym:
             continue
         s = score_pair(p)
         existing = best_by_symbol.get(sym)
-        if (existing is None) or (s > existing['score']):
+        if (existing is None) or (s > existing["score"]):
             best_by_symbol[sym] = {
-                'score': s,
-                'name': str(base.get('name') or '').strip() or sym,
+                "score": s,
+                "name": str(base.get("name") or "").strip() or sym,
             }
 
-    ranked = sorted(best_by_symbol.items(), key=lambda kv: kv[1]['score'], reverse=True)
+    ranked = sorted(best_by_symbol.items(), key=lambda kv: kv[1]["score"], reverse=True)
     coins = []
     for sym, meta in ranked[:20]:
-        coins.append({'id': sym.lower(), 'symbol': sym, 'name': meta.get('name') or sym})
+        coins.append({"id": sym.lower(), "symbol": sym, "name": meta.get("name") or sym})
 
-    return jsonify({'coins': coins})
+    return jsonify({"coins": coins})
 
-@crypto_bp.route('/crypto', methods=['GET'])
+
+@crypto_bp.route("/crypto", methods=["GET"])
 def crypto_page():
-    user = session.get('user')
+    user = session.get("user")
     if user:
-        userId = user.get('username')
+        userId = user.get("username")
 
         base_currency = _get_user_base_currency(userId)
 
@@ -478,9 +470,9 @@ def crypto_page():
         wallet_ids_set = set()
         wallet_id_by_name = {}
         try:
-            for w in (wallets or []):
-                wid = (w.get('walletId') or '').strip()
-                wname = (w.get('walletName') or '').strip()
+            for w in wallets or []:
+                wid = (w.get("walletId") or "").strip()
+                wname = (w.get("walletName") or "").strip()
                 if wid:
                     wallet_ids_set.add(wid)
                 if wid and wname:
@@ -490,9 +482,9 @@ def crypto_page():
             wallet_id_by_name = {}
 
         def _resolve_wallet_ref(val):
-            s = (str(val) if val is not None else '').strip()
+            s = (str(val) if val is not None else "").strip()
             if not s:
-                return ''
+                return ""
             if s in wallet_ids_set:
                 return s
             return wallet_id_by_name.get(s, s)
@@ -502,35 +494,37 @@ def crypto_page():
         coins = []
         try:
             seen = set()
-            for tx in (cryptos or []):
-                raw = (tx.get('cryptoName') or '').strip()
+            for tx in cryptos or []:
+                raw = (tx.get("cryptoName") or "").strip()
                 if not raw:
                     continue
                 sym = raw
                 name = raw
-                if ' - ' in raw:
-                    left, right = raw.split(' - ', 1)
+                if " - " in raw:
+                    left, right = raw.split(" - ", 1)
                     sym = left.strip() or raw
                     name = right.strip() or raw
                 sym_up = sym.strip().upper()
                 if not sym_up or sym_up in seen:
                     continue
                 seen.add(sym_up)
-                coins.append({
-                    'id': sym_up.lower(),
-                    'symbol': sym_up,
-                    'name': name.strip() or sym_up,
-                })
+                coins.append(
+                    {
+                        "id": sym_up.lower(),
+                        "symbol": sym_up,
+                        "name": name.strip() or sym_up,
+                    }
+                )
 
             # Enrich coins that only have SYMBOL as name (e.g. 'BTC' -> 'Bitcoin').
             # Uses DexScreener search so autocomplete shows "SYMBOL - Full Name".
             def _best_token_name_for_symbol(symbol: str) -> str:
-                sym_q = (symbol or '').strip().upper()
+                sym_q = (symbol or "").strip().upper()
                 if not sym_q:
-                    return ''
+                    return ""
                 pairs = _dexscreener_search(sym_q)
                 if not pairs:
-                    return ''
+                    return ""
 
                 def to_float(x) -> float:
                     try:
@@ -542,14 +536,20 @@ def crypto_page():
 
                 def score_pair(p: dict) -> tuple:
                     try:
-                        base = (p.get('baseToken') or {}) if isinstance(p, dict) else {}
-                        base_sym = str(base.get('symbol') or '').strip().upper()
-                        quote = (p.get('quoteToken') or {}) if isinstance(p, dict) else {}
-                        quote_sym = str(quote.get('symbol') or '').strip().upper()
-                        liquidity_usd = to_float(((p.get('liquidity') or {}) if isinstance(p, dict) else {}).get('usd'))
-                        vol_h24 = to_float(((p.get('volume') or {}) if isinstance(p, dict) else {}).get('h24'))
+                        base = (p.get("baseToken") or {}) if isinstance(p, dict) else {}
+                        base_sym = str(base.get("symbol") or "").strip().upper()
+                        quote = (p.get("quoteToken") or {}) if isinstance(p, dict) else {}
+                        quote_sym = str(quote.get("symbol") or "").strip().upper()
+                        liquidity_usd = to_float(
+                            ((p.get("liquidity") or {}) if isinstance(p, dict) else {}).get("usd")
+                        )
+                        vol_h24 = to_float(
+                            ((p.get("volume") or {}) if isinstance(p, dict) else {}).get("h24")
+                        )
                         exact_sym = 1 if base_sym == sym_q else 0
-                        stable_quote = 1 if quote_sym in ('USD', 'USDT', 'USDC', 'DAI', 'BUSD', 'FDUSD') else 0
+                        stable_quote = (
+                            1 if quote_sym in ("USD", "USDT", "USDC", "DAI", "BUSD", "FDUSD") else 0
+                        )
                         return (exact_sym, stable_quote, liquidity_usd, vol_h24)
                     except Exception:
                         return (0, 0, 0.0, 0.0)
@@ -559,24 +559,24 @@ def crypto_page():
                 for p in pairs:
                     if not isinstance(p, dict):
                         continue
-                    base = p.get('baseToken') or {}
-                    if str(base.get('symbol') or '').strip().upper() != sym_q:
+                    base = p.get("baseToken") or {}
+                    if str(base.get("symbol") or "").strip().upper() != sym_q:
                         continue
                     s = score_pair(p)
                     if best is None or s > (best_score or (0, 0, 0.0, 0.0)):
                         best = p
                         best_score = s
                 if not best:
-                    return ''
-                base = best.get('baseToken') or {}
-                return str(base.get('name') or '').strip()
+                    return ""
+                base = best.get("baseToken") or {}
+                return str(base.get("name") or "").strip()
 
             name_cache = {}
             remaining_lookups = 20
             for c in coins:
                 try:
-                    sym_up = (c.get('symbol') or '').strip().upper()
-                    nm = (c.get('name') or '').strip()
+                    sym_up = (c.get("symbol") or "").strip().upper()
+                    nm = (c.get("name") or "").strip()
                     if not sym_up:
                         continue
                     if nm and nm.upper() != sym_up:
@@ -592,11 +592,11 @@ def crypto_page():
                         remaining_lookups -= 1
 
                     if full and full.strip() and full.strip().upper() != sym_up:
-                        c['name'] = full.strip()
+                        c["name"] = full.strip()
                 except Exception:
                     continue
 
-            coins.sort(key=lambda c: (c.get('symbol') or '').lower())
+            coins.sort(key=lambda c: (c.get("symbol") or "").lower())
         except Exception:
             coins = []
 
@@ -608,18 +608,18 @@ def crypto_page():
             # Group transactions by crypto and sort by date to process chronologically
             crypto_transactions = {}
             for c in cryptos:
-                name = c.get('cryptoName') or 'Unknown'
+                name = c.get("cryptoName") or "Unknown"
                 if name not in crypto_transactions:
                     crypto_transactions[name] = []
                 crypto_transactions[name].append(c)
-            
+
             def to_decimal(val):
                 """Safely convert API value to Decimal; treat blanks/None as 0."""
                 try:
                     if val is None:
                         return Decimal(0)
                     s = str(val).strip()
-                    if s == '':
+                    if s == "":
                         return Decimal(0)
                     return Decimal(s)
                 except Exception:
@@ -629,53 +629,53 @@ def crypto_page():
                 """Normalize stored cryptoName to a stable key for wallet holdings.
                 Prefers the leading symbol in patterns like 'BTC - Bitcoin'; otherwise uses the trimmed upper string.
                 """
-                s = (str(raw_name) if raw_name is not None else '').strip()
+                s = (str(raw_name) if raw_name is not None else "").strip()
                 if not s:
-                    return 'UNKNOWN'
-                if ' - ' in s:
-                    s = s.split(' - ', 1)[0].strip()
+                    return "UNKNOWN"
+                if " - " in s:
+                    s = s.split(" - ", 1)[0].strip()
                 # Remove common wrappers
-                s = s.replace('(', ' ').replace(')', ' ')
-                s = ' '.join(s.split())
+                s = s.replace("(", " ").replace(")", " ")
+                s = " ".join(s.split())
                 return s.upper()
-            
+
             # Sort each crypto's transactions by date
             for name in crypto_transactions:
-                crypto_transactions[name].sort(key=lambda x: x.get('tdate', ''))
-            
+                crypto_transactions[name].sort(key=lambda x: x.get("tdate", ""))
+
             # Process each crypto's transactions chronologically
             for name, transactions in crypto_transactions.items():
                 entry = {
-                    'cryptoName': name,
-                    'total_qty': Decimal(0),           # Current holding quantity
-                    'total_cost': Decimal(0),          # Current total cost basis
-                    'total_fee': Decimal(0),           # Total fees paid
-                    'total_value_buy': Decimal(0),     # Total spent on purchases
-                    'total_value_sell': Decimal(0),    # Total received from sales
-                    'currency': base_currency
+                    "cryptoName": name,
+                    "total_qty": Decimal(0),  # Current holding quantity
+                    "total_cost": Decimal(0),  # Current total cost basis
+                    "total_fee": Decimal(0),  # Total fees paid
+                    "total_value_buy": Decimal(0),  # Total spent on purchases
+                    "total_value_sell": Decimal(0),  # Total received from sales
+                    "currency": base_currency,
                 }
-                
+
                 for tx in transactions:
                     try:
-                        qty = to_decimal(tx.get('quantity', 0))
-                        price = to_decimal(tx.get('price', 0))
-                        fee = to_decimal(tx.get('fee', 0))
-                        operation = str(tx.get('operation') or tx.get('side') or 'buy').lower()
-                        fee_unit = str(tx.get('feeUnit') or '').strip().lower()
-                        ckey = norm_crypto_key(tx.get('cryptoName') or name)
+                        qty = to_decimal(tx.get("quantity", 0))
+                        price = to_decimal(tx.get("price", 0))
+                        fee = to_decimal(tx.get("fee", 0))
+                        operation = str(tx.get("operation") or tx.get("side") or "buy").lower()
+                        fee_unit = str(tx.get("feeUnit") or "").strip().lower()
+                        ckey = norm_crypto_key(tx.get("cryptoName") or name)
 
                         # TRANSFER: fee is a crypto quantity.
                         # Net received quantity = max(0, qty - fee).
                         # - From wallet loses qty (gross)
                         # - To wallet receives (qty - fee) (net)
                         # Portfolio delta = (+net if toWallet else 0) - (qty if fromWallet else 0)
-                        if operation == 'transfer':
-                            from_wallet = _resolve_wallet_ref(tx.get('fromWallet'))
-                            to_wallet = _resolve_wallet_ref(tx.get('toWallet'))
+                        if operation == "transfer":
+                            from_wallet = _resolve_wallet_ref(tx.get("fromWallet"))
+                            to_wallet = _resolve_wallet_ref(tx.get("toWallet"))
 
                             # Transfer fee is expected to be a crypto quantity when feeUnit == 'crypto'.
                             # If older records have feeUnit missing or set differently, treat fee as 0 for qty math.
-                            fee_qty = fee if (fee_unit == 'crypto' or fee_unit == '') else Decimal(0)
+                            fee_qty = fee if (fee_unit == "crypto" or fee_unit == "") else Decimal(0)
                             qty_total = qty
                             qty_net = qty_total - fee_qty
                             if qty_net < 0:
@@ -698,42 +698,42 @@ def crypto_page():
 
                             if delta_qty > 0:
                                 # Incoming transfer (no cost basis info here) -> add qty with zero cost basis.
-                                entry['total_qty'] += delta_qty
+                                entry["total_qty"] += delta_qty
                             elif delta_qty < 0:
                                 # Outgoing amount reduces holdings at average cost (no revenue).
                                 qty_to_remove = -delta_qty
-                                if entry['total_qty'] and entry['total_qty'] > 0:
-                                    avg_cost_per_unit = entry['total_cost'] / entry['total_qty']
-                                    can_remove = min(qty_to_remove, entry['total_qty'])
-                                    entry['total_qty'] -= can_remove
-                                    entry['total_cost'] -= (can_remove * avg_cost_per_unit)
+                                if entry["total_qty"] and entry["total_qty"] > 0:
+                                    avg_cost_per_unit = entry["total_cost"] / entry["total_qty"]
+                                    can_remove = min(qty_to_remove, entry["total_qty"])
+                                    entry["total_qty"] -= can_remove
+                                    entry["total_cost"] -= can_remove * avg_cost_per_unit
                                     remaining = qty_to_remove - can_remove
                                     if remaining > 0:
                                         # reflect as negative holdings (no additional cost basis change)
-                                        entry['total_qty'] -= remaining
+                                        entry["total_qty"] -= remaining
                                 else:
-                                    entry['total_qty'] -= qty_to_remove
+                                    entry["total_qty"] -= qty_to_remove
                             continue
 
-                        tx_currency = _normalize_currency(tx.get('currency'), base_currency)
+                        tx_currency = _normalize_currency(tx.get("currency"), base_currency)
                         fx_rate = _get_fx_rate(tx_currency, base_currency)
-                        
+
                         # Transaction value (qty * price + fee)
                         tx_value = (qty * price) + fee
                         tx_value_base = tx_value * fx_rate
                         fee_base = fee * fx_rate
                         revenue_base = (qty * price) * fx_rate
-                        
-                        if operation == 'buy':
+
+                        if operation == "buy":
                             # BUY: Add to holdings and cost basis
-                            entry['total_qty'] += qty
-                            entry['total_cost'] += tx_value_base
-                            entry['total_value_buy'] += tx_value_base
-                            entry['total_fee'] += fee_base
+                            entry["total_qty"] += qty
+                            entry["total_cost"] += tx_value_base
+                            entry["total_value_buy"] += tx_value_base
+                            entry["total_fee"] += fee_base
 
                             # Wallet holdings: buys land in toWallet
-                            from_wallet = _resolve_wallet_ref(tx.get('fromWallet'))
-                            to_wallet = _resolve_wallet_ref(tx.get('toWallet'))
+                            from_wallet = _resolve_wallet_ref(tx.get("fromWallet"))
+                            to_wallet = _resolve_wallet_ref(tx.get("toWallet"))
                             hold_wallet = to_wallet or from_wallet
                             if from_wallet:
                                 wallet_ids_seen.add(from_wallet)
@@ -742,41 +742,41 @@ def crypto_page():
                             # If user didn't provide toWallet, fall back to fromWallet so wallet contents still updates.
                             if hold_wallet:
                                 wallet_crypto_qty[hold_wallet][ckey] += qty
-                            
-                        elif operation == 'sell':
+
+                        elif operation == "sell":
                             # SELL: Use weighted average to calculate cost of sold portion
-                            if entry['total_qty'] > 0:
+                            if entry["total_qty"] > 0:
                                 # Calculate current weighted average cost per unit
-                                avg_cost_per_unit = entry['total_cost'] / entry['total_qty']
-                                
+                                avg_cost_per_unit = entry["total_cost"] / entry["total_qty"]
+
                                 # Determine how much we can actually sell from current holdings
-                                qty_to_sell = min(qty, entry['total_qty'])
-                                
+                                qty_to_sell = min(qty, entry["total_qty"])
+
                                 # Cost basis of the sold quantity
                                 sold_cost = qty_to_sell * avg_cost_per_unit
-                                
+
                                 # Update holdings
-                                entry['total_qty'] -= qty_to_sell
-                                entry['total_cost'] -= sold_cost
-                                entry['total_value_sell'] += revenue_base  # Revenue from sale (excluding fee)
-                                entry['total_fee'] += fee_base
-                                
+                                entry["total_qty"] -= qty_to_sell
+                                entry["total_cost"] -= sold_cost
+                                entry["total_value_sell"] += revenue_base  # Revenue from sale (excluding fee)
+                                entry["total_fee"] += fee_base
+
                                 # If selling more than we have, handle the excess as short position
                                 excess_qty = qty - qty_to_sell
                                 if excess_qty > 0:
                                     # Track the excess as negative position
-                                    entry['total_qty'] -= excess_qty
+                                    entry["total_qty"] -= excess_qty
                                     # No additional cost basis change for short position
-                                
+
                             else:
                                 # Selling without holdings (short sell) - track as negative
-                                entry['total_qty'] -= qty
-                                entry['total_value_sell'] += revenue_base
-                                entry['total_fee'] += fee_base
+                                entry["total_qty"] -= qty
+                                entry["total_value_sell"] += revenue_base
+                                entry["total_fee"] += fee_base
 
                             # Wallet holdings: sells leave fromWallet
-                            from_wallet = _resolve_wallet_ref(tx.get('fromWallet'))
-                            to_wallet = _resolve_wallet_ref(tx.get('toWallet'))
+                            from_wallet = _resolve_wallet_ref(tx.get("fromWallet"))
+                            to_wallet = _resolve_wallet_ref(tx.get("toWallet"))
                             hold_wallet = from_wallet or to_wallet
                             if from_wallet:
                                 wallet_ids_seen.add(from_wallet)
@@ -785,15 +785,15 @@ def crypto_page():
                             # If user didn't provide fromWallet, fall back to toWallet so wallet contents still updates.
                             if hold_wallet:
                                 wallet_crypto_qty[hold_wallet][ckey] -= qty
-                            
+
                     except Exception as e:
                         print(f"Error processing transaction for {name}: {e} | Raw tx: {tx}")
                         continue
-                
+
                 # Set total_value as current cost basis for compatibility
-                entry['total_value'] = entry['total_cost']
+                entry["total_value"] = entry["total_cost"]
                 totals_map[name] = entry
-                
+
         except Exception as e:
             print(f"Error computing crypto totals: {e}")
 
@@ -804,58 +804,58 @@ def crypto_page():
             price_currency = base_currency
             usd_to_base = Decimal(1)
             try:
-                usd_to_base = _get_fx_rate('USD', price_currency)
+                usd_to_base = _get_fx_rate("USD", price_currency)
             except Exception:
-                price_currency = 'USD'
+                price_currency = "USD"
                 usd_to_base = Decimal(1)
 
             for v in totals_map.values():
-                    # Prefer the leading symbol in 'SYMBOL - Name'
-                    raw_name = v.get('cryptoName') or ''
-                    q1 = raw_name
-                    if ' - ' in str(raw_name):
-                        q1 = str(raw_name).split(' - ', 1)[0].strip()
-                    q2 = str(raw_name).split(' - ', 1)[1].strip() if ' - ' in str(raw_name) else ''
+                # Prefer the leading symbol in 'SYMBOL - Name'
+                raw_name = v.get("cryptoName") or ""
+                q1 = raw_name
+                if " - " in str(raw_name):
+                    q1 = str(raw_name).split(" - ", 1)[0].strip()
+                q2 = str(raw_name).split(" - ", 1)[1].strip() if " - " in str(raw_name) else ""
 
-                    price_usd = _best_price_usd(q1)
-                    if (not price_usd or price_usd == 0) and q2:
-                        price_usd = _best_price_usd(q2)
-                    if not price_usd or price_usd == 0:
-                        price_usd = _best_price_usd(str(raw_name).strip())
+                price_usd = _best_price_usd(q1)
+                if (not price_usd or price_usd == 0) and q2:
+                    price_usd = _best_price_usd(q2)
+                if not price_usd or price_usd == 0:
+                    price_usd = _best_price_usd(str(raw_name).strip())
 
-                    v['latest_price'] = (price_usd * usd_to_base) if (price_currency != 'USD') else price_usd
-                    v['currency'] = price_currency
+                v["latest_price"] = (price_usd * usd_to_base) if (price_currency != "USD") else price_usd
+                v["currency"] = price_currency
 
-                    # compute live total value based on latest price
-                    v['total_value_live'] = v['total_qty'] * (v['latest_price'] or Decimal(0))
+                # compute live total value based on latest price
+                v["total_value_live"] = v["total_qty"] * (v["latest_price"] or Decimal(0))
 
-                    # compute weighted average buy price from current cost basis
-                    try:
-                        if v['total_qty'] and v['total_qty'] > 0:
-                            # Use current cost basis divided by current quantity
-                            v['avg_buy_price'] = (v['total_cost'] / v['total_qty'])
-                        else:
-                            v['avg_buy_price'] = Decimal(0)
-                    except Exception:
-                        v['avg_buy_price'] = Decimal(0)
+                # compute weighted average buy price from current cost basis
+                try:
+                    if v["total_qty"] and v["total_qty"] > 0:
+                        # Use current cost basis divided by current quantity
+                        v["avg_buy_price"] = v["total_cost"] / v["total_qty"]
+                    else:
+                        v["avg_buy_price"] = Decimal(0)
+                except Exception:
+                    v["avg_buy_price"] = Decimal(0)
 
-                    # We no longer compute a combined average; downstream template will show:
-                    # - 'latest_price' as the unit price now
-                    # - 'total_value_live' as the total value now (qty * latest_price)
-                    # Compute gain/loss: (Current Value + Revenue from Sales) - Total Investment
-                    # For accurate P&L calculation across all scenarios (holding, sold, oversold)
-                    try:
-                        total_revenue = v.get('total_value_sell', Decimal(0))
-                        total_investment = v.get('total_value_buy', Decimal(0))
-                        current_market_value = v['total_value_live']
-                        
-                        # Total current worth = market value of holdings + cash received from sales
-                        total_current_worth = current_market_value + total_revenue
-                        
-                        # Gain/Loss = What we have now - What we invested
-                        v['value_change_amount'] = total_current_worth - total_investment
-                    except Exception:
-                        v['value_change_amount'] = Decimal(0)
+                # We no longer compute a combined average; downstream template will show:
+                # - 'latest_price' as the unit price now
+                # - 'total_value_live' as the total value now (qty * latest_price)
+                # Compute gain/loss: (Current Value + Revenue from Sales) - Total Investment
+                # For accurate P&L calculation across all scenarios (holding, sold, oversold)
+                try:
+                    total_revenue = v.get("total_value_sell", Decimal(0))
+                    total_investment = v.get("total_value_buy", Decimal(0))
+                    current_market_value = v["total_value_live"]
+
+                    # Total current worth = market value of holdings + cash received from sales
+                    total_current_worth = current_market_value + total_revenue
+
+                    # Gain/Loss = What we have now - What we invested
+                    v["value_change_amount"] = total_current_worth - total_investment
+                except Exception:
+                    v["value_change_amount"] = Decimal(0)
         except Exception as e:
             print(f"Error computing live prices: {e}")
 
@@ -866,22 +866,22 @@ def crypto_page():
             latest_price_by_symbol = {}
             try:
                 for v in totals_map.values():
-                    raw_name = v.get('cryptoName') or ''
-                    sym = str(raw_name).split(' - ', 1)[0].strip().upper() if raw_name else ''
+                    raw_name = v.get("cryptoName") or ""
+                    sym = str(raw_name).split(" - ", 1)[0].strip().upper() if raw_name else ""
                     if sym:
-                        latest_price_by_symbol[sym] = (v.get('latest_price') or Decimal(0))
+                        latest_price_by_symbol[sym] = v.get("latest_price") or Decimal(0)
             except Exception:
                 latest_price_by_symbol = {}
 
             # Wallet id -> wallet name
             wallet_name_by_id = {}
-            for w in (wallets or []):
-                wid = (w.get('walletId') or '').strip()
+            for w in wallets or []:
+                wid = (w.get("walletId") or "").strip()
                 if wid:
-                    wallet_name_by_id[wid] = (w.get('walletName') or wid)
+                    wallet_name_by_id[wid] = w.get("walletName") or wid
 
             # Build an ordered list of wallets so UI is stable
-            ordered_wallet_ids = [w.get('walletId') for w in (wallets or []) if w.get('walletId')]
+            ordered_wallet_ids = [w.get("walletId") for w in (wallets or []) if w.get("walletId")]
             for wid in ordered_wallet_ids:
                 if wallet_ids_seen and wid not in wallet_ids_seen:
                     continue
@@ -895,32 +895,36 @@ def crypto_page():
                         # cname is a normalized symbol key
                         p = latest_price_by_symbol.get(str(cname).upper(), Decimal(0)) or Decimal(0)
                         live_val = q * p
-                        holdings_rows.append({
-                            'cryptoName': cname,
-                            'qty': float(q),
-                            'qty_display': _format_number_trim(q, 8),
-                            'value_live': float(live_val),
-                            'value_live_display': _format_number_trim(live_val, 2),
-                        })
+                        holdings_rows.append(
+                            {
+                                "cryptoName": cname,
+                                "qty": float(q),
+                                "qty_display": _format_number_trim(q, 8),
+                                "value_live": float(live_val),
+                                "value_live_display": _format_number_trim(live_val, 2),
+                            }
+                        )
                     except Exception:
                         continue
 
                 # Sort holdings by live value desc (fallback: qty)
-                holdings_rows.sort(key=lambda r: (r.get('value_live', 0.0), r.get('qty', 0.0)), reverse=True)
+                holdings_rows.sort(key=lambda r: (r.get("value_live", 0.0), r.get("qty", 0.0)), reverse=True)
 
                 wallet_total_live = Decimal(0)
                 for r in holdings_rows:
                     try:
-                        wallet_total_live += Decimal(str(r.get('value_live', 0.0) or 0.0))
+                        wallet_total_live += Decimal(str(r.get("value_live", 0.0) or 0.0))
                     except Exception:
                         pass
-                wallet_holdings.append({
-                    'walletId': wid,
-                    'walletName': wallet_name_by_id.get(wid, wid),
-                    'total_value_live': float(wallet_total_live),
-                    'total_value_live_display': _format_number_trim(wallet_total_live, 2),
-                    'holdings': holdings_rows,
-                })
+                wallet_holdings.append(
+                    {
+                        "walletId": wid,
+                        "walletName": wallet_name_by_id.get(wid, wid),
+                        "total_value_live": float(wallet_total_live),
+                        "total_value_live_display": _format_number_trim(wallet_total_live, 2),
+                        "holdings": holdings_rows,
+                    }
+                )
         except Exception as e:
             print(f"Error computing wallet holdings: {e}")
             wallet_holdings = []
@@ -929,24 +933,24 @@ def crypto_page():
         totals = []
         for v in totals_map.values():
             try:
-                tq = float(v['total_qty'])
+                tq = float(v["total_qty"])
             except Exception:
                 tq = 0.0
             try:
-                tv = float(v['total_value'])
+                tv = float(v["total_value"])
             except Exception:
                 tv = 0.0
             # Correctly retrieve total amount paid on buy transactions (includes buy fees)
             try:
-                tv_buy = float(v.get('total_value_buy', 0) or 0)
+                tv_buy = float(v.get("total_value_buy", 0) or 0)
             except Exception:
                 tv_buy = 0.0
             try:
-                lp = float(v.get('latest_price', 0) or 0)
+                lp = float(v.get("latest_price", 0) or 0)
             except Exception:
                 lp = 0.0
             try:
-                tv_live = float(v.get('total_value_live', 0) or 0)
+                tv_live = float(v.get("total_value_live", 0) or 0)
             except Exception:
                 tv_live = 0.0
 
@@ -976,7 +980,7 @@ def crypto_page():
             try:
                 # price percent display: show percentage change based on price_pct
                 if price_pct is None:
-                    price_pct_display = 'N/A'
+                    price_pct_display = "N/A"
                 else:
                     # for extremely large or tiny values, use scientific notation
                     if abs(price_pct) > 10000:
@@ -986,7 +990,7 @@ def crypto_page():
 
                 # value percent display
                 if value_pct is None:
-                    value_pct_display = 'N/A'
+                    value_pct_display = "N/A"
                 else:
                     # cap large values for readability
                     if abs(value_pct) > 10000:
@@ -994,8 +998,8 @@ def crypto_page():
                     else:
                         value_pct_display = f"{value_pct:.2f}%"
             except Exception:
-                price_pct_display = 'N/A'
-                value_pct_display = 'N/A'
+                price_pct_display = "N/A"
+                value_pct_display = "N/A"
 
             # visual fill: use a log scale on multiplier to keep bars readable for huge changes
             try:
@@ -1017,47 +1021,50 @@ def crypto_page():
                 pct_fill = 0.0
 
             try:
-                avg_buy = float(v.get('avg_buy_price', 0) or 0)
+                avg_buy = float(v.get("avg_buy_price", 0) or 0)
             except Exception:
                 avg_buy = 0.0
             try:
-                fee_total = float(v.get('total_fee', 0) or 0)
+                fee_total = float(v.get("total_fee", 0) or 0)
             except Exception:
                 fee_total = 0.0
             try:
-                change_amt = float(v.get('value_change_amount', 0) or 0)
+                change_amt = float(v.get("value_change_amount", 0) or 0)
             except Exception:
                 change_amt = 0.0
 
-            totals.append({
-                'cryptoName': v['cryptoName'],
-                'total_qty': tq,
-                'total_qty_display': _format_number_trim(v.get('total_qty', 0), 8),
-                # total_value: kept for backwards-compatibility (raw stored aggregate)
-                'total_value': tv,
-                # total_value_buy: the total amount user spent on buy transactions (includes buy fees)
-                'total_value_buy': tv_buy,
-                'total_value_buy_display': _format_number_trim(v.get('total_value_buy', 0), 2),
-                'latest_price': lp,
-                'latest_price_display': _format_number_trim(v.get('latest_price', 0), 6),
-                'total_value_live': tv_live,
-                'total_value_live_display': _format_number_trim(v.get('total_value_live', 0), 2),
-                'currency': v.get('currency',''),
-                'price_pct': price_pct if price_pct is not None else 0.0,
-                'value_pct': value_pct if value_pct is not None else 0.0,
-                'price_multiplier': price_multiplier if price_multiplier is not None else 0.0,
-                'price_pct_display': price_pct_display,
-                'value_pct_display': value_pct_display,
-                'pct_fill': pct_fill,
-                'pct_fill_str': f"{pct_fill:.2f}",
-                'avg_buy_price': avg_buy,
-                'avg_buy_price_display': _format_number_trim(v.get('avg_buy_price', 0), 6),
-                'total_fee': fee_total,
-                'total_fee_display': _format_number_trim(v.get('total_fee', 0), 2),
-                'value_change_amount': change_amt
-                ,
-                'value_change_amount_abs_display': _format_number_trim(abs(v.get('value_change_amount', Decimal(0))), 2)
-            })
+            totals.append(
+                {
+                    "cryptoName": v["cryptoName"],
+                    "total_qty": tq,
+                    "total_qty_display": _format_number_trim(v.get("total_qty", 0), 8),
+                    # total_value: kept for backwards-compatibility (raw stored aggregate)
+                    "total_value": tv,
+                    # total_value_buy: the total amount user spent on buy transactions (includes buy fees)
+                    "total_value_buy": tv_buy,
+                    "total_value_buy_display": _format_number_trim(v.get("total_value_buy", 0), 2),
+                    "latest_price": lp,
+                    "latest_price_display": _format_number_trim(v.get("latest_price", 0), 6),
+                    "total_value_live": tv_live,
+                    "total_value_live_display": _format_number_trim(v.get("total_value_live", 0), 2),
+                    "currency": v.get("currency", ""),
+                    "price_pct": price_pct if price_pct is not None else 0.0,
+                    "value_pct": value_pct if value_pct is not None else 0.0,
+                    "price_multiplier": price_multiplier if price_multiplier is not None else 0.0,
+                    "price_pct_display": price_pct_display,
+                    "value_pct_display": value_pct_display,
+                    "pct_fill": pct_fill,
+                    "pct_fill_str": f"{pct_fill:.2f}",
+                    "avg_buy_price": avg_buy,
+                    "avg_buy_price_display": _format_number_trim(v.get("avg_buy_price", 0), 6),
+                    "total_fee": fee_total,
+                    "total_fee_display": _format_number_trim(v.get("total_fee", 0), 2),
+                    "value_change_amount": change_amt,
+                    "value_change_amount_abs_display": _format_number_trim(
+                        abs(v.get("value_change_amount", Decimal(0))), 2
+                    ),
+                }
+            )
 
         # Send both to template (include coin list and totals)
         return render_template(
@@ -1072,6 +1079,7 @@ def crypto_page():
         )
     else:
         return render_template("home.html")
+
 
 # @crypto_bp.route('/crypto', methods=['GET'])
 # def crypto_page():
@@ -1096,25 +1104,26 @@ def crypto_page():
 #     else:
 #         return render_template("home.html")
 
-@crypto_bp.route('/crypto', methods=['POST'])
+
+@crypto_bp.route("/crypto", methods=["POST"])
 def create_crypto():
     crypto_id = str(uuid.uuid4())
-    user = session.get('user')
-    user_id = user.get('username')
+    user = session.get("user")
+    user_id = user.get("username")
     data = {
         "cryptoId": crypto_id,
         "userId": user_id,
         "cryptoName": request.form["cryptoName"],
-        "tdate": request.form["tdate"],        
+        "tdate": request.form["tdate"],
         "fromWallet": request.form["fromWallet"],
         "toWallet": request.form["toWallet"],
         "operation": request.form.get("operation") or request.form.get("side"),
         "feeUnit": request.form.get("feeUnit"),
-        "quantity": request.form["quantity"],  
-        "price": request.form["price"],  
+        "quantity": request.form["quantity"],
+        "price": request.form["price"],
         "currency": request.form["currency"],
         "fee": request.form["fee"],
-        "note": request.form["note"]
+        "note": request.form["note"],
     }
 
     print(data)
@@ -1127,31 +1136,32 @@ def create_crypto():
         print(f"❌ [ERROR] Failed to create crypto: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
-@crypto_bp.route('/updateCrypto', methods=['POST'])
+
+@crypto_bp.route("/updateCrypto", methods=["POST"])
 def update_crypto():
-    user = session.get('user')
+    user = session.get("user")
     if not user:
-        return redirect(url_for('home.home_page'))
-    user_id = user.get('username')
+        return redirect(url_for("home.home_page"))
+    user_id = user.get("username")
 
     data = {
         "cryptoId": request.form["cryptoId"],
         # Never trust userId from the client; scope to the logged-in user.
         "userId": user_id,
         "cryptoName": request.form["cryptoName"],
-        "tdate": request.form["tdate"],        
+        "tdate": request.form["tdate"],
         "fromWallet": request.form["fromWallet"],
         "toWallet": request.form["toWallet"],
         "operation": request.form.get("operation") or request.form.get("side"),
         "feeUnit": request.form.get("feeUnit"),
-        "quantity": request.form["quantity"],  
-        "price": request.form["price"],  
-        "currency": request.form["currency"], 
-        "fee": request.form["fee"],  
-        "note": request.form["note"]
+        "quantity": request.form["quantity"],
+        "price": request.form["price"],
+        "currency": request.form["currency"],
+        "fee": request.form["fee"],
+        "note": request.form["note"],
     }
     print(f"🔄 [DEBUG] Updating crypto: {data}")
-    
+
     try:
         response = requests.patch(f"{API_URL}/crypto", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {response.json()}")
@@ -1161,13 +1171,14 @@ def update_crypto():
         print(f"❌ [ERROR] Failed to update crypto: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
-@crypto_bp.route('/deleteCrypto/<crypto_id>/<user_id>', methods=['POST'])
+
+@crypto_bp.route("/deleteCrypto/<crypto_id>/<user_id>", methods=["POST"])
 def delete_crypto(crypto_id, user_id):
     """Delete a crypto."""
-    user = session.get('user')
+    user = session.get("user")
     if not user:
-        return redirect(url_for('home.home_page'))
-    session_user_id = user.get('username')
+        return redirect(url_for("home.home_page"))
+    session_user_id = user.get("username")
 
     data = {
         "cryptoId": crypto_id,
@@ -1184,4 +1195,3 @@ def delete_crypto(crypto_id, user_id):
     except Exception as e:
         print(f"❌ [ERROR] Failed to delete crypto: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
-    

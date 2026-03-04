@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from flask import Blueprint, abort, flash, render_template, request, session
 
@@ -50,9 +50,9 @@ def _ddb_client():
     return _boto3_session().client("dynamodb")
 
 
-def _list_tables(client) -> List[str]:
-    tables: List[str] = []
-    start: Optional[str] = None
+def _list_tables(client) -> list[str]:
+    tables: list[str] = []
+    start: str | None = None
     while True:
         if start:
             resp = client.list_tables(ExclusiveStartTableName=start)
@@ -65,20 +65,20 @@ def _list_tables(client) -> List[str]:
     return sorted(set(tables), key=str.lower)
 
 
-def _describe_table(client, table_name: str) -> Dict[str, Any]:
+def _describe_table(client, table_name: str) -> dict[str, Any]:
     return client.describe_table(TableName=table_name)["Table"]
 
 
-def _key_fields(table_desc: Dict[str, Any]) -> List[str]:
+def _key_fields(table_desc: dict[str, Any]) -> list[str]:
     return [k["AttributeName"] for k in table_desc.get("KeySchema", [])]
 
 
-def _key_attr_types(table_desc: Dict[str, Any]) -> Dict[str, str]:
+def _key_attr_types(table_desc: dict[str, Any]) -> dict[str, str]:
     defs = table_desc.get("AttributeDefinitions", [])
     return {d["AttributeName"]: d["AttributeType"] for d in defs}
 
 
-def _discover_candidate_user_fields(client, table_name: str, sample_limit: int = 50) -> List[str]:
+def _discover_candidate_user_fields(client, table_name: str, sample_limit: int = 50) -> list[str]:
     """
     DynamoDB doesn't have schema for non-key attributes.
     We scan a small sample and list likely user-id-like attribute names.
@@ -101,7 +101,7 @@ def _discover_candidate_user_fields(client, table_name: str, sample_limit: int =
     name_re = re.compile(r"(user|owner).*(id)|(^sub$)|cognito", re.IGNORECASE)
 
     while scanned < sample_limit:
-        kwargs: Dict[str, Any] = {"TableName": table_name, "Limit": min(25, sample_limit - scanned)}
+        kwargs: dict[str, Any] = {"TableName": table_name, "Limit": min(25, sample_limit - scanned)}
         if start_key:
             kwargs["ExclusiveStartKey"] = start_key
         resp = client.scan(**kwargs)
@@ -121,32 +121,32 @@ def _discover_candidate_user_fields(client, table_name: str, sample_limit: int =
 def _scan_matching_keys(
     client,
     table_name: str,
-    table_desc: Dict[str, Any],
+    table_desc: dict[str, Any],
     field_name: str,
     old_value: str,
     max_items: int,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     key_fields = _key_fields(table_desc)
 
     # Only project keys (+ field if it's not already a key) to keep payload small.
     # If the field is also part of the key, including it twice can cause
     # "Two document paths overlap" ProjectionExpression errors.
-    projection_fields: List[str] = list(key_fields)
+    projection_fields: list[str] = list(key_fields)
     if field_name and field_name not in projection_fields:
         projection_fields.append(field_name)
 
-    expr_names: Dict[str, str] = {"#f": field_name}
-    projection_aliases: List[str] = []
+    expr_names: dict[str, str] = {"#f": field_name}
+    projection_aliases: list[str] = []
     for i, name in enumerate(projection_fields):
         alias = f"#p{i}"
         expr_names[alias] = name
         projection_aliases.append(alias)
 
     start_key = None
-    keys: List[Dict[str, Any]] = []
+    keys: list[dict[str, Any]] = []
 
     while True:
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "TableName": table_name,
             "FilterExpression": "#f = :old",
             "ExpressionAttributeNames": expr_names,
@@ -172,7 +172,9 @@ def _scan_matching_keys(
     return keys
 
 
-def _update_non_key_field(client, table_name: str, key: Dict[str, Any], field_name: str, new_value: str) -> None:
+def _update_non_key_field(
+    client, table_name: str, key: dict[str, Any], field_name: str, new_value: str
+) -> None:
     client.update_item(
         TableName=table_name,
         Key=key,
@@ -182,7 +184,7 @@ def _update_non_key_field(client, table_name: str, key: Dict[str, Any], field_na
     )
 
 
-def _attrval_to_str(av: Dict[str, Any]) -> str:
+def _attrval_to_str(av: dict[str, Any]) -> str:
     if "S" in av:
         return av["S"]
     if "N" in av:
@@ -192,7 +194,7 @@ def _attrval_to_str(av: Dict[str, Any]) -> str:
     return str(av)
 
 
-def _put_attrval(value: str, attr_type: str) -> Dict[str, Any]:
+def _put_attrval(value: str, attr_type: str) -> dict[str, Any]:
     if attr_type == "N":
         return {"N": value}
     if attr_type == "B":
@@ -204,8 +206,8 @@ def _put_attrval(value: str, attr_type: str) -> Dict[str, Any]:
 def _copy_delete_rekey(
     client,
     table_name: str,
-    table_desc: Dict[str, Any],
-    key: Dict[str, Any],
+    table_desc: dict[str, Any],
+    key: dict[str, Any],
     key_field_to_change: str,
     new_value: str,
 ) -> None:
@@ -244,9 +246,9 @@ def userid_migrate():
 
     max_items = max(1, min(max_items, 20000))
 
-    table_desc: Optional[Dict[str, Any]] = None
-    key_fields: List[str] = []
-    candidate_fields: List[str] = []
+    table_desc: dict[str, Any] | None = None
+    key_fields: list[str] = []
+    candidate_fields: list[str] = []
     field_is_key = False
 
     if selected_table:
@@ -255,8 +257,8 @@ def userid_migrate():
         field_is_key = selected_field in set(key_fields)
         candidate_fields = _discover_candidate_user_fields(client, selected_table)
 
-    matches: List[Dict[str, Any]] = []
-    sample_keys: List[str] = []
+    matches: list[dict[str, Any]] = []
+    sample_keys: list[str] = []
     changed = 0
 
     if request.method == "POST":
