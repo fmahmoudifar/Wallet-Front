@@ -28,4 +28,9 @@ AUTHORITY = "https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_dBBGtdFWv"
 SERVER_METADATA_URL = (
     "https://cognito-idp.eu-north-1.amazonaws.com/eu-north-1_dBBGtdFWv/.well-known/openid-configuration"
 )
-URL = "https://jubilant-meme-jgxqwvqxpjh9wr-5000.app.github.dev"
+URL = (
+    os.getenv("PUBLIC_URL")
+    or os.getenv("APP_URL")
+    or os.getenv("BASE_URL")
+    or "https://www.walletsportfolio.com"
+).strip()

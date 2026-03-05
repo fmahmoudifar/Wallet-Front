@@ -1,0 +1,51 @@
+name: Deploy to Lightsail
+
+on:
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: deploy-lightsail-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        env:
+          LIGHTSAIL_HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          LIGHTSAIL_USER: ${{ secrets.LIGHTSAIL_USER }}
+          LIGHTSAIL_SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          LIGHTSAIL_SSH_PORT: ${{ secrets.LIGHTSAIL_SSH_PORT }}
+        run: |
+          set -euo pipefail
+
+          : "${LIGHTSAIL_HOST:?Missing secret LIGHTSAIL_HOST}"
+          : "${LIGHTSAIL_USER:?Missing secret LIGHTSAIL_USER}"
+          : "${LIGHTSAIL_SSH_KEY:?Missing secret LIGHTSAIL_SSH_KEY}"
+
+          PORT="${LIGHTSAIL_SSH_PORT:-22}"
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$LIGHTSAIL_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p "$PORT" "$LIGHTSAIL_HOST" >> ~/.ssh/known_hosts
+
+          ssh -p "$PORT" -i ~/.ssh/id_rsa "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" <<'EOF'
+            set -euo pipefail
+
+            APP_DIR="/home/ubuntu/Wallet-Front"
+            VENV_PY="$APP_DIR/.venv/bin/python"
+
+            cd "$APP_DIR"
+            git fetch --all
+            git reset --hard origin/main
+
+            "$VENV_PY" -m pip install -U pip wheel
+            "$VENV_PY" -m pip install -r requirements.txt
+
+            sudo systemctl restart wallet-front
+            sudo systemctl status wallet-front --no-pager
+          EOF

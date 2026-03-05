@@ -6,3 +6,4 @@ requests
 requests-aws4auth
 python-dotenv
 Authlib
+gunicorn
