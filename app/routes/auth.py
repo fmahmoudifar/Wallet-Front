@@ -3,7 +3,7 @@ import secrets
 import urllib.parse
 
 from authlib.integrations.flask_client import OAuth
-from flask import Blueprint, redirect, session, url_for
+from flask import Blueprint, redirect, request, session, url_for
 
 from config import SERVER_METADATA_URL, URL
 
@@ -28,6 +28,43 @@ oauth.register(
 )
 
 
+def _strip_quotes(val: str) -> str:
+    s = (val or "").strip()
+    if len(s) >= 2 and ((s[0] == s[-1] == '"') or (s[0] == s[-1] == "'")):
+        return s[1:-1].strip()
+    return s
+
+
+def _truthy(val: str | None) -> bool:
+    s = _strip_quotes(str(val or "")).strip().lower()
+    return s in {"1", "true", "yes", "y", "on"}
+
+
+def _is_codespaces() -> bool:
+    if _truthy(os.getenv("CODESPACES")):
+        return True
+    if os.getenv("CODESPACE_NAME"):
+        return True
+    if os.getenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN"):
+        return True
+
+    try:
+        host = (request.host or "").lower()
+        return host.endswith(".app.github.dev") or host.endswith(".github.dev")
+    except Exception:
+        return False
+
+
+def _dev_login_enabled() -> bool:
+    if not _is_codespaces():
+        return False
+    if _truthy(os.getenv("DEV_LOGIN_DISABLED")):
+        return False
+    u = _strip_quotes(os.getenv("DEV_LOGIN_USERNAME") or os.getenv("DUMMY_USERNAME") or os.getenv("dummy_username") or "").strip()
+    p = _strip_quotes(os.getenv("DEV_LOGIN_PASSWORD") or os.getenv("DUMMY_PASSWORD") or os.getenv("dummy_password") or "").strip()
+    return bool(u and p)
+
+
 @auth_bp.record_once
 def on_load(state):
     """Initializes the OAuth app when the blueprint is loaded."""
@@ -36,6 +73,9 @@ def on_load(state):
 
 @auth_bp.route("/login")
 def login():
+    if _dev_login_enabled():
+        return redirect(url_for("dev_auth.dev_login"))
+
     redirect_uri = URL.rstrip("/") + url_for("auth.auth_callback", _external=False)
     # redirect_uri = 'http://localhost:5000/callback'
     print(f"Redirect URI: {redirect_uri}")
@@ -93,6 +133,10 @@ def auth_callback():
 @auth_bp.route("/logout")
 def logout():
     session.clear()
+
+    # In Codespaces dev-login mode, do a local logout only.
+    if _dev_login_enabled():
+        return redirect(url_for("dev_auth.dev_login"))
 
     return_to = URL.rstrip("/")
     logout_uri_param = urllib.parse.quote_plus(return_to)
