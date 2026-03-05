@@ -30,13 +30,13 @@
     <div class="app-shell">
         <aside class="app-sidebar" aria-label="Main navigation">
             <div class="app-brand">
-                <a href="/" class="app-brand-link">My Wallets</a>
+                <a href="/" class="app-brand-link">Wallets Portfolio</a>
             </div>
 
             <nav class="app-nav">
                 {% if session.get('user') %}
                     <a class="app-nav-link" href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>Home</a>
-                    <a class="app-nav-link" href="/overview" {% if request.path.startswith('/overview') %}aria-current="page"{% endif %}>Overview</a>
+                    <a class="app-nav-link" href="/overview" {% if request.path.startswith('/overview') %}aria-current="page"{% endif %}>Full Overview</a>
                     
                     <a class="app-nav-link" href="/fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>Fiat (Cash)</a>
                     {% if request.path.startswith('/fiat') %}
