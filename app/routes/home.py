@@ -1,5 +1,8 @@
 from collections import defaultdict
 from decimal import Decimal
+import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 from flask import Blueprint, render_template, session
@@ -28,12 +31,68 @@ from .stock import (
 
 home_bp = Blueprint("home", __name__, url_prefix="/")
 
+# In-process cache for the Overview page to avoid recomputing heavy totals on every refresh.
+# NOTE: This is per-process (per gunicorn worker) and resets on restart.
+_OVERVIEW_CTX_CACHE: dict[tuple[str, str], dict] = {}
+
+
+def _overview_cache_ttl_seconds() -> int:
+    try:
+        return max(0, int((os.getenv("OVERVIEW_CACHE_TTL_SECONDS") or "20").strip()))
+    except Exception:
+        return 20
+
+
+def _overview_cache_get(user_id: str, base_currency: str):
+    ttl = _overview_cache_ttl_seconds()
+    if ttl <= 0:
+        return None
+    key = (str(user_id or "").strip(), str(base_currency or "").strip().upper())
+    now = time.time()
+    cached = _OVERVIEW_CTX_CACHE.get(key)
+    if cached and (now - float(cached.get("ts") or 0.0) < ttl):
+        return cached.get("ctx")
+    return None
+
+
+def _overview_cache_set(user_id: str, base_currency: str, ctx: dict):
+    ttl = _overview_cache_ttl_seconds()
+    if ttl <= 0:
+        return
+    key = (str(user_id or "").strip(), str(base_currency or "").strip().upper())
+    _OVERVIEW_CTX_CACHE[key] = {"ts": time.time(), "ctx": ctx}
+
+
+def _api_list(path: str, *, user_id: str, list_key: str, timeout: int = 12) -> list:
+    try:
+        resp = requests.get(
+            f"{API_URL}/{path.lstrip('/')}",
+            params={"userId": user_id},
+            auth=aws_auth,
+            timeout=timeout,
+        )
+        items = resp.json().get(list_key, []) if resp.status_code == 200 else []
+        return filter_records_by_user(items, user_id)
+    except Exception as e:
+        try:
+            print(f"Error fetching {path}: {e}")
+        except Exception:
+            pass
+        return []
+
 
 def _ensure_user_settings_row(user_id: str) -> None:
     """Ensure a user has a settings row; if missing, create defaults.
 
     Defaults match the Settings page: currency=EUR, theme=Light.
     """
+    # If we already initialized settings for this session, avoid a round-trip.
+    try:
+        if session.get("_settings_initialized") and session.get("currency") and session.get("theme"):
+            return
+    except Exception:
+        pass
+
     try:
         resp = requests.get(f"{API_URL}/settings", params={"userId": user_id}, auth=aws_auth, timeout=10)
         settings = resp.json().get("settings", []) if resp.status_code == 200 else []
@@ -49,6 +108,7 @@ def _ensure_user_settings_row(user_id: str) -> None:
                 session["theme"] = first.get("theme")
             if first.get("currency"):
                 session["currency"] = first.get("currency")
+            session["_settings_initialized"] = True
         except Exception:
             pass
         return
@@ -64,6 +124,7 @@ def _ensure_user_settings_row(user_id: str) -> None:
         if upsert.status_code in (200, 201):
             session["currency"] = default_data["currency"]
             session["theme"] = default_data["theme"]
+            session["_settings_initialized"] = True
         else:
             try:
                 print(f"Settings default upsert failed: {upsert.status_code} {upsert.text}")
@@ -76,7 +137,6 @@ def _ensure_user_settings_row(user_id: str) -> None:
 @home_bp.route("/overview", methods=["GET"])
 def overview():
     user = session.get("user")
-    print(user)
     if user:
         userId = user.get("username")
 
@@ -87,22 +147,42 @@ def overview():
         cg_vs_currency = (base_currency or "EUR").lower()
         if cg_vs_currency not in ("eur", "usd"):
             cg_vs_currency = "eur"
-        try:
-            response = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
-            cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
-            cryptos = filter_records_by_user(cryptos, userId)
-        except Exception as e:
-            print(f"Error fetching cryptos: {e}")
-            cryptos = []
 
-        # Fetch wallets early (needed to compute wallet chart values in wallet currency)
-        try:
-            w_resp = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth, timeout=12)
-            wallets = w_resp.json().get("wallets", []) if w_resp.status_code == 200 else []
-            wallets = filter_records_by_user(wallets, userId)
-        except Exception as e:
-            print(f"Error fetching wallets: {e}")
-            wallets = []
+        cached_ctx = _overview_cache_get(userId, base_currency)
+        if isinstance(cached_ctx, dict):
+            return render_template("overview.html", **cached_ctx)
+
+        # Fetch all API resources in parallel to reduce total wall time.
+        cryptos: list = []
+        wallets: list = []
+        transactions: list = []
+        loans: list = []
+        stocks: list = []
+
+        with ThreadPoolExecutor(max_workers=5) as ex:
+            futs = {
+                ex.submit(_api_list, "cryptos", user_id=userId, list_key="cryptos", timeout=12): "cryptos",
+                ex.submit(_api_list, "wallets", user_id=userId, list_key="wallets", timeout=12): "wallets",
+                ex.submit(_api_list, "transactions", user_id=userId, list_key="transactions", timeout=12): "transactions",
+                ex.submit(_api_list, "loans", user_id=userId, list_key="loans", timeout=12): "loans",
+                ex.submit(_api_list, "stocks", user_id=userId, list_key="stocks", timeout=12): "stocks",
+            }
+            for fut in as_completed(futs):
+                name = futs[fut]
+                try:
+                    data = fut.result() or []
+                except Exception:
+                    data = []
+                if name == "cryptos":
+                    cryptos = data
+                elif name == "wallets":
+                    wallets = data
+                elif name == "transactions":
+                    transactions = data
+                elif name == "loans":
+                    loans = data
+                elif name == "stocks":
+                    stocks = data
 
         wallet_currency_by_id = {}
         for w in wallets or []:
@@ -305,15 +385,6 @@ def overview():
         except Exception as e:
             print(f"Error computing crypto totals: {e}")
 
-        # Fetch and process regular transactions
-        try:
-            response = requests.get(f"{API_URL}/transactions", params={"userId": userId}, auth=aws_auth)
-            transactions = response.json().get("transactions", []) if response.status_code == 200 else []
-            transactions = filter_records_by_user(transactions, userId)
-        except Exception as e:
-            print(f"Error fetching transactions: {e}")
-            transactions = []
-
         # Fiat transactions affect wallet cash balances (in each wallet's currency)
         wallet_fiat_balances = defaultdict(lambda: Decimal("0"))
 
@@ -382,14 +453,6 @@ def overview():
                 continue
 
         # Loans also affect wallet cash balances (in each wallet's currency)
-        try:
-            resp = requests.get(f"{API_URL}/loans", params={"userId": userId}, auth=aws_auth, timeout=12)
-            loans = resp.json().get("loans", []) if resp.status_code == 200 else []
-            loans = filter_records_by_user(loans, userId)
-        except Exception as e:
-            print(f"Error fetching loans (home wallet balances): {e}")
-            loans = []
-
         def _wallet_id(val):
             try:
                 s = (str(val) if val is not None else "").strip()
@@ -466,15 +529,6 @@ def overview():
             except Exception as e:
                 print(f"Error processing loan {loan}: {e}")
                 continue
-
-        # Fetch stock transactions
-        try:
-            response = requests.get(f"{API_URL}/stocks", params={"userId": userId}, auth=aws_auth)
-            stocks = response.json().get("stocks", []) if response.status_code == 200 else []
-            stocks = filter_records_by_user(stocks, userId)
-        except Exception as e:
-            print(f"Error fetching stocks: {e}")
-            stocks = []
 
         # Track per-wallet stock quantities (for live valuation in Wallet Balances)
         wallet_stock_qty = defaultdict(lambda: defaultdict(lambda: Decimal(0)))
@@ -847,17 +901,9 @@ def overview():
             day = _day_from_iso_home(tdate) or "unknown-date"
             return f"{party} | {ccy} | {day}"
 
-        try:
-            l_resp = requests.get(f"{API_URL}/loans", params={"userId": userId}, auth=aws_auth, timeout=12)
-            _loans = l_resp.json().get("loans", []) if l_resp.status_code == 200 else []
-            _loans = filter_records_by_user(_loans, userId)
-        except Exception as e:
-            print(f"Error fetching loans (home): {e}")
-            _loans = []
-
-        if _loans:
+        if loans:
             pos_map = {}
-            for row in _loans or []:
+            for row in loans or []:
                 try:
                     t = str(row.get("type") or "").strip().lower()
                     if t not in ("borrow", "lend", "loan"):
@@ -947,132 +993,29 @@ def overview():
                 )
             )
 
-        # --- Loans chart (Home card): outstanding by counterparty (no FX) ---
-        # Chart a single currency to avoid mixing units:
-        # - Prefer base currency if present
-        # - Else choose the currency with the largest total outstanding
-        def _to_decimal_home(val) -> Decimal:
-            try:
-                if val is None:
-                    return Decimal(0)
-                s = str(val).strip()
-                if s == "":
-                    return Decimal(0)
-                return Decimal(s)
-            except Exception:
-                return Decimal(0)
-
-        def _day_from_iso_home(date_str: str) -> str:
-            s = (date_str or "").strip()
-            return s[:10] if len(s) >= 10 else s
-
-        def _derive_position_home(counterparty: str, currency: str, tdate: str) -> str:
-            party = (counterparty or "").strip() or "—"
-            ccy = (currency or "").strip().upper() or (base_currency or "EUR")
-            day = _day_from_iso_home(tdate) or "unknown-date"
-            return f"{party} | {ccy} | {day}"
-
-        try:
-            l_resp = requests.get(f"{API_URL}/loans", params={"userId": userId}, auth=aws_auth, timeout=12)
-            _loans = l_resp.json().get("loans", []) if l_resp.status_code == 200 else []
-            _loans = filter_records_by_user(_loans, userId)
-        except Exception as e:
-            print(f"Error fetching loans (home): {e}")
-            _loans = []
-
-        if _loans:
-            # Per-position ledger so paid-off/overpaid positions don't affect open ones.
-            pos_map = {}
-            for row in _loans or []:
-                try:
-                    t = str(row.get("type") or "").strip().lower()
-                    if t not in ("borrow", "lend", "loan"):
-                        t = "borrow"
-                    action = str(row.get("action") or "").strip().lower() or "new"
-                    if action not in ("new", "repay"):
-                        action = "new"
-
-                    party = str(row.get("counterparty") or "").strip() or "—"
-                    currency = str(row.get("currency") or "").strip().upper() or (base_currency or "EUR")
-                    amt = _to_decimal_home(row.get("amount"))
-                    tdate = str(row.get("tdate") or "").strip()
-                    position_raw = str(row.get("position") or "").strip()
-
-                    if action == "new":
-                        position = position_raw or _derive_position_home(party, currency, tdate)
-                    else:
-                        # If legacy repay has no position, bucket it under a stable key.
-                        position = position_raw or f"{party} | {currency} | legacy"
-
-                    key = (t, party.lower(), currency, position)
-                    if key not in pos_map:
-                        pos_map[key] = {
-                            "type": t,
-                            "counterparty": party,
-                            "currency": currency,
-                            "principal": Decimal(0),
-                            "repaid": Decimal(0),
-                        }
-                    if action == "new":
-                        pos_map[key]["principal"] += amt
-                    else:
-                        pos_map[key]["repaid"] += amt
-                except Exception:
-                    continue
-
-            totals_by_ccy = defaultdict(lambda: defaultdict(lambda: Decimal(0)))
-            for entry in pos_map.values():
-                principal = entry.get("principal") or Decimal(0)
-                repaid = entry.get("repaid") or Decimal(0)
-                outstanding = principal - repaid
-                if outstanding <= 0:
-                    continue
-                ccy = entry.get("currency") or (base_currency or "EUR")
-                party = entry.get("counterparty") or "—"
-                signed = outstanding if entry.get("type") == "lend" else -outstanding
-                totals_by_ccy[ccy][party] += signed
-
-            base_ccy = (base_currency or "EUR").strip().upper() or "EUR"
-            chosen_ccy = base_ccy if totals_by_ccy.get(base_ccy) else ""
-            if not chosen_ccy:
-                best_ccy = ""
-                best_total = Decimal(0)
-                for ccy, party_map in totals_by_ccy.items():
-                    total_abs = sum((abs(v) for v in (party_map or {}).values()), Decimal(0))
-                    if total_abs > best_total:
-                        best_total = total_abs
-                        best_ccy = ccy
-                chosen_ccy = best_ccy
-
-            if chosen_ccy and totals_by_ccy.get(chosen_ccy):
-                party_map = totals_by_ccy[chosen_ccy]
-                items = [(k, v) for k, v in party_map.items() if v is not None and v != 0]
-                items.sort(key=lambda kv: abs(kv[1]), reverse=True)
-                items = items[:8]
-                # Note: this data is currently unused by the template.
-
-        return render_template(
-            "overview.html",
-            cryptoLabels=cryptoLabels,
-            cryptoNowValues=cryptoNowValues,
-            cryptoPaidValues=cryptoPaidValues,
-            stockNowValues=stockNowValues,
-            stockPaidValues=stockPaidValues,
-            baseCurrency=base_currency,
-            cryptoPortfolioPaidDisplay=total_paid_display,
-            cryptoPortfolioNowDisplay=total_now_display,
-            cryptoPortfolioGainAbsDisplay=gain_amount_abs_display,
-            cryptoPortfolioGainIsPositive=(gain_amount >= 0),
-            cryptoPortfolioGainPctDisplay=gain_pct_display,
-            stockPortfolioPaidDisplay=stock_total_paid_display,
-            stockPortfolioNowDisplay=stock_total_now_display,
-            stockPortfolioGainAbsDisplay=stock_gain_amount_abs_display,
-            stockPortfolioGainIsPositive=(stock_gain_amount >= 0),
-            stockPortfolioGainPctDisplay=stock_gain_pct_display,
-            wallets=wallet_list,
-            loanHomePositions=loanHomePositions,
-            userId=userId,
-        )
+        ctx = {
+            "cryptoLabels": cryptoLabels,
+            "cryptoNowValues": cryptoNowValues,
+            "cryptoPaidValues": cryptoPaidValues,
+            "stockNowValues": stockNowValues,
+            "stockPaidValues": stockPaidValues,
+            "baseCurrency": base_currency,
+            "cryptoPortfolioPaidDisplay": total_paid_display,
+            "cryptoPortfolioNowDisplay": total_now_display,
+            "cryptoPortfolioGainAbsDisplay": gain_amount_abs_display,
+            "cryptoPortfolioGainIsPositive": (gain_amount >= 0),
+            "cryptoPortfolioGainPctDisplay": gain_pct_display,
+            "stockPortfolioPaidDisplay": stock_total_paid_display,
+            "stockPortfolioNowDisplay": stock_total_now_display,
+            "stockPortfolioGainAbsDisplay": stock_gain_amount_abs_display,
+            "stockPortfolioGainIsPositive": (stock_gain_amount >= 0),
+            "stockPortfolioGainPctDisplay": stock_gain_pct_display,
+            "wallets": wallet_list,
+            "loanHomePositions": loanHomePositions,
+            "userId": userId,
+        }
+        _overview_cache_set(userId, base_currency, ctx)
+        return render_template("overview.html", **ctx)
 
     else:
         return render_template("overview.html")
