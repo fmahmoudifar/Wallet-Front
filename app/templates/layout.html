@@ -36,6 +36,7 @@
             <nav class="app-nav">
                 {% if session.get('user') %}
                     <a class="app-nav-link" href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>Home</a>
+                    <a class="app-nav-link" href="/overview" {% if request.path.startswith('/overview') %}aria-current="page"{% endif %}>Overview</a>
                     
                     <a class="app-nav-link" href="/fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>Fiat (Cash)</a>
                     {% if request.path.startswith('/fiat') %}

@@ -73,8 +73,8 @@ def _ensure_user_settings_row(user_id: str) -> None:
         print(f"Error creating default settings (home init): {e}")
 
 
-@home_bp.route("/", methods=["GET"])
-def users():
+@home_bp.route("/overview", methods=["GET"])
+def overview():
     user = session.get("user")
     print(user)
     if user:
@@ -1052,7 +1052,7 @@ def users():
                 # Note: this data is currently unused by the template.
 
         return render_template(
-            "home.html",
+            "overview.html",
             cryptoLabels=cryptoLabels,
             cryptoNowValues=cryptoNowValues,
             cryptoPaidValues=cryptoPaidValues,
@@ -1075,4 +1075,15 @@ def users():
         )
 
     else:
-        return render_template("home.html")
+        return render_template("overview.html")
+
+
+@home_bp.route("/", methods=["GET"])
+def users():
+    user = session.get("user")
+    if user:
+        user_id = user.get("username")
+        if user_id:
+            _ensure_user_settings_row(user_id)
+
+    return render_template("home.html")
