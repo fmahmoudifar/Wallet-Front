@@ -148,7 +148,7 @@
 
 .app-sidebar .app-subnav-sidebar .app-subnav-link {
     padding: 9px 12px 9px 42px;
-    font-size: 0.92rem;
+    font-size: 0.84rem;
     border-radius: 12px;
     border-color: transparent;
 }
@@ -239,6 +239,7 @@
     padding: 10px 12px 10px 14px;
     border-radius: 12px;
     font-weight: 600;
+    font-size: 0.88rem;
     border: 1px solid transparent;
     transition: background 120ms ease, border-color 120ms ease;
     position: relative;

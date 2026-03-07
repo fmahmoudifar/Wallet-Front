@@ -290,9 +290,8 @@
                         if (!buttons.length) return;
 
                         const storageKey = 'sidebarSubnav:' + key;
-                        const saved = localStorage.getItem(storageKey);
-                        const initial = buttons.find((b) => b.getAttribute('data-subnav-item') === saved) || buttons[0];
-                        if (initial) initial.classList.add('is-active');
+                        // Let each page's own init (e.g. setCryptoNavVisibility) set the
+                        // initial active state.  We only track click → save + highlight.
 
                         buttons.forEach((btn) => {
                             btn.addEventListener('click', () => {
