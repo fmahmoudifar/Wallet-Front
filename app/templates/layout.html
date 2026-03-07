@@ -38,12 +38,15 @@
             {% set _sub_label = 'dev local' if (_email and (_email|string).endswith('@dev.local')) else '' %}
 
             <div class="app-brand">
-                <a href="/" class="app-brand-link" aria-label="Wallets Portfolio">
-                    <span class="app-brand-text">
-                        <span class="app-brand-title">Wallets</span>
-                        <span class="app-brand-subtitle">PORTFOLIO</span>
-                    </span>
-                </a>
+    <div class="logo-box" style="display: flex; justify-content: center; padding: 14px 0;">
+      <svg width="230" height="64" viewBox="0 0 150 40" fill="none">
+        <rect x="2" y="8" width="28" height="22" rx="4" stroke="#4f7eff" stroke-width="1.6"/>
+        <path d="M2 15h28" stroke="#4f7eff" stroke-width="1.6"/>
+        <rect x="20" y="19" width="8" height="5" rx="1.5" stroke="#4f7eff" stroke-width="1.4"/>
+        <text x="36" y="19" font-family="Bricolage Grotesque,sans-serif" font-weight="800" font-size="13" fill="#e2e4f0" letter-spacing="-.4">Wallets</text>
+        <text x="37" y="30" font-family="Geist,sans-serif" font-weight="500" font-size="7.5" fill="#525878" letter-spacing="2.2">PORTFOLIO</text>
+      </svg>
+    </div>
             </div>
 
             <nav class="app-nav">
@@ -62,9 +65,10 @@
                         <a class="app-nav-link" href="/overview" {% if request.path.startswith('/overview') %}aria-current="page"{% endif %}>
                             <span class="app-nav-link-left">
                                 <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M4 19V5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                                    <path d="M4 19h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                                    <path d="M6.5 15.5 10 12l3 2.2 4.5-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
                                 </svg>
                                 <span>Full Overview</span>
                             </span>
@@ -115,7 +119,7 @@
                         </a>
                     {% if _crypto_open %}
                     <div class="app-subnav app-subnav-sidebar" data-subnav-key="crypto" aria-label="Crypto sections">
-                        <button type="button" class="app-subnav-link" data-subnav-item="portfolio" data-crypto-nav="portfolio" onclick="showCryptoPortfolio()">Portfolio</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="portfolio" data-crypto-nav="portfolio" onclick="showCryptoPortfolio()">Overview</button>
                         <button type="button" class="app-subnav-link" data-subnav-item="wallets" data-crypto-nav="wallets" onclick="cryptoWalletsDiv()">Wallet Contents</button>
                         <button type="button" class="app-subnav-link" data-subnav-item="new" data-crypto-nav="new" onclick="newCryptoDiv()">New Crypto Transaction</button>
                         <button type="button" class="app-subnav-link" data-subnav-item="history" data-crypto-nav="history" onclick="cryptoHistoryDiv()">Transactions History</button>
@@ -140,7 +144,7 @@
                         </a>
                     {% if _stock_open %}
                     <div class="app-subnav app-subnav-sidebar" data-subnav-key="stock" aria-label="Stock sections">
-                        <button type="button" class="app-subnav-link" data-subnav-item="portfolio" data-stock-nav="portfolio" onclick="showStockPortfolio()">Portfolio</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="portfolio" data-stock-nav="portfolio" onclick="showStockPortfolio()">Overview</button>
                         <button type="button" class="app-subnav-link" data-subnav-item="wallets" data-stock-nav="wallets" onclick="stockWalletsDiv()">Wallet Contents</button>
                         <button type="button" class="app-subnav-link" data-subnav-item="new" data-stock-nav="new" onclick="newStockDiv()">New Stock Transaction</button>
                         <button type="button" class="app-subnav-link" data-subnav-item="history" data-stock-nav="history" onclick="stockHistoryDiv()">Transactions History</button>
@@ -151,10 +155,13 @@
                         <a class="app-nav-link has-sub{% if _loans_open %} is-open{% endif %}" href="/loans" {% if _loans_open %}aria-current="page"{% endif %}>
                             <span class="app-nav-link-left">
                                 <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M4.5 12.5h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                                    <path d="M9 9.5 11.5 12 9 14.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <path d="M12.5 8.5h5.5a2.5 2.5 0 0 1 2.5 2.5v5a2.5 2.5 0 0 1-2.5 2.5h-5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                                    <path d="M14.5 12a1.5 1.5 0 1 0 0.01 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M3 21h18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M5 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M9 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M15 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M19 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M3 12l9-7 9 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M2 17h20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                                 </svg>
                                 <span>Debt &amp; Loan</span>
                             </span>
@@ -305,6 +312,15 @@
             </svg>
             <span class="app-bottom-text">Home</span>
         </a>
+        <a class="app-bottom-link" href="/overview" aria-label="Overview" {% if request.path.startswith('/overview') %}aria-current="page"{% endif %}>
+            <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+            <span class="app-bottom-text">Overview</span>
+        </a>
         <a class="app-bottom-link" href="/fiat" aria-label="Fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M7 7h13l-3-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -331,34 +347,71 @@
         </a>
         <a class="app-bottom-link" href="/loans" aria-label="Loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4.5 12.5h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M9 9.5 11.5 12 9 14.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12.5 8.5h5.5a2.5 2.5 0 0 1 2.5 2.5v5a2.5 2.5 0 0 1-2.5 2.5h-5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M14.5 12a1.5 1.5 0 1 0 0.01 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M3 21h18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M5 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M9 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M15 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M19 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M3 12l9-7 9 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M2 17h20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
             </svg>
             <span class="app-bottom-text">Debt & Loan</span>
         </a>
-        <a class="app-bottom-link" href="/wallet" aria-label="Wallets" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>
+        <div class="app-bottom-link app-bottom-more" aria-label="More" {% if request.path.startswith('/settings') or request.path.startswith('/wallet') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                <path d="M20 9h-4.5a2 2 0 0 0 0 4H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M16.5 11h.01" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                <circle cx="12" cy="5" r="1.8" fill="currentColor"/>
+                <circle cx="12" cy="12" r="1.8" fill="currentColor"/>
+                <circle cx="12" cy="19" r="1.8" fill="currentColor"/>
             </svg>
-            <span class="app-bottom-text">Wallets</span>
-        </a>
-        <a class="app-bottom-link" href="/settings" aria-label="Settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>
-            <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <!-- Sliders (clean settings icon) -->
-                <path d="M5 7h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                <path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                <path d="M5 17h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                <circle cx="9" cy="7" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
-                <circle cx="15" cy="12" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
-                <circle cx="11" cy="17" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
-            </svg>
-            <span class="app-bottom-text">Settings</span>
-        </a>
+            <span class="app-bottom-text">More</span>
+            <div class="app-more-menu" id="moreMenu">
+                <a class="app-more-item" href="/settings">
+                    <svg class="app-more-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 7h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M5 17h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                        <circle cx="9" cy="7" r="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                        <circle cx="15" cy="12" r="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                        <circle cx="11" cy="17" r="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                    </svg>
+                    <span>Settings</span>
+                </a>
+                <a class="app-more-item" href="/wallet">
+                    <svg class="app-more-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M20 9h-4.5a2 2 0 0 0 0 4H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M16.5 11h.01" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                    </svg>
+                    <span>Wallets</span>
+                </a>
+                <a class="app-more-item app-more-logout" href="/logout">
+                    <svg class="app-more-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M10 7v-2a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M4 12h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M7.5 9 4 12l3.5 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </div>
     </nav>
+    <script>
+    (function() {
+        const moreBtn = document.querySelector('.app-bottom-more');
+        const moreMenu = document.getElementById('moreMenu');
+        if (!moreBtn || !moreMenu) return;
+        moreBtn.addEventListener('click', function(e) {
+            if (e.target.closest('.app-more-item')) return;
+            e.stopPropagation();
+            moreMenu.classList.toggle('is-open');
+        });
+        document.addEventListener('click', function(e) {
+            if (!moreBtn.contains(e.target)) {
+                moreMenu.classList.remove('is-open');
+            }
+        });
+    })();
+    </script>
     {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

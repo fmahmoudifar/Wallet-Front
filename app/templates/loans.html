@@ -17,9 +17,18 @@
 </div> -->
 
 <div class="app-subnav app-subnav-mobile" aria-label="Loans sections">
-    <button type="button" class="app-subnav-link" data-loans-nav="portfolio" onclick="showLoansPortfolio()">Overview</button>
-    <button type="button" class="app-subnav-link" data-loans-nav="new" onclick="showLoansNew()">New</button>
-    <button type="button" class="app-subnav-link" data-loans-nav="history" onclick="showLoansHistory()">History</button>
+    <button type="button" class="app-subnav-link" data-loans-nav="portfolio" onclick="showLoansPortfolio()">
+        <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span>Overview</span>
+    </button>
+    <button type="button" class="app-subnav-link" data-loans-nav="new" onclick="showLoansNew()">
+        <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8" stroke-linecap="round"/></svg>
+        <span>New</span>
+    </button>
+    <button type="button" class="app-subnav-link" data-loans-nav="history" onclick="showLoansHistory()">
+        <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>History</span>
+    </button>
 </div>
 
 <div id="panel" style="margin-bottom:12px;">
@@ -247,10 +256,10 @@
                 <input id="loansFee" type="number" name="fee" step="any" inputmode="decimal" placeholder="0">
             </div>
 
-            <div style="display:flex; gap:10px;">
-                <button type="submit" class="btn-insert pct-positive" style="flex:1; white-space:nowrap;">Insert</button>
-                <button type="reset" class="btn-clear" style="flex:1; white-space:nowrap;">Clear</button>
-                <button type="button" class="btn-cancel" style="flex:1; white-space:nowrap;" onclick="location.reload();">Cancel</button>
+            <div>
+                <button type="submit" class="btn-insert pct-positive">Insert</button>
+                <button type="reset" class="btn-clear">Clear</button>
+                <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
             </div>
         </form>
     </div>
@@ -487,10 +496,10 @@
                 <input type="number" id="updateFee" name="fee" step="any" inputmode="decimal" placeholder="0">
             </div>
 
-            <div style="display:flex; gap:10px;">
-                <button type="submit" class="btn-insert pct-positive" style="flex:1; white-space:nowrap;">Save</button>
-                <button type="submit" form="deleteForm" class="btn-delete" style="flex:1; white-space:nowrap;" onclick="return confirm('Are you sure?')">Delete</button>
-                <button type="button" class="btn-cancel" style="flex:1; white-space:nowrap;" onclick="location.reload();">Cancel</button>
+            <div>
+                <button type="submit" class="btn-insert pct-positive">Save</button>
+                <button type="submit" form="deleteForm" class="btn-delete" onclick="return confirm('Are you sure?')">Delete</button>
+                <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
             </div>
         </form>
     </div>

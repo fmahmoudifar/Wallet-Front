@@ -1117,10 +1117,22 @@ function stockWalletsDiv() { showStockWallets(); }
 
 <!-- Mobile-only subnav (sidebar is hidden on small screens) -->
 <div class="app-subnav app-subnav-mobile" aria-label="Stock sections">
-    <button type="button" class="app-subnav-link" data-stock-nav="portfolio" onclick="showStockPortfolio()">Portfolio</button>
-    <button type="button" class="app-subnav-link" data-stock-nav="wallets" onclick="stockWalletsDiv()">Wallet Contents</button>
-    <button type="button" class="app-subnav-link" data-stock-nav="new" onclick="newStockDiv()">New</button>
-    <button type="button" class="app-subnav-link" data-stock-nav="history" onclick="stockHistoryDiv()">History</button>
+    <button type="button" class="app-subnav-link" data-stock-nav="portfolio" onclick="showStockPortfolio()">
+        <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span>Overview</span>
+    </button>
+    <button type="button" class="app-subnav-link" data-stock-nav="wallets" onclick="stockWalletsDiv()">
+        <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><path d="M20 9h-4.5a2 2 0 0 0 0 4H20" stroke-linecap="round"/></svg>
+        <span>Contents</span>
+    </button>
+    <button type="button" class="app-subnav-link" data-stock-nav="new" onclick="newStockDiv()">
+        <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8" stroke-linecap="round"/></svg>
+        <span>New</span>
+    </button>
+    <button type="button" class="app-subnav-link" data-stock-nav="history" onclick="stockHistoryDiv()">
+        <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>History</span>
+    </button>
 </div>
 
 

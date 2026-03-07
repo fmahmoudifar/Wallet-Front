@@ -97,8 +97,14 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <!-- Mobile-only subnav (sidebar is hidden on small screens) -->
 <div class="app-subnav app-subnav-mobile" aria-label="Wallet sections">
-    <button type="button" class="app-subnav-link" data-wallet-nav="list" onclick="walletListDiv()">Wallets</button>
-    <button type="button" class="app-subnav-link" data-wallet-nav="new" onclick="newWalletDiv()">New Wallet</button>
+    <button type="button" class="app-subnav-link" data-wallet-nav="list" onclick="walletListDiv()">
+        <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><path d="M20 9h-4.5a2 2 0 0 0 0 4H20" stroke-linecap="round"/></svg>
+        <span>Wallets</span>
+    </button>
+    <button type="button" class="app-subnav-link" data-wallet-nav="new" onclick="newWalletDiv()">
+        <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8" stroke-linecap="round"/></svg>
+        <span>New Wallet</span>
+    </button>
 </div>
 
 <div id="newWallet" class="block-new" style="display: none;">

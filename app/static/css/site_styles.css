@@ -19,12 +19,12 @@
     position: sticky;
     top: 0;
     height: 100vh;
-    overflow: auto;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
-.app-brand { margin-bottom: 16px; }
+.app-brand { margin-bottom: 16px; flex-shrink: 0; }
 .app-brand-link {
     display: flex;
     align-items: center;
@@ -47,8 +47,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255,255,255,0.10);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: linear-gradient(135deg, #1e3a5f, #2563eb);
+    border: 1px solid rgba(37, 99, 235, 0.35);
     color: #fff;
     font-weight: 900;
     font-size: 18px;
@@ -80,6 +80,7 @@
     gap: 4px;
     flex: 1 1 auto;
     min-height: 0;
+    overflow-y: auto;
 }
 
 .app-nav-section {
@@ -307,6 +308,7 @@
     margin-top: 14px;
     padding-top: 14px;
     border-top: 1px solid rgba(255,255,255,0.10);
+    flex-shrink: 0;
 }
 
 .app-user {
@@ -436,62 +438,76 @@
 
     .app-subnav-mobile {
         display: flex;
+        flex-direction: row;
+        gap: 4px;
         margin: 0 0 14px;
-        padding: 6px;
+        padding: 5px;
         border-radius: 14px;
-        background: var(--surface-2);
-        border: 1px solid var(--border);
+        background: #f0f1f3;
+        border: 1.5px solid #d5d8dd !important;
+        flex-wrap: nowrap;
     }
 
     .app-subnav-mobile .app-subnav-title { display: none; }
-    .app-subnav-mobile {
-        flex-direction: row;
-        gap: 6px;
-        border-top: none;
-        flex-wrap: wrap;
+
+    .app-subnav-icon {
+        width: 20px;
+        height: 20px;
+        display: block;
+        margin: 0 auto 4px;
+        stroke-linecap: round;
+        stroke-linejoin: round;
     }
 
     .app-subnav-mobile .app-subnav-link {
         flex: 1 1 0;
         min-width: 0;
-        padding: 10px 8px;
+        padding: 8px 6px;
         text-align: center;
         color: var(--muted);
-        border: 1px solid transparent;
+        border: none;
         border-radius: 10px;
-        font-weight: 700;
-        font-size: 13px;
+        font-weight: 600;
+        font-size: 11px;
         line-height: 1.2;
         background: transparent;
-        transition: background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
     }
 
     .app-subnav-mobile .app-subnav-link::before { display: none; }
 
     .app-subnav-mobile .app-subnav-link:hover {
         background: rgba(0,0,0,0.04);
-        border-color: var(--border);
+    }
+
+    html[data-theme="dark"] .app-subnav-mobile {
+        background: var(--surface-2);
+        border-color: rgba(255,255,255,0.08) !important;
     }
 
     html[data-theme="dark"] .app-subnav-mobile .app-subnav-link:hover {
         background: rgba(255,255,255,0.06);
-        border-color: rgba(255,255,255,0.12);
     }
 
     .app-subnav-mobile .app-subnav-link.is-active,
     .app-subnav-mobile .app-subnav-link[aria-current="page"] {
         color: var(--text);
         background: var(--surface);
-        border-color: var(--border);
-        font-weight: 800;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        border-radius: 10px;
+        font-weight: 700;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.10);
     }
 
     html[data-theme="dark"] .app-subnav-mobile .app-subnav-link.is-active,
     html[data-theme="dark"] .app-subnav-mobile .app-subnav-link[aria-current="page"] {
-        background: rgba(255,255,255,0.10);
-        border-color: rgba(255,255,255,0.16);
-        box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        background: #2d3a4f;
+        color: #fff;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.30);
     }
 
     /* Remove old underline indicator — the pill bg is enough */
@@ -553,6 +569,58 @@
 
     .app-bottom-link[aria-current="page"] {
         background: rgba(255,255,255,0.14);
+    }
+
+    .app-bottom-more {
+        position: relative;
+        cursor: pointer;
+    }
+
+    .app-more-menu {
+        display: none;
+        position: absolute;
+        bottom: 68px;
+        right: 0;
+        min-width: 170px;
+        background: #1f2937;
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 12px;
+        padding: 6px 0;
+        box-shadow: 0 -4px 16px rgba(0,0,0,0.35);
+        z-index: 1200;
+    }
+
+    .app-more-menu.is-open {
+        display: block;
+    }
+
+    .app-more-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        color: #fff;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background 120ms ease;
+    }
+
+    .app-more-item:hover {
+        background: rgba(255,255,255,0.10);
+    }
+
+    .app-more-logout {
+        border-top: 1px solid rgba(255,255,255,0.12);
+        margin-top: 4px;
+        padding-top: 10px;
+        color: #f05757;
+    }
+
+    .app-more-icon {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
     }
 }
 
@@ -740,6 +808,13 @@ html[data-theme="dark"] #walletList .crypto-history-sub {
 
 html[data-theme="dark"] .totals-card {
     /* Lighter card surface in dark mode (portfolio boxes) */
+    background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+    border-color: rgba(255,255,255,0.22);
+    box-shadow: 0 6px 18px var(--shadow);
+}
+
+html[data-theme="dark"] .block-new .form-container,
+html[data-theme="dark"] .block-update .form-container {
     background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
     border-color: rgba(255,255,255,0.22);
     box-shadow: 0 6px 18px var(--shadow);
@@ -1599,7 +1674,7 @@ button.pct-positive:hover {
     }
     #cryptoList .crypto-history-actions {
         grid-column: 1 / -1;
-        justify-content: flex-start;
+        justify-content: flex-end;
     }
 
     #stockList .crypto-history-row {
@@ -1607,7 +1682,7 @@ button.pct-positive:hover {
     }
     #stockList .crypto-history-actions {
         grid-column: 1 / -1;
-        justify-content: flex-start;
+        justify-content: flex-end;
     }
 
     #transList .crypto-history-row {
@@ -1615,7 +1690,7 @@ button.pct-positive:hover {
     }
     #transList .crypto-history-actions {
         grid-column: 1 / -1;
-        justify-content: flex-start;
+        justify-content: flex-end;
     }
 
     #walletList .crypto-history-row {
@@ -1623,7 +1698,15 @@ button.pct-positive:hover {
     }
     #walletList .crypto-history-actions {
         grid-column: 1 / -1;
-        justify-content: flex-start;
+        justify-content: flex-end;
+    }
+
+    #loansList .crypto-history-row {
+        grid-template-columns: 1fr auto;
+    }
+    #loansList .crypto-history-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
     }
 }
 
@@ -1638,14 +1721,23 @@ button.pct-positive:hover {
 /* New/update blocks for multiple sections: use shared selectors */
 .block-new { margin-top: 30px; }
 .block-update { margin-top: 30px; }
+.block-new .form-container, .block-update .form-container {
+    background: linear-gradient(180deg, #fff, #fbfbfb);
+    border-radius: 10px;
+    padding: 24px 28px;
+    border: 1px solid rgba(0,0,0,0.10);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    max-width: 760px;
+    margin: 0 auto;
+}
 .block-new .form-container form, .block-update .form-container form {
     display: grid;
     grid-template-columns: 1fr 1fr;
     row-gap: 8px;
     justify-items: stretch;
     width: 100%;
-    max-width: 760px;
-    margin: 0 auto;
+    max-width: 100%;
+    margin: 0;
     column-gap: 30px;
 }
 
@@ -1722,12 +1814,28 @@ button.pct-positive:hover {
 }
 
 .block-new .form-container form > div:last-child, .block-update .form-container form > div:last-child {
-    margin-top: 30px; display: flex; flex-direction: row; gap: 6px; justify-content: space-between;
+    margin-top: 20px;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    grid-column: 1 / -1;
+}
+
+.block-new .form-container form > div:last-child button,
+.block-update .form-container form > div:last-child button {
+    flex: 1;
+    white-space: nowrap;
+    min-width: 0;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    height: 42px;
 }
 
 @media (max-width: 768px) {
     .block-new, .block-update { text-align: center; }
-    .block-new .form-container, .block-update .form-container { display: flex; flex-direction: column; align-items: center; padding: 0 16px; margin: 0 auto; }
+    .block-new .form-container, .block-update .form-container { display: flex; flex-direction: column; align-items: center; padding: 18px 16px; margin: 0 auto; }
     .block-new .form-container form, .block-update .form-container form { justify-content: center; grid-template-columns: 1fr; padding: 0; width: 100%; max-width: 100%; margin: 0 auto; }
     .block-new .form-container form > div label, .block-update .form-container form > div label { width: auto; text-align: left; font-size: 13px; }
     .block-new .form-container form input[type="text"],

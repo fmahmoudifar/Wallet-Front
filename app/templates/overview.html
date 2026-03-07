@@ -61,7 +61,7 @@
             <div class="crypto-page-title" style="text-align: center; margin: 0 0 6px 0;">Wallet Balances</div>
             {% if wallets and wallets|length > 0 %}
                 <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center;">
-                    <div style="width: 100%; max-width: 440px; height: 260px;">
+                    <div style="width: 100%; max-width: 320px; height: 200px;">
                         <canvas id="walletChart"></canvas>
                     </div>
                 </div>
@@ -483,25 +483,6 @@
             walletTotalEl.className = walletTotal >= 0 ? 'pct-positive' : 'pct-negative';
         }
 
-        // Center text plugin
-        const centerTextPlugin = {
-            id: 'walletCenterText',
-            afterDraw(chart) {
-                const { ctx, chartArea } = chart;
-                const cx = (chartArea.left + chartArea.right) / 2;
-                const cy = (chartArea.top + chartArea.bottom) / 2;
-                ctx.save();
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim() || '#ccc';
-                ctx.font = 'bold 14px sans-serif';
-                ctx.fillText(`${walletTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, cx, cy - 8);
-                ctx.font = '11px sans-serif';
-                ctx.fillText(baseCurrency, cx, cy + 10);
-                ctx.restore();
-            }
-        };
-
         new Chart(walletCanvas, {
             type: 'doughnut',
             data: {
@@ -513,7 +494,6 @@
                     borderWidth: 1,
                 }]
             },
-            plugins: [centerTextPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -571,8 +551,11 @@
                 const name = String(w?.name || '').trim();
                 const cur = String(w?.currency || '').trim();
                 const vBase = Number(w?.balanceBase ?? w?.balance) || 0;
+                const vWallet = Number(w?.balanceWallet || 0);
                 const label = cur ? `${name} (${cur})` : name;
-                const val = `${vBase.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+                const val = cur
+                    ? `${vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${cur}`
+                    : `${vBase.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
                 return `<div style="display:flex; align-items:center; justify-content:space-between; padding:3px 0; font-size:12px; gap:8px;">
                     <span style="display:flex; align-items:center; gap:6px; min-width:0;">
                         <span style="width:10px; height:10px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
