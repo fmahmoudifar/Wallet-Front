@@ -24,24 +24,25 @@
     flex-direction: column;
 }
 
-.app-brand { margin-bottom: 12px; }
+.app-brand { margin-bottom: 16px; }
 .app-brand-link {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    gap: 12px;
     text-decoration: none;
     color: #fff;
     font-weight: 800;
     font-size: 18px;
-    padding: 10px 12px;
+    padding: 14px 12px;
     border-radius: 12px;
     letter-spacing: 0.2px;
 }
 .app-brand-link:hover { background: rgba(255,255,255,0.08); }
 
 .app-brand-mark {
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
     border-radius: 12px;
     display: inline-flex;
     align-items: center;
@@ -50,6 +51,7 @@
     border: 1px solid rgba(255,255,255,0.12);
     color: #fff;
     font-weight: 900;
+    font-size: 18px;
     flex: 0 0 auto;
 }
 
@@ -60,15 +62,15 @@
 }
 
 .app-brand-title {
-    font-size: 16px;
+    font-size: 20px;
     font-weight: 900;
-    letter-spacing: 0.2px;
+    letter-spacing: 0.3px;
 }
 
 .app-brand-subtitle {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 800;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.16em;
     color: rgba(255,255,255,0.65);
 }
 
