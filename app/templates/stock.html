@@ -813,11 +813,7 @@
         if (visible) visible.value = sym;
         {
             const el = document.getElementById("updateTdate");
-            if (el && el._flatpickr) {
-                el._flatpickr.setDate(tdate, false, "Y-m-d\\TH:i");
-            } else if (el) {
-                el.value = tdate;
-            }
+            if (el) el.value = (tdate || '').slice(0, 10);
         }
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
@@ -872,7 +868,7 @@
     }
 
     function parseLocalDateTime(dateStr) {
-        // Accepts: YYYY-MM-DDTHH:mm from flatpickr config; parse as local.
+        // Accepts: YYYY-MM-DDTHH:mm; parse as local.
         const s = String(dateStr || '').trim();
         if (!s) return null;
         const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
@@ -1051,10 +1047,6 @@
         ['stockFilterStart','stockFilterEnd','stockFilterSymbol','stockFilterNote','stockFilterFromWallet','stockFilterToWallet'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
-            if (el._flatpickr) {
-                el._flatpickr.clear();
-                return;
-            }
             el.value = '';
         });
         window.stockCurrentPage = 1;
@@ -1164,7 +1156,7 @@ function stockWalletsDiv() { showStockWallets(); }
         </div>
         <div>
         <label for="tdate">Date:</label>
-        <input type="text" id="tdate" name="tdate" data-dt-picker="1" required>
+        <input type="date" id="tdate" name="tdate" required>
         </div>
         <div>
         <label for="fromWallet">From Wallet:</label>
@@ -1241,11 +1233,11 @@ function stockWalletsDiv() { showStockWallets(); }
         <form class="filters-grid" onsubmit="applyStockFilters(); return false;">
             <div>
                 <label for="stockFilterStart">From Date:</label>
-                <input type="text" id="stockFilterStart" name="start" data-dt-picker="1">
+                <input type="date" id="stockFilterStart" name="start">
             </div>
             <div>
                 <label for="stockFilterEnd">To Date:</label>
-                <input type="text" id="stockFilterEnd" name="end" data-dt-picker="1">
+                <input type="date" id="stockFilterEnd" name="end">
             </div>
             <div>
                 <label for="stockFilterSymbol">Stock:</label>
@@ -1349,7 +1341,7 @@ function stockWalletsDiv() { showStockWallets(); }
             </div>
             <div>
                 <label>Date:</label>
-                <input type="text" id="updateTdate" name="tdate" data-dt-picker="1">
+                <input type="date" id="updateTdate" name="tdate">
             </div>
             <div>
                 <label>From Wallet:</label>

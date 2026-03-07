@@ -163,11 +163,7 @@
         }
         {
             const el = document.getElementById("updateTdate");
-            if (el && el._flatpickr) {
-                el._flatpickr.setDate(tdate, false, "Y-m-d\\TH:i");
-            } else if (el) {
-                el.value = tdate;
-            }
+            if (el) el.value = (tdate || '').slice(0, 10);
         }
         document.getElementById("updateFromWallet").value = fromWallet;
         document.getElementById("updateToWallet").value = toWallet;
@@ -959,12 +955,6 @@
             const el = document.getElementById(id);
             if (!el) return;
 
-            // Flatpickr keeps a separate visible input (altInput). Clearing el.value alone won't update the UI.
-            if (el._flatpickr) {
-                el._flatpickr.clear();
-                return;
-            }
-
             if (el.tagName === 'SELECT') el.selectedIndex = 0;
             else el.value = '';
         });
@@ -1116,7 +1106,7 @@
             </div>
             <div>
                 <label for="tdate">Date:</label>
-                <input type="text" id="tdate" name="tdate" data-dt-picker="1" required>
+                <input type="date" id="tdate" name="tdate" required>
             </div>
             <div>
                 <label for="operation">Operation:</label>
@@ -1196,11 +1186,11 @@
         <form class="filters-grid" onsubmit="applyCryptoFilters(); return false;">
             <div>
                 <label for="filterStart">From Date:</label>
-                <input type="text" id="filterStart" name="start" data-dt-picker="1">
+                <input type="date" id="filterStart" name="start">
             </div>
             <div>
                 <label for="filterEnd">To Date:</label>
-                <input type="text" id="filterEnd" name="end" data-dt-picker="1">
+                <input type="date" id="filterEnd" name="end">
             </div>
             <div>
                 <label for="filterCrypto">Crypto:</label>
@@ -1304,7 +1294,7 @@
             </div>
             <div>
                 <label for="updateTdate">Date:</label>
-                <input type="text" id="updateTdate" name="tdate" data-dt-picker="1">
+                <input type="date" id="updateTdate" name="tdate">
             </div>
             <div>
                 <label for="updateOperation">Operation:</label>

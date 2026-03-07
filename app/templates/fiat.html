@@ -151,11 +151,7 @@
         }
         {
             const el = document.getElementById("updateTdate");
-            if (el && el._flatpickr) {
-                el._flatpickr.setDate(tdate, false, "Y-m-d\\TH:i");
-            } else if (el) {
-                el.value = tdate;
-            }
+            if (el) el.value = (tdate || '').slice(0, 10);
         }
         document.getElementById("updateAmount").value = amount;
         {
@@ -395,11 +391,8 @@
         const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
         const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-        if (startEl._flatpickr) startEl._flatpickr.setDate(start, false, "Y-m-d\\TH:i");
-        else startEl.value = formatLocalDateTime(start);
-
-        if (endEl._flatpickr) endEl._flatpickr.setDate(end, false, "Y-m-d\\TH:i");
-        else endEl.value = formatLocalDateTime(end);
+        startEl.value = formatLocalDateTime(start);
+        endEl.value = formatLocalDateTime(end);
     }
     window.initFiatDashboardDefaults = initFiatDashboardDefaults;
 
@@ -411,11 +404,8 @@
         const start = new Date(year, monthIndex, 1, 0, 0, 0);
         const end = new Date(year, monthIndex + 1, 0, 23, 59, 59);
 
-        if (startEl._flatpickr) startEl._flatpickr.setDate(start, false, "Y-m-d\\TH:i");
-        else startEl.value = formatLocalDateTime(start);
-
-        if (endEl._flatpickr) endEl._flatpickr.setDate(end, false, "Y-m-d\\TH:i");
-        else endEl.value = formatLocalDateTime(end);
+        startEl.value = formatLocalDateTime(start);
+        endEl.value = formatLocalDateTime(end);
     }
 
     function ensureDashMonthDropdownPopulated() {
@@ -589,8 +579,6 @@
         if (!startEl || !endEl) return;
         startEl.value = '';
         endEl.value = '';
-        if (startEl._flatpickr) startEl._flatpickr.clear();
-        if (endEl._flatpickr) endEl._flatpickr.clear();
         initFiatDashboardDefaults();
         syncDashMonthYearDropdownsFromDates();
         renderFiatDashboard();
@@ -919,9 +907,7 @@
         const y = dt.getFullYear();
         const m = String(dt.getMonth() + 1).padStart(2, '0');
         const d = String(dt.getDate()).padStart(2, '0');
-        const hh = String(dt.getHours()).padStart(2, '0');
-        const mm = String(dt.getMinutes()).padStart(2, '0');
-        return `${y}-${m}-${d}T${hh}:${mm}`;
+        return `${y}-${m}-${d}`;
     }
 
     function parseLocalDateTime(val) {
@@ -1142,12 +1128,6 @@
             const el = document.getElementById(id);
             if (!el) return;
 
-            // Flatpickr keeps a separate visible input (altInput). Clearing el.value alone won't update the UI.
-            if (el._flatpickr) {
-                el._flatpickr.clear();
-                return;
-            }
-
             if (el.tagName === 'SELECT') {
                 el.selectedIndex = 0;
             } else {
@@ -1198,11 +1178,11 @@
             </div>
             <div>
                 <label for="dashStart">From Date:</label>
-                <input type="text" id="dashStart" name="dashStart" data-dt-picker="1">
+                <input type="date" id="dashStart" name="dashStart">
             </div>
             <div>
                 <label for="dashEnd">To Date:</label>
-                <input type="text" id="dashEnd" name="dashEnd" data-dt-picker="1">
+                <input type="date" id="dashEnd" name="dashEnd">
             </div>
             <div>
                 <button type="button" class="btn-insert" style="padding:6px 10px;height:34px;min-width:46px;font-size:0.95rem;" onclick="shiftFiatDashboardMonth(1)">&gt;&gt;</button>
@@ -1282,7 +1262,7 @@
     <!-- <input type="datetime-local" name="tdate" placeholder="date"> -->
     <div>
     <label for="tdate">Date:</label>
-    <input type="text" id="tdate" name="tdate" data-dt-picker="1" required>
+    <input type="date" id="tdate" name="tdate" required>
     </div>
     <div>
     <label for="amount">Amount:</label>
@@ -1348,11 +1328,11 @@
         <form class="filters-grid" onsubmit="applyTransFilters(); return false;">
             <div>
                 <label for="filterStart">From Date:</label>
-                <input type="text" id="filterStart" name="start" data-dt-picker="1">
+                <input type="date" id="filterStart" name="start">
             </div>
             <div>
                 <label for="filterEnd">To Date:</label>
-                <input type="text" id="filterEnd" name="end" data-dt-picker="1">
+                <input type="date" id="filterEnd" name="end">
             </div>
             <div>
                 <label for="filterType">Type:</label>
@@ -1472,7 +1452,7 @@
             </div>
             <div>
                 <label>Date:</label>
-                <input type="text" id="updateTdate" name="tdate" data-dt-picker="1" required>
+                <input type="date" id="updateTdate" name="tdate" required>
             </div>
             <div>
                 <label>Amount:</label>

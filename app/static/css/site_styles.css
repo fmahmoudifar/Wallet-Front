@@ -826,7 +826,7 @@ html[data-theme="dark"] .pct-bar {
 
 html[data-theme="dark"] input[type="text"],
 html[data-theme="dark"] input[type="number"],
-html[data-theme="dark"] input[type="datetime-local"],
+html[data-theme="dark"] input[type="date"],
 html[data-theme="dark"] select {
     /* Lighter inputs in dark mode (transactions + filters + crypto forms) */
     background: rgba(255,255,255,0.08);
@@ -850,101 +850,13 @@ html[data-theme="dark"] select option:checked {
     background: Highlight;
 }
 
-/* Flatpickr: dark-mode readability (month dropdown + year input + days)
-   Flatpickr lives outside our forms, but our global dark input/select rules still apply.
-   These overrides ensure the calendar UI stays readable in dark mode for ALL date inputs. */
-html[data-theme="dark"] .flatpickr-calendar {
-    background: var(--surface);
-    border-color: var(--border);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
-    color: var(--text);
-}
-
-html[data-theme="dark"] .flatpickr-months .flatpickr-month,
-html[data-theme="dark"] .flatpickr-weekdays,
-html[data-theme="dark"] .flatpickr-time {
-    background: var(--surface);
-}
-
-html[data-theme="dark"] .flatpickr-current-month,
-html[data-theme="dark"] .flatpickr-current-month .cur-month,
-html[data-theme="dark"] .flatpickr-current-month input.cur-year,
-html[data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months {
-    color: var(--text);
-}
-
-/* Month dropdown options: browsers may render a LIGHT dropdown menu even in dark mode.
-   Do NOT use CanvasText here (can be white on some dark system themes); instead force a light scheme. */
-html[data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months {
-    color-scheme: light;
-}
-
-html[data-theme="dark"] .flatpickr-monthDropdown-months option,
-html[data-theme="dark"] .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
-    color: #111;
-    background: #fff;
-}
-
-html[data-theme="dark"] .flatpickr-weekday {
-    color: var(--muted);
-}
-
-html[data-theme="dark"] .flatpickr-day {
-    color: var(--text);
-}
-
-html[data-theme="dark"] .flatpickr-day.prevMonthDay,
-html[data-theme="dark"] .flatpickr-day.nextMonthDay,
-html[data-theme="dark"] .flatpickr-day.disabled,
-html[data-theme="dark"] .flatpickr-day.notAllowed {
-    color: rgba(229,231,235,0.45);
-}
-
-html[data-theme="dark"] .flatpickr-day.today {
-    border-color: var(--title-accent);
-}
-
-html[data-theme="dark"] .flatpickr-day.selected,
-html[data-theme="dark"] .flatpickr-day.startRange,
-html[data-theme="dark"] .flatpickr-day.endRange,
-html[data-theme="dark"] .flatpickr-day.selected:hover,
-html[data-theme="dark"] .flatpickr-day.startRange:hover,
-html[data-theme="dark"] .flatpickr-day.endRange:hover {
-    background: var(--title-accent);
-    border-color: var(--title-accent);
-    color: #fff;
-}
-
-html[data-theme="dark"] .flatpickr-day:hover {
-    background: var(--surface-2);
-}
-
-/* Flatpickr: prevent global form input sizing from breaking the time picker UI */
-.flatpickr-calendar input[type="text"],
-.flatpickr-calendar input[type="number"],
-.flatpickr-calendar select {
-    width: auto;
-    max-width: none;
-    padding: 0;
-    box-sizing: content-box;
-}
-
-.flatpickr-time input[type="number"] {
-    width: 44px;
-    padding: 0;
-}
-
-.flatpickr-time .numInputWrapper {
-    width: auto;
-}
-
 html[data-theme="dark"] input::placeholder {
     color: rgba(229,231,235,0.65);
 }
 
 html[data-theme="dark"] input[type="text"]:focus,
 html[data-theme="dark"] input[type="number"]:focus,
-html[data-theme="dark"] input[type="datetime-local"]:focus,
+html[data-theme="dark"] input[type="date"]:focus,
 html[data-theme="dark"] select:focus {
     outline: none;
     border-color: rgba(255,255,255,0.28);
@@ -965,7 +877,7 @@ html[data-theme="dark"] .autocomplete-items div.autocomplete-active {
 input[type="text"],
 input[type="password"],
 input[type="number"],
-input[type="datetime-local"],
+input[type="date"],
 select {
     width: var(--input-desktop-width);
     padding: 8px 10px;
@@ -1759,12 +1671,12 @@ button.pct-positive:hover {
 .block-new .form-container form input[type="text"],
 .block-new .form-container form input[type="password"],
 .block-new .form-container form input[type="number"],
-.block-new .form-container form input[type="datetime-local"],
+.block-new .form-container form input[type="date"],
 .block-new .form-container form select,
 .block-update .form-container form input[type="text"],
 .block-update .form-container form input[type="password"],
 .block-update .form-container form input[type="number"],
-.block-update .form-container form input[type="datetime-local"],
+.block-update .form-container form input[type="date"],
 .block-update .form-container form select {
     width: 100%;
     padding: 8px 10px;
@@ -1841,12 +1753,12 @@ button.pct-positive:hover {
     .block-new .form-container form input[type="text"],
     .block-new .form-container form input[type="password"],
     .block-new .form-container form input[type="number"],
-    .block-new .form-container form input[type="datetime-local"],
+    .block-new .form-container form input[type="date"],
     .block-new .form-container form select,
     .block-update .form-container form input[type="text"],
     .block-update .form-container form input[type="password"],
     .block-update .form-container form input[type="number"],
-    .block-update .form-container form input[type="datetime-local"],
+    .block-update .form-container form input[type="date"],
     .block-update .form-container form select { width: 100%; max-width: none; }
     /* keep list grid rule available on mobile as well */
     #cryptoList, #stockList, #transList, #walletList, #settingsList { display: flex; flex-direction: column; align-items: center; padding: 0; }    
@@ -1914,7 +1826,7 @@ button.pct-positive:hover {
 }
 
 .history-filters input[type="text"],
-.history-filters input[type="datetime-local"],
+.history-filters input[type="date"],
 .history-filters select {
     width: 100%;
     height: 40px;
@@ -1989,5 +1901,271 @@ button.pct-positive:hover {
         grid-template-columns: 1.25fr 1.25fr 1.1fr 1.1fr 1fr 1fr auto;
         column-gap: 16px;
         row-gap: 14px;
+    }
+}
+
+/* ── Import / Export Page ──────────────────────────────── */
+
+.data-io-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 8px;
+}
+
+.data-io-panel {
+    background: linear-gradient(180deg, #fff, #fbfbfb);
+    border-radius: 10px;
+    padding: 26px 28px;
+    border: 1px solid rgba(0,0,0,0.10);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.data-io-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.data-io-panel-icon {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    color: var(--text, #1a1a1a);
+}
+
+.data-io-panel-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text, #1a1a1a);
+}
+
+.data-io-panel-desc {
+    font-size: 13px;
+    color: var(--muted, #6b7280);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.data-io-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.data-io-form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: stretch;
+}
+
+.data-io-form-row label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text, #1a1a1a);
+    text-align: left;
+}
+
+.data-io-form-row select,
+.data-io-form-row input[type="date"] {
+    height: 38px;
+    padding: 0 10px;
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 7px;
+    background: var(--surface, #fff);
+    color: var(--text, #1a1a1a);
+    font-size: 13.5px;
+}
+
+.data-io-form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.data-io-form-actions-pair {
+    flex-wrap: wrap;
+}
+
+.data-io-btn-export,
+.data-io-btn-import,
+.data-io-btn-sample {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    justify-content: center;
+    height: 40px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.data-io-btn-export {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+.data-io-btn-export:hover {
+    background: #c8e6c9;
+}
+
+.data-io-btn-import {
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
+}
+.data-io-btn-import:hover {
+    background: #bbdefb;
+}
+
+.data-io-btn-sample {
+    background: #f3e5f5;
+    color: #7b1fa2;
+    border: 1px solid #e1bee7;
+}
+.data-io-btn-sample:hover {
+    background: #e1bee7;
+}
+
+.data-io-btn-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.data-io-columns-ref {
+    font-size: 11.5px;
+    color: var(--muted, #6b7280);
+    border-top: 1px solid var(--border, #e6e6e6);
+    padding-top: 10px;
+    line-height: 1.5;
+}
+
+.data-io-field-label {
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+.data-io-columns-ref code {
+    font-size: 11px;
+    background: rgba(0,0,0,0.04);
+    padding: 2px 5px;
+    border-radius: 4px;
+    word-break: break-all;
+}
+
+/* Alert banners */
+.data-io-alert {
+    max-width: 920px;
+    margin: 0 auto 18px;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    line-height: 1.5;
+}
+.data-io-alert-success {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+.data-io-alert-warn {
+    background: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ffe0b2;
+}
+
+/* Dark mode */
+html[data-theme="dark"] .data-io-panel {
+    background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+    border-color: rgba(255,255,255,0.22);
+    box-shadow: 0 6px 18px var(--shadow);
+}
+
+html[data-theme="dark"] .data-io-panel-icon,
+html[data-theme="dark"] .data-io-panel-title {
+    color: var(--text);
+}
+
+html[data-theme="dark"] .data-io-form-row label {
+    color: var(--text);
+}
+
+html[data-theme="dark"] .data-io-form-row select,
+html[data-theme="dark"] .data-io-form-row input[type="date"] {
+    background: var(--surface);
+    border-color: rgba(255,255,255,0.15);
+    color: var(--text);
+}
+
+html[data-theme="dark"] .data-io-btn-export {
+    background: rgba(46, 125, 50, 0.15);
+    color: #81c784;
+    border-color: rgba(46, 125, 50, 0.3);
+}
+html[data-theme="dark"] .data-io-btn-export:hover {
+    background: rgba(46, 125, 50, 0.25);
+}
+
+html[data-theme="dark"] .data-io-btn-import {
+    background: rgba(21, 101, 192, 0.15);
+    color: #64b5f6;
+    border-color: rgba(21, 101, 192, 0.3);
+}
+html[data-theme="dark"] .data-io-btn-import:hover {
+    background: rgba(21, 101, 192, 0.25);
+}
+
+html[data-theme="dark"] .data-io-btn-sample {
+    background: rgba(123, 31, 162, 0.15);
+    color: #ce93d8;
+    border-color: rgba(123, 31, 162, 0.3);
+}
+html[data-theme="dark"] .data-io-btn-sample:hover {
+    background: rgba(123, 31, 162, 0.25);
+}
+
+html[data-theme="dark"] .data-io-columns-ref {
+    border-color: rgba(255,255,255,0.08);
+}
+
+html[data-theme="dark"] .data-io-columns-ref code {
+    background: rgba(255,255,255,0.08);
+    color: var(--muted);
+}
+
+html[data-theme="dark"] .data-io-alert-success {
+    background: rgba(46, 125, 50, 0.15);
+    color: #81c784;
+    border-color: rgba(46, 125, 50, 0.3);
+}
+
+html[data-theme="dark"] .data-io-alert-warn {
+    background: rgba(230, 81, 0, 0.15);
+    color: #ffb74d;
+    border-color: rgba(230, 81, 0, 0.3);
+}
+
+@media (max-width: 767px) {
+    .data-io-sections {
+        grid-template-columns: 1fr;
+        padding: 0 4px;
+    }
+    .data-io-panel {
+        padding: 18px 16px;
+    }
+    .data-io-form-actions-pair {
+        flex-direction: column;
     }
 }

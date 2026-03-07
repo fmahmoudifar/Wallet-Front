@@ -1,0 +1,204 @@
+{% extends "layout.html" %}
+{% block head_extra %}
+    <link rel="stylesheet" href="/static/css/site_styles.css">
+{% endblock %}
+
+{% block content %}
+
+<h1 class="page-title"></h1>
+
+{% set result = session.pop('import_result', None) %}
+{% if result %}
+<div class="data-io-alert {% if result.errors and result.errors != 0 %}data-io-alert-warn{% else %}data-io-alert-success{% endif %}">
+    {% if result.errors == -1 %}
+        Failed to parse the uploaded file for <strong>{{ result.asset }}</strong>. Please check the file format.
+    {% elif result.errors > 0 %}
+        Imported <strong>{{ result.imported }}</strong> {{ result.asset }} record(s) with <strong>{{ result.errors }}</strong> error(s).
+        {% if result.skipped %}
+        <ul style="margin:6px 0 0;padding-left:20px;text-align:left;">
+            {% for msg in result.skipped %}
+            <li>{{ msg }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    {% else %}
+        Successfully imported <strong>{{ result.imported }}</strong> {{ result.asset }} record(s).
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="data-io-sections">
+
+    <!-- ════════ EXPORT SECTION ════════ -->
+    <div class="data-io-panel">
+        <div class="data-io-panel-header">
+            <svg class="data-io-panel-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M8 9l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <h2 class="data-io-panel-title">Export</h2>
+        </div>
+        <p class="data-io-panel-desc">Download your transactions as a CSV file. Select the asset type and optionally filter by date range.</p>
+
+        <form id="exportForm" class="data-io-form" onsubmit="return handleExport(event)">
+            <div class="data-io-form-row">
+                <label for="exportAsset">Asset</label>
+                <select id="exportAsset" name="asset" required>
+                    <option value="">Select asset…</option>
+                    <option value="fiat">Fiat</option>
+                    <option value="crypto">Crypto</option>
+                    <option value="stock">Stock</option>
+                    <option value="loans">Debt & Loan</option>
+                </select>
+            </div>
+            <div class="data-io-form-row">
+                <label for="exportFrom">From Date</label>
+                <input type="date" id="exportFrom" name="from">
+            </div>
+            <div class="data-io-form-row">
+                <label for="exportTo">To Date</label>
+                <input type="date" id="exportTo" name="to">
+            </div>
+            <div class="data-io-form-actions">
+                <button type="submit" class="btn-insert data-io-btn-export">
+                    <svg class="data-io-btn-icon" viewBox="0 0 24 24"><path d="M12 5v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 9l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    Export CSV
+                </button>
+            </div>
+        </form>
+
+        <!-- Column reference (updates with dropdown) -->
+        <div class="data-io-columns-ref" id="exportColumnsRef" style="display:none;">
+            <span class="data-io-field-label">CSV columns:</span>
+            <code id="exportColumnsText"></code>
+        </div>
+    </div>
+
+    <!-- ════════ IMPORT SECTION ════════ -->
+    <div class="data-io-panel">
+        <div class="data-io-panel-header">
+            <svg class="data-io-panel-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 15V5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M8 11l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <h2 class="data-io-panel-title">Import</h2>
+        </div>
+        <p class="data-io-panel-desc">Upload a CSV file to import transactions. Select the asset type, then choose your file. Download a sample template first for the correct format.</p>
+
+        <form id="importForm" action="" method="POST" enctype="multipart/form-data" class="data-io-form">
+            <div class="data-io-form-row">
+                <label for="importAsset">Asset</label>
+                <select id="importAsset" name="asset" required onchange="updateImportAction()">
+                    <option value="">Select asset…</option>
+                    <option value="fiat">Fiat</option>
+                    <option value="crypto">Crypto</option>
+                    <option value="stock">Stock</option>
+                    <option value="loans">Debt & Loan</option>
+                </select>
+            </div>
+            <div class="data-io-form-actions data-io-form-actions-pair">
+                <label class="btn-insert data-io-btn-import" id="importFileLabel">
+                    <svg class="data-io-btn-icon" viewBox="0 0 24 24"><path d="M12 15V5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 11l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    Import CSV
+                    <input type="file" name="file" accept=".csv" onchange="handleImportFile(this)" hidden>
+                </label>
+                <a href="#" class="btn-insert data-io-btn-sample" id="sampleLink" onclick="return handleSampleDownload()">
+                    <svg class="data-io-btn-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 15h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 11h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    Sample Template
+                </a>
+            </div>
+        </form>
+
+        <!-- Column reference (updates with dropdown) -->
+        <div class="data-io-columns-ref" id="importColumnsRef" style="display:none;">
+            <span class="data-io-field-label">Expected columns:</span>
+            <code id="importColumnsText"></code>
+        </div>
+    </div>
+
+</div>
+
+<script>
+(function() {
+    const COLUMNS = {
+        fiat:   ["Date", "Transaction Type", "From Wallet", "To Wallet", "Amount", "Currency", "Fee", "Category", "Note"],
+        crypto: ["Date", "Crypto", "Operation", "Quantity", "Price", "Currency", "Fee", "From Wallet", "To Wallet"],
+        stock:  ["Date", "Symbol", "Side", "Quantity", "Price", "Currency", "Fee", "From Wallet", "To Wallet", "Note"],
+        loans:  ["Date", "Type", "Action", "Counterparty", "Amount", "Currency", "From Wallet", "To Wallet", "Fee", "Due Date", "Note"]
+    };
+
+    // Export: show columns when asset changes
+    const exportAsset = document.getElementById('exportAsset');
+    const exportRef = document.getElementById('exportColumnsRef');
+    const exportText = document.getElementById('exportColumnsText');
+    exportAsset.addEventListener('change', function() {
+        const cols = COLUMNS[this.value];
+        if (cols) {
+            exportText.textContent = cols.join(', ');
+            exportRef.style.display = '';
+        } else {
+            exportRef.style.display = 'none';
+        }
+    });
+
+    // Import: show columns when asset changes
+    const importAsset = document.getElementById('importAsset');
+    const importRef = document.getElementById('importColumnsRef');
+    const importText = document.getElementById('importColumnsText');
+    importAsset.addEventListener('change', function() {
+        const cols = COLUMNS[this.value];
+        if (cols) {
+            importText.textContent = cols.join(', ');
+            importRef.style.display = '';
+        } else {
+            importRef.style.display = 'none';
+        }
+    });
+})();
+
+function handleExport(e) {
+    e.preventDefault();
+    const asset = document.getElementById('exportAsset').value;
+    if (!asset) { alert('Please select an asset type.'); return false; }
+    const from = document.getElementById('exportFrom').value;
+    const to = document.getElementById('exportTo').value;
+    let url = '/export/' + encodeURIComponent(asset);
+    const params = [];
+    if (from) params.push('from=' + encodeURIComponent(from));
+    if (to)   params.push('to=' + encodeURIComponent(to));
+    if (params.length) url += '?' + params.join('&');
+    window.location.href = url;
+    return false;
+}
+
+function updateImportAction() {
+    const asset = document.getElementById('importAsset').value;
+    const form = document.getElementById('importForm');
+    if (asset) {
+        form.action = '/import/' + encodeURIComponent(asset);
+    } else {
+        form.action = '';
+    }
+}
+
+function handleImportFile(input) {
+    const asset = document.getElementById('importAsset').value;
+    if (!asset) {
+        alert('Please select an asset type first.');
+        input.value = '';
+        return;
+    }
+    document.getElementById('importForm').submit();
+}
+
+function handleSampleDownload() {
+    const asset = document.getElementById('importAsset').value;
+    if (!asset) { alert('Please select an asset type first.'); return false; }
+    window.location.href = '/sample/' + encodeURIComponent(asset);
+    return false;
+}
+</script>
+
+{% endblock %}

@@ -238,12 +238,12 @@
 
             <div>
                 <label for="loansDate">Date</label>
-                <input id="loansDate" type="text" name="tdate" data-dt-picker="1" placeholder="Select date" required>
+                <input id="loansDate" type="date" name="tdate" placeholder="Select date" required>
             </div>
 
             <div id="loansDDateRow">
                 <label for="loansDDate">Due date (optional)</label>
-                <input id="loansDDate" type="text" name="ddate" data-dt-picker="1" placeholder="Select due date">
+                <input id="loansDDate" type="date" name="ddate" placeholder="Select due date">
             </div>
 
             <div>
@@ -270,11 +270,11 @@
         <form class="filters-grid" onsubmit="applyLoansFilters(); return false;">
             <div>
                 <label for="filterStart">From Date:</label>
-                <input type="text" id="filterStart" name="start" data-dt-picker="1">
+                <input type="date" id="filterStart" name="start">
             </div>
             <div>
                 <label for="filterEnd">To Date:</label>
-                <input type="text" id="filterEnd" name="end" data-dt-picker="1">
+                <input type="date" id="filterEnd" name="end">
             </div>
             <div>
                 <label for="filterType">Type:</label>
@@ -478,12 +478,12 @@
 
             <div>
                 <label for="updateLoansDate">Date</label>
-                <input id="updateLoansDate" type="text" name="tdate_display" data-dt-picker="1" placeholder="Select date" required disabled />
+                <input id="updateLoansDate" type="date" name="tdate_display" placeholder="Select date" required disabled />
             </div>
 
             <div id="updateDDateRow">
                 <label for="updateLoansDDate">Due date (optional)</label>
-                <input id="updateLoansDDate" type="text" name="ddate" data-dt-picker="1" placeholder="Select due date" />
+                <input id="updateLoansDDate" type="date" name="ddate" placeholder="Select due date" />
             </div>
 
             <div>
@@ -964,27 +964,15 @@
 
         {
             const el = document.getElementById('updateLoansDate');
-            if (el && el._flatpickr) el._flatpickr.setDate(tdate, false, 'Y-m-d\\TH:i');
-            else if (el) el.value = tdate || '';
+            if (el) el.value = (tdate || '').slice(0, 10);
             const lockedTdate = document.getElementById('updateLockedTdate');
             if (lockedTdate) lockedTdate.value = tdate || '';
-            // Prevent edits / calendar popover.
-            if (el) {
-                el.disabled = true;
-                try {
-                    if (el._flatpickr) {
-                        el._flatpickr.set('clickOpens', false);
-                        el._flatpickr.close();
-                        el._flatpickr._input.setAttribute('disabled', 'disabled');
-                        if (typeof el._flatpickr.disable === 'function') el._flatpickr.disable();
-                    }
-                } catch(e) {}
-            }
+            // Prevent edits on the date field.
+            if (el) el.disabled = true;
         }
         {
             const el = document.getElementById('updateLoansDDate');
-            if (el && el._flatpickr) el._flatpickr.setDate(ddate, false, 'Y-m-d\\TH:i');
-            else if (el) el.value = ddate || '';
+            if (el) el.value = (ddate || '').slice(0, 10);
         }
 
         document.getElementById('updateLoansNote').value = note || '';
@@ -1086,7 +1074,6 @@
             dueRow.style.display = isNew ? '' : 'none';
             dueEl.disabled = !isNew;
             if (!isNew) {
-                if (dueEl._flatpickr) dueEl._flatpickr.clear();
                 dueEl.value = '';
             }
         }
@@ -1248,10 +1235,6 @@
         ['filterStart','filterEnd','filterType','filterAction','filterParty','filterNote','filterFromWallet','filterToWallet'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
-            if (el._flatpickr) {
-                el._flatpickr.clear();
-                return;
-            }
             if (el.tagName === 'SELECT') el.selectedIndex = 0;
             else el.value = '';
         });
