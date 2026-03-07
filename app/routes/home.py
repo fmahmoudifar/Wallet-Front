@@ -712,8 +712,9 @@ def overview():
                 usd_to_base = Decimal(1)
 
             # Calculate total values with live prices (same matching approach as crypto.py)
-            price_by_name = {}
-            for name, entry in crypto_totals_map.items():
+            # --- Parallel crypto price lookups ---
+            def _resolve_crypto_price(name_entry):
+                name, entry = name_entry
                 raw_name = entry.get("cryptoName") or ""
                 q1 = raw_name
                 if " - " in str(raw_name):
@@ -725,13 +726,25 @@ def overview():
                     price_usd = _best_price_usd(q2)
                 if not price_usd or price_usd == 0:
                     price_usd = _best_price_usd(str(raw_name).strip())
+                return name, price_usd
 
-                latest_price = (price_usd * usd_to_base) if (price_currency != "USD") else price_usd
-                price_by_name[name] = latest_price
+            price_by_name = {}
+            with ThreadPoolExecutor(max_workers=10) as price_ex:
+                futures = {price_ex.submit(_resolve_crypto_price, item): item[0]
+                           for item in crypto_totals_map.items()}
+                for fut in as_completed(futures):
+                    try:
+                        name, price_usd = fut.result()
+                    except Exception:
+                        name = futures[fut]
+                        price_usd = Decimal(0)
+                    entry = crypto_totals_map[name]
+                    latest_price = (price_usd * usd_to_base) if (price_currency != "USD") else price_usd
+                    price_by_name[name] = latest_price
 
-                total_value_live = entry["total_qty"] * (latest_price or Decimal(0))
-                crypto_chart_now[name] = float(total_value_live) if total_value_live > 0 else 0.0
-                crypto_chart_paid[name] = float(entry.get("total_value_buy", Decimal(0)) or Decimal(0))
+                    total_value_live = entry["total_qty"] * (latest_price or Decimal(0))
+                    crypto_chart_now[name] = float(total_value_live) if total_value_live > 0 else 0.0
+                    crypto_chart_paid[name] = float(entry.get("total_value_buy", Decimal(0)) or Decimal(0))
 
             # Compute live values per wallet: sum(qty_by_wallet_crypto * latest_price)
             for w_id, per_crypto in wallet_crypto_qty.items():
@@ -818,8 +831,20 @@ def overview():
 
                 return _yh_quote(s)
 
+            # --- Parallel stock quote lookups ---
+            stock_quotes = {}
+            with ThreadPoolExecutor(max_workers=10) as stock_ex:
+                quote_futures = {stock_ex.submit(_fetch_stock_quote, sym): sym
+                                 for sym in stock_totals_map}
+                for fut in as_completed(quote_futures):
+                    sym = quote_futures[fut]
+                    try:
+                        stock_quotes[sym] = fut.result()
+                    except Exception:
+                        stock_quotes[sym] = {"symbol": sym, "name": "", "currency": base_currency, "price": None, "asof": ""}
+
             for sym, entry in stock_totals_map.items():
-                quote = _fetch_stock_quote(sym)
+                quote = stock_quotes.get(sym, {})
                 q_price = quote.get("price")
                 q_currency_raw = quote.get("currency") or base_currency
 
