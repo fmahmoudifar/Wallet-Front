@@ -60,9 +60,18 @@
         <div class="totals-card home-card" style="display: flex; flex-direction: column;">
             <div class="crypto-page-title" style="text-align: center; margin: 0 0 6px 0;">Wallet Balances</div>
             {% if wallets and wallets|length > 0 %}
-                <div style="flex: 1 1 auto; min-height: 200px;">
-                    <canvas id="walletChart"></canvas>
+                <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center;">
+                    <div style="width: 100%; max-width: 440px; height: 260px;">
+                        <canvas id="walletChart"></canvas>
+                    </div>
                 </div>
+                <div class="totals-meta" style="margin-top: 10px;">
+                    <div class="totals-row">
+                        <div class="totals-label small-muted">Total balance</div>
+                        <div class="totals-value"><span class="pct-positive" id="walletTotalText"></span></div>
+                    </div>
+                </div>
+                <div id="walletLegend" style="margin-top: 8px; max-height: 140px; overflow-y: auto; padding: 0 4px;"></div>
             {% else %}
                 <div class="small-muted" style="text-align: center; padding: 10px 0;">No wallets found</div>
             {% endif %}
@@ -173,23 +182,17 @@
         {% endif %}
     ];
 
-    // Sort wallets by name (asc).
-    if (Array.isArray(walletItems)) {
-        walletItems.sort((a, b) => {
-            const an = String(a?.name || '');
-            const bn = String(b?.name || '');
-            return an.localeCompare(bn);
-        });
-    }
+    // Filter out zero-balance wallets, then sort by balanceBase descending.
+    const walletFiltered = (walletItems || [])
+        .filter(w => Math.abs(Number(w?.balanceBase ?? w?.balance) || 0) >= 0.01)
+        .sort((a, b) => Math.abs(Number(b?.balanceBase ?? b?.balance) || 0) - Math.abs(Number(a?.balanceBase ?? a?.balance) || 0));
 
-    // Label format: "WalletName (CUR)".
-    const walletLabels = (walletItems || []).map(w => {
+    const walletLabels = walletFiltered.map(w => {
         const name = String(w?.name || '').trim();
         const cur = String(w?.currency || '').trim();
         return cur ? `${name} (${cur})` : name;
     });
-    // Bars are in base/setting currency.
-    const walletBalances = (walletItems || []).map(w => Number(w?.balanceBase ?? w?.balance) || 0);
+    const walletBalances = walletFiltered.map(w => Math.abs(Number(w?.balanceBase ?? w?.balance) || 0));
 
     const nowData = {{ cryptoNowValues | tojson }};
     const paidData = {{ cryptoPaidValues | tojson }};
@@ -450,38 +453,78 @@
         }
     }
 
-    // Render wallet bar chart (if the canvas exists)
+    // Render wallet donut chart (if the canvas exists)
     const walletCanvas = document.getElementById('walletChart');
     if (walletCanvas && Array.isArray(walletLabels) && walletLabels.length > 0) {
-        const walletColors = walletBalances.map(v => (Number(v) || 0) >= 0 ? colorNow : colorPaid);
-        const walletBorderColors = walletBalances.map(v => (Number(v) || 0) >= 0 ? borderNow : borderPaid);
+        // Generate a color palette for the donut slices
+        const walletPalette = [
+            'rgba(76, 180, 100, 0.65)',   // green
+            'rgba(54, 162, 235, 0.65)',    // blue
+            'rgba(255, 206, 86, 0.65)',    // yellow
+            'rgba(153, 102, 255, 0.65)',   // purple
+            'rgba(255, 159, 64, 0.65)',    // orange
+            'rgba(255, 99, 132, 0.65)',    // pink
+            'rgba(75, 192, 192, 0.65)',    // teal
+            'rgba(201, 203, 207, 0.65)',   // grey
+            'rgba(139, 195, 74, 0.65)',    // lime
+            'rgba(121, 85, 72, 0.65)',     // brown
+            'rgba(233, 30, 99, 0.65)',     // magenta
+            'rgba(0, 188, 212, 0.65)',     // cyan
+        ];
+        const walletBorderPalette = walletPalette.map(c => c.replace('0.65)', '1)'));
+        const bgColors = walletLabels.map((_, i) => walletPalette[i % walletPalette.length]);
+        const bdColors = walletLabels.map((_, i) => walletBorderPalette[i % walletBorderPalette.length]);
+
+        // Total balance for center text
+        const walletTotal = walletFiltered.reduce((s, w) => s + (Number(w?.balanceBase ?? w?.balance) || 0), 0);
+        const walletTotalEl = document.getElementById('walletTotalText');
+        if (walletTotalEl) {
+            walletTotalEl.textContent = `${walletTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+            walletTotalEl.className = walletTotal >= 0 ? 'pct-positive' : 'pct-negative';
+        }
+
+        // Center text plugin
+        const centerTextPlugin = {
+            id: 'walletCenterText',
+            afterDraw(chart) {
+                const { ctx, chartArea } = chart;
+                const cx = (chartArea.left + chartArea.right) / 2;
+                const cy = (chartArea.top + chartArea.bottom) / 2;
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim() || '#ccc';
+                ctx.font = 'bold 14px sans-serif';
+                ctx.fillText(`${walletTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, cx, cy - 8);
+                ctx.font = '11px sans-serif';
+                ctx.fillText(baseCurrency, cx, cy + 10);
+                ctx.restore();
+            }
+        };
 
         new Chart(walletCanvas, {
-            type: 'bar',
+            type: 'doughnut',
             data: {
                 labels: walletLabels,
-                datasets: [
-                    {
-                        label: 'Balance',
-                        data: walletBalances,
-                        backgroundColor: walletColors,
-                        borderColor: walletBorderColors,
-                        borderWidth: 1,
-                        borderRadius: 6,
-                    }
-                ]
+                datasets: [{
+                    data: walletBalances,
+                    backgroundColor: bgColors,
+                    borderColor: bdColors,
+                    borderWidth: 1,
+                }]
             },
+            plugins: [centerTextPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                indexAxis: 'y',
+                cutout: '58%',
                 plugins: {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
                             title: function(context) {
                                 const idx = context && context[0] ? context[0].dataIndex : 0;
-                                const w = (walletItems && walletItems[idx]) ? walletItems[idx] : {};
+                                const w = walletFiltered[idx] || {};
                                 const name = String(w?.name || '').trim();
                                 const type = String(w?.type || '').trim();
                                 const cur = String(w?.currency || '').trim();
@@ -492,9 +535,9 @@
                             },
                             label: function(context) {
                                 const idx = context?.dataIndex ?? 0;
-                                const w = (walletItems && walletItems[idx]) ? walletItems[idx] : {};
+                                const w = walletFiltered[idx] || {};
 
-                                const vBase = Number(context.parsed.x || 0);
+                                const vBase = Number(w?.balanceBase ?? w?.balance) || 0;
                                 const vWallet = Number(w?.balanceWallet || 0);
                                 const cur = String(w?.currency || '').trim();
                                 const base = String(baseCurrency || '').trim();
@@ -509,35 +552,36 @@
                                     ? `${vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${cur}`
                                     : `${vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
-                                // If currencies are the same, show a single value (no repetition).
-                                if (curUpper && baseUpper && curUpper === baseUpper) {
-                                    return a;
-                                }
-
-                                // If one side is missing currency, fall back to showing the other.
+                                if (curUpper && baseUpper && curUpper === baseUpper) return a;
                                 if (baseUpper && !curUpper) return a;
                                 if (!baseUpper && curUpper) return b;
-
                                 return `${a} - ${b}`;
                             }
                         }
                     }
-                },
-                scales: {
-                    x: {
-                        ticks: {
-                            callback: function(value) {
-                                return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-                            }
-                        },
-                        grid: { display: true }
-                    },
-                    y: {
-                        grid: { display: false }
-                    }
                 }
             }
         });
+
+        // Build the scrollable legend list
+        const legendEl = document.getElementById('walletLegend');
+        if (legendEl) {
+            legendEl.innerHTML = walletFiltered.map((w, i) => {
+                const color = bgColors[i];
+                const name = String(w?.name || '').trim();
+                const cur = String(w?.currency || '').trim();
+                const vBase = Number(w?.balanceBase ?? w?.balance) || 0;
+                const label = cur ? `${name} (${cur})` : name;
+                const val = `${vBase.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+                return `<div style="display:flex; align-items:center; justify-content:space-between; padding:3px 0; font-size:12px; gap:8px;">
+                    <span style="display:flex; align-items:center; gap:6px; min-width:0;">
+                        <span style="width:10px; height:10px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
+                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${label}</span>
+                    </span>
+                    <span style="white-space:nowrap; font-weight:500; color:${vBase >= 0 ? 'var(--pct-positive, #4cb464)' : 'var(--pct-negative, #f05757)'};">${val}</span>
+                </div>`;
+            }).join('');
+        }
     }
 
     new Chart(document.getElementById('myChart'), {

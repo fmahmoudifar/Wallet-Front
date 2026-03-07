@@ -233,7 +233,7 @@
                 <div class="app-user">
                     <div class="app-user-meta">
                         {% if _email %}
-                            <div class="app-user-name">{{ _email }}</div>
+                            <div class="app-user-name">{{ _email.split('@')[0] }}</div>
                         {% else %}
                             <div class="app-user-name">{{ _display_name }}</div>
                         {% endif %}
