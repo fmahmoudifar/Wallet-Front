@@ -650,7 +650,7 @@
             if (type !== 'income' && type !== 'expense') return;
 
             const cat = String(li.getAttribute('data-cat') || '').trim() || 'Other';
-            const amount = parseFloat(String(li.getAttribute('data-amount') || '0')) || 0;
+            const amount = parseFloat(String(li.getAttribute('data-amount-setting') || li.getAttribute('data-amount') || '0')) || 0;
             if (!amount) return;
 
             const bucket = (type === 'income') ? incomeByCat : expenseByCat;
@@ -1169,9 +1169,9 @@
     }
 </script>
 
-<div class="crypto-page-header">
+<!-- <div class="crypto-page-header">
     <h1 id="transPageTitle" class="crypto-page-title">Income & Expense Overview</h1>
-</div>
+</div> -->
 
 <div class="app-subnav app-subnav-mobile" aria-label="Fiat sections">
     <button type="button" class="app-subnav-link" data-fiat-nav="dashboard" onclick="showFiatDashboard()">Overview</button>
@@ -1182,11 +1182,6 @@
 <div id="fiatDashboardDiv" class="form-container">
     <!-- <h2 class="crypto-section-title">Dashboard</h2> -->
     <input type="hidden" id="fiatBaseCurrency" value="{{ base_currency|default('EUR') }}">
-    {% if fx_warning %}
-    <div class="small-muted" style="width:100%;max-width:1100px;margin:0 auto 8px;">
-        Some transactions could not be converted to {{ base_currency|default('EUR') }} (FX unavailable). Totals may be approximate.
-    </div>
-    {% endif %}
     <div id="dashFilters" class="history-filters">
         <form class="filters-grid" onsubmit="renderFiatDashboard(); return false;">
             <div>
@@ -1409,7 +1404,7 @@
 {% endfor %}
 <ul id="transList">
     {% for transaction in transactions %}
-        <li data-id="{{ transaction.transId }}" data-tdate="{{ transaction.tdate }}" data-type="{{ transaction.transType|default('') }}" data-cat="{{ transaction.mainCat|default('') }}" data-note="{{ transaction.note|default('') }}" data-from="{{ transaction.fromWallet|default('') }}" data-to="{{ transaction.toWallet|default('') }}" data-currency="{{ transaction.currency|default('') }}" data-amount="{{ transaction.amountBase|default(transaction.amount|default(0)) }}">
+        <li data-id="{{ transaction.transId }}" data-tdate="{{ transaction.tdate }}" data-type="{{ transaction.transType|default('') }}" data-cat="{{ transaction.mainCat|default('') }}" data-note="{{ transaction.note|default('') }}" data-from="{{ transaction.fromWallet|default('') }}" data-to="{{ transaction.toWallet|default('') }}" data-currency="{{ transaction.currency|default('') }}" data-amount="{{ transaction.amount|default(0) }}" data-amount-setting="{{ transaction.amountSetting|default(transaction.amount|default(0)) }}">
             <div class="crypto-history-row">
                 <div class="crypto-history-left">
                     <div class="crypto-history-title">{{ transaction.transType }}</div>
@@ -1424,12 +1419,8 @@
                 </div>
 
                 <div class="crypto-history-right">
-                    <div class="crypto-history-amount">{{ transaction.amountBase|default(transaction.amount) }} {{ base_currency|default('EUR') }}</div>
-                    {% set _base = base_currency|default('EUR') %}
-                    {% set _ccy = transaction.currency|default('', true) %}
-                    {% if _ccy and _ccy != _base %}
-                    <div class="crypto-history-sub">Original {{ transaction.amount }} {{ _ccy }}</div>
-                    {% endif %}
+                    {% set _ccy = transaction.currency|default(base_currency|default('EUR'), true) %}
+                    <div class="crypto-history-amount">{{ transaction.amount|default(0) }}{% if _ccy %} {{ _ccy }}{% endif %}</div>
                     {% if transaction.note %}
                     <div class="crypto-history-sub">{{ transaction.note }}</div>
                     {% endif %}

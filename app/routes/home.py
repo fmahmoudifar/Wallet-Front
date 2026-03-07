@@ -37,10 +37,24 @@ _OVERVIEW_CTX_CACHE: dict[tuple[str, str], dict] = {}
 
 
 def _overview_cache_ttl_seconds() -> int:
+    # In dev (Codespaces), default to no caching so numbers update immediately.
+    # In production, caching can be enabled via env var.
+    try:
+        in_codespaces = str(os.getenv("CODESPACES") or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+        if in_codespaces and os.getenv("OVERVIEW_CACHE_TTL_SECONDS") is None:
+            return 0
+    except Exception:
+        pass
+
     try:
         return max(0, int((os.getenv("OVERVIEW_CACHE_TTL_SECONDS") or "20").strip()))
     except Exception:
         return 20
+
+
+def _truthy_env(val: str | None) -> bool:
+    s = str(val or "").strip().lower()
+    return s in {"1", "true", "yes", "y", "on"}
 
 
 def _overview_cache_get(user_id: str, base_currency: str):
@@ -184,6 +198,38 @@ def overview():
                 elif name == "stocks":
                     stocks = data
 
+        if _truthy_env(os.getenv("OVERVIEW_DEBUG")):
+            def _distinct_user_ids(rows: list) -> list[str]:
+                out = set()
+                for r in rows or []:
+                    try:
+                        if isinstance(r, dict) and r.get("userId") is not None:
+                            out.add(str(r.get("userId")).strip())
+                    except Exception:
+                        continue
+                return sorted([x for x in out if x])
+
+            try:
+                in_codespaces = str(os.getenv("CODESPACES") or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+                print(
+                    "[overview debug] userId=", userId,
+                    "baseCurrency=", base_currency,
+                    "codespaces=", in_codespaces,
+                    "cacheTTL=", _overview_cache_ttl_seconds(),
+                    "wallets=", len(wallets or []),
+                    "cryptos=", len(cryptos or []),
+                    "transactions=", len(transactions or []),
+                    "loans=", len(loans or []),
+                    "stocks=", len(stocks or []),
+                )
+                print("[overview debug] wallets.userId distinct:", _distinct_user_ids(wallets))
+                print("[overview debug] transactions.userId distinct:", _distinct_user_ids(transactions))
+                print("[overview debug] loans.userId distinct:", _distinct_user_ids(loans))
+                print("[overview debug] stocks.userId distinct:", _distinct_user_ids(stocks))
+                print("[overview debug] cryptos.userId distinct:", _distinct_user_ids(cryptos))
+            except Exception:
+                pass
+
         wallet_currency_by_id = {}
         for w in wallets or []:
             try:
@@ -217,7 +263,11 @@ def overview():
                 # On FX failure, fall back to no conversion.
                 return amount
 
-        # Real-time wallet balance calculation (legacy cash-flow style kept for reference)
+        # Wallet cash balances are kept in each wallet's own currency.
+        # This ledger is used later to compute wallet totals (cash + crypto live value + stock live value).
+        wallet_fiat_balances = defaultdict(lambda: Decimal("0"))
+
+        # Legacy/unused: Real-time wallet balance calculation (base-currency) kept for reference.
         wallet_balances = defaultdict(lambda: Decimal("0"))
         # Track per-wallet crypto quantities for live valuation
         wallet_crypto_qty = defaultdict(lambda: defaultdict(lambda: Decimal(0)))
@@ -327,6 +377,11 @@ def overview():
                             # Wallet balance: money goes out of from_wallet, crypto goes into to_wallet
                             if from_wallet:
                                 wallet_balances[from_wallet] -= tx_value_base  # Cash out (base currency)
+                                # Cash out in the from_wallet's own currency
+                                try:
+                                    wallet_fiat_balances[from_wallet] -= _fx_amount_to_wallet(tx_value, tx_currency, from_wallet)
+                                except Exception:
+                                    pass
                             if to_wallet:
                                 wallet_balances[to_wallet] += tx_value_base  # Crypto asset in (base currency)
                                 # Track live crypto quantity by destination wallet
@@ -370,6 +425,12 @@ def overview():
                                 ] -= tx_value_base  # Crypto asset out (base currency)
                             if to_wallet:
                                 wallet_balances[to_wallet] += revenue_base  # Cash in (base currency)
+                                # Cash in (net of fee) in the to_wallet's own currency
+                                try:
+                                    net_proceeds = (qty * price) - fee
+                                    wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet(net_proceeds, tx_currency, to_wallet)
+                                except Exception:
+                                    pass
                             # Track live crypto quantity leaving the source wallet
                             if from_wallet:
                                 wallet_crypto_qty[from_wallet][name] -= qty
@@ -386,8 +447,6 @@ def overview():
             print(f"Error computing crypto totals: {e}")
 
         # Fiat transactions affect wallet cash balances (in each wallet's currency)
-        wallet_fiat_balances = defaultdict(lambda: Decimal("0"))
-
         # Process regular transactions
         for transaction in transactions:
             try:
@@ -875,6 +934,26 @@ def overview():
                     "balanceWallet": float(round(balance_wallet, 2)),
                 }
             )
+
+            if _truthy_env(os.getenv("OVERVIEW_DEBUG_WALLETS")):
+                try:
+                    print(
+                        "[overview wallet]",
+                        "walletId=", wallet_id,
+                        "name=", wallet_name,
+                        "walletCcy=", w_ccy,
+                        "baseCcy=", b_ccy,
+                        "cash(wallet)=", str(cash_in_wallet_ccy),
+                        "cash(base)=", str(cash_base),
+                        "crypto(base)=", str(crypto_base),
+                        "stock(base)=", str(stock_base),
+                        "fx_base_to_wallet=", str(fx_base_to_wallet),
+                        "fx_wallet_to_base=", str(fx_wallet_to_base),
+                        "balanceBase=", str(balance_base),
+                        "balanceWallet=", str(balance_wallet),
+                    )
+                except Exception:
+                    pass
 
         # --- Loans (Home card): open positions progress (no FX) ---
         # A position is considered open if outstanding > 0.

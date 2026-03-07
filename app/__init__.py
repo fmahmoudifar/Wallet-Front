@@ -18,15 +18,39 @@ from app.services.authz import is_admin_user
 def create_app():
     app = Flask(__name__)
 
-    # Use a stable secret key when provided (prevents session/nonce loss during OIDC redirects).
-    env_secret = os.getenv("FLASK_SECRET_KEY") or os.getenv("APP_SECRET_KEY")
-    app.config["SECRET_KEY"] = env_secret if env_secret else os.urandom(24)
-
     def _strip_quotes(val: str) -> str:
         s = (val or "").strip()
         if len(s) >= 2 and ((s[0] == s[-1] == '"') or (s[0] == s[-1] == "'")):
             return s[1:-1].strip()
         return s
+
+    def _truthy_env(val: str | None) -> bool:
+        s = _strip_quotes(str(val or "")).strip().lower()
+        return s in {"1", "true", "yes", "y", "on"}
+
+    def _is_codespaces_env() -> bool:
+        if _truthy_env(os.getenv("CODESPACES")):
+            return True
+        if os.getenv("CODESPACE_NAME"):
+            return True
+        if os.getenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN"):
+            return True
+        return False
+
+    def _dev_login_creds_present_env() -> bool:
+        username = os.getenv("DEV_LOGIN_USERNAME") or os.getenv("DUMMY_USERNAME") or os.getenv("dummy_username")
+        password = os.getenv("DEV_LOGIN_PASSWORD") or os.getenv("DUMMY_PASSWORD") or os.getenv("dummy_password")
+        return bool(_strip_quotes(username or "").strip() and _strip_quotes(password or "").strip())
+
+    # Use a stable secret key when provided (prevents session/nonce loss during OIDC redirects).
+    # In Codespaces dev-login mode, default to an ephemeral secret so each server start forces a fresh login.
+    # This avoids "sticky" sessions that bypass the dev login page when the app restarts.
+    force_dev_login_on_start = _truthy_env(os.getenv("DEV_FORCE_LOGIN_ON_START") or "1")
+    if force_dev_login_on_start and _is_codespaces_env() and _dev_login_creds_present_env():
+        app.config["SECRET_KEY"] = os.urandom(24)
+    else:
+        env_secret = os.getenv("FLASK_SECRET_KEY") or os.getenv("APP_SECRET_KEY")
+        app.config["SECRET_KEY"] = env_secret if env_secret else os.urandom(24)
 
     def _is_codespaces() -> bool:
         # GitHub Codespaces typically sets one or more of these env vars.

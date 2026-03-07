@@ -20,11 +20,15 @@
     top: 0;
     height: 100vh;
     overflow: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .app-brand { margin-bottom: 12px; }
 .app-brand-link {
-    display: inline-block;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     text-decoration: none;
     color: #fff;
     font-weight: 800;
@@ -35,10 +39,62 @@
 }
 .app-brand-link:hover { background: rgba(255,255,255,0.08); }
 
+.app-brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
+    font-weight: 900;
+    flex: 0 0 auto;
+}
+
+.app-brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+}
+
+.app-brand-title {
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 0.2px;
+}
+
+.app-brand-subtitle {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: rgba(255,255,255,0.65);
+}
+
 .app-nav {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.app-nav-section {
+    margin-top: 10px;
+}
+
+.app-nav-section:first-child {
+    margin-top: 0;
+}
+
+.app-nav-section-title {
+    color: rgba(255,255,255,0.55);
+    font-weight: 800;
+    font-size: 11px;
+    padding: 10px 12px 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
 }
 
 .app-subnav {
@@ -64,6 +120,67 @@
 .app-subnav-inline .app-subnav-link {
     padding: 8px 12px 8px 34px;
     font-size: 0.95rem;
+}
+
+/* Sidebar submenus (nested under the parent item, like the reference screenshot) */
+.app-sidebar .app-subnav-sidebar {
+    margin-top: 6px;
+    padding-top: 0;
+    border-top: none;
+    gap: 2px;
+    position: relative;
+    padding-left: 6px;
+}
+
+.app-sidebar .app-subnav-sidebar::before {
+    content: "";
+    position: absolute;
+    left: 22px;
+    top: 8px;
+    bottom: 8px;
+    width: 1px;
+    background: rgba(255,255,255,0.10);
+    border-radius: 1px;
+}
+
+.app-sidebar .app-subnav-sidebar .app-subnav-link {
+    padding: 9px 12px 9px 42px;
+    font-size: 0.92rem;
+    border-radius: 12px;
+    border-color: transparent;
+}
+
+.app-sidebar .app-subnav-sidebar .app-subnav-link::before {
+    content: "";
+    position: absolute;
+    left: 19px;
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    margin-top: -3.5px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.20);
+    border: 1px solid rgba(255,255,255,0.20);
+    display: block;
+}
+
+.app-sidebar .app-subnav-sidebar .app-subnav-link:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.08);
+}
+
+.app-sidebar .app-subnav-sidebar .app-subnav-link.is-active,
+.app-sidebar .app-subnav-sidebar .app-subnav-link[aria-current="page"] {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.12);
+    font-weight: 700;
+}
+
+.app-sidebar .app-subnav-sidebar .app-subnav-link.is-active::before,
+.app-sidebar .app-subnav-sidebar .app-subnav-link[aria-current="page"]::before {
+    background: rgba(255,255,255,0.55);
+    border-color: rgba(255,255,255,0.55);
+    display: block;
 }
 
 .app-subnav-title {
@@ -113,6 +230,7 @@
 .app-nav-link {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     text-decoration: none;
     color: #fff;
     padding: 10px 12px 10px 14px;
@@ -121,6 +239,38 @@
     border: 1px solid transparent;
     transition: background 120ms ease, border-color 120ms ease;
     position: relative;
+}
+
+.app-nav-link-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.app-nav-link-right {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+
+.app-nav-caret {
+    width: 18px;
+    height: 18px;
+    color: rgba(255,255,255,0.70);
+    transition: transform 140ms ease;
+}
+
+.app-nav-link.has-sub.is-open .app-nav-caret {
+    transform: rotate(180deg);
+}
+
+.app-nav-icon {
+    width: 18px;
+    height: 18px;
+    color: rgba(255,255,255,0.78);
+    flex: 0 0 auto;
 }
 
 .app-nav-link:hover {
@@ -149,6 +299,93 @@
     font-size: 12px;
     padding: 0 14px 8px 14px;
     word-break: break-word;
+}
+
+.app-sidebar-footer {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.10);
+}
+
+.app-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+}
+
+.app-user-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
+    font-weight: 900;
+    flex: 0 0 auto;
+}
+
+.app-user-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1 1 auto;
+}
+
+.app-user-name {
+    color: #fff;
+    font-weight: 800;
+    font-size: 13px;
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+    max-width: none;
+}
+
+.app-user-sub {
+    color: rgba(255,255,255,0.62);
+    font-weight: 650;
+    font-size: 11px;
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+    max-width: none;
+}
+
+.app-user-logout {
+    margin-left: auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: rgba(255,255,255,0.86);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    flex: 0 0 auto;
+}
+
+.app-user-logout:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.16);
+}
+
+.app-user-logout-icon {
+    width: 18px;
+    height: 18px;
 }
 
 .app-main {
@@ -1034,6 +1271,30 @@ button.pct-positive:hover {
     max-width: 900px;
     margin: 0 auto;
     column-gap: 0;
+}
+
+/* Settings page: keep the original layout, but box the values inside the main card. */
+#setListDiv .settings-field-box {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+#setListDiv .settings-edit-row {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 768px) {
+    #setListDiv .record-grid {
+        grid-template-columns: 1fr;
+    }
+    #setListDiv .settings-edit-row {
+        grid-column: 1;
+    }
 }
 
 #transList li {

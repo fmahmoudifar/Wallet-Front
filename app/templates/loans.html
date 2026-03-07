@@ -12,9 +12,9 @@
 <!-- positions catalog provided to JS (explicit Position support) -->
 <div id="positions-data" style="display:none" data-positions='{{ positions_catalog|default([])|tojson | safe }}'></div>
 
-<div class="crypto-page-header">
+<!-- <div class="crypto-page-header">
     <h1 id="loansPageTitle" class="crypto-page-title">Borrow &amp; Lend</h1>
-</div>
+</div> -->
 
 <div class="app-subnav app-subnav-mobile" aria-label="Loans sections">
     <button type="button" class="app-subnav-link" data-loans-nav="portfolio" onclick="showLoansPortfolio()">Overview</button>
@@ -151,7 +151,7 @@
 </div>
 
 <div id="newLoan" class="block-new" style="display: none;">
-    <h2 class="center-text" style="display:none;">Add New Transaction</h2>
+    <!-- <h2 class="center-text" style="display:none;">Add New Transaction</h2> -->
     <div class="form-container">
         <form id="createLoanForm" action="/loans" method="POST">
             <div>

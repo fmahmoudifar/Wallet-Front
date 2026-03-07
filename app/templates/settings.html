@@ -56,21 +56,22 @@ function newSetDiv() {
 }
 </script>
 
-<h1 class="page-title">Settings</h1>
+<!-- <h1 class="page-title">Settings</h1> -->
+<h1 class="page-title"></h1>
+
 <div id="setListDiv" class="form-container">
 {% set setting = settings | first %}
 {% if setting %}
     <ul id="transList">
         <li>
             <div class="record-grid">
-                <div>
+                <div class="settings-field-box">
                     <strong>Currency:</strong> {{ setting.currency }}<br>
                 </div>
-                <div>
+                <div class="settings-field-box">
                     <strong>Theme:</strong> {{ setting.theme }}<br>
                 </div>
-                <div></div>
-                <div>
+                <div class="settings-edit-row" style="margin-top:8px;">
                     <button class="btn-insert" onclick="editSettings('{{ setting.userId }}','{{ setting.currency }}','{{ setting.theme }}')">Edit</button>
                 </div>
             </div>
@@ -116,7 +117,7 @@ function newSetDiv() {
 
 
 <div id="updateSetDiv" class="block-update" style="display: none;">
-    <h2 class="center-text">Update Settings</h2>
+    <!-- <h2 class="center-text">Update Settings</h2> -->
     <div class="form-container">
         <form id="updateForm" action="/updateSettings" method="POST">
             <input type="hidden" id="updateSettingId" name="settingId">

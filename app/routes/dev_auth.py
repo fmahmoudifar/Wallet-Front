@@ -53,6 +53,19 @@ def _dev_login_creds() -> tuple[str, str]:
     return _strip_quotes(username), _strip_quotes(password)
 
 
+def _dev_user_id(fallback_username: str) -> str:
+    # Allow either explicit DEV_USER_ID or a simpler user_id key in .env.
+    raw = (
+        os.getenv("DEV_USER_ID")
+        or os.getenv("DEV_DUMMY_USER_ID")
+        or os.getenv("USER_ID")
+        or os.getenv("user_id")
+        or ""
+    )
+    user_id = _strip_quotes(raw).strip()
+    return user_id or (fallback_username or "").strip()
+
+
 def _dev_login_enabled() -> bool:
     if not _is_codespaces():
         return False
@@ -86,7 +99,8 @@ def dev_login():
             username=username,
         )
 
-    # Use the dev username as the app-level userId.
+    # Use a stable app-level userId for dev (so saved data is consistent).
+    effective_user_id = _dev_user_id(username)
     dummy_email = _strip_quotes(os.getenv("DEV_DUMMY_EMAIL") or f"{username}@dev.local")
     dummy_sub = _strip_quotes(os.getenv("DEV_DUMMY_SUB") or f"dev-{uuid.uuid4()}")
 
@@ -94,9 +108,10 @@ def dev_login():
     groups = [g.strip() for g in raw_groups.split(",") if g.strip()] if raw_groups else []
 
     session["user"] = {
-        "username": username,
+        "username": effective_user_id,
         "email": dummy_email,
         "sub": dummy_sub,
+        "dev_login": username,
     }
     session["id_token_claims"] = {
         "sub": dummy_sub,

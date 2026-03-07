@@ -29,74 +29,225 @@
 
     <div class="app-shell">
         <aside class="app-sidebar" aria-label="Main navigation">
+            {% set _user = session.get('user') %}
+            {% set _email = (_user.get('email') if (_user is mapping) else None) %}
+            {% if not _email %}{% set _email = session.get('email') %}{% endif %}
+            {% set _dev_login = (_user.get('dev_login') if (_user is mapping) else None) %}
+            {% set _display_name = (_dev_login or (_email or '') or (_user.get('username') if (_user is mapping) else '') or 'User') %}
+            {% set _initial = (_display_name|string)[:1]|upper %}
+            {% set _sub_label = 'dev local' if (_email and (_email|string).endswith('@dev.local')) else '' %}
+
             <div class="app-brand">
-                <a href="/" class="app-brand-link">Wallets Portfolio</a>
+                <a href="/" class="app-brand-link" aria-label="Wallets Portfolio">
+                    <span class="app-brand-text">
+                        <span class="app-brand-title">Wallets</span>
+                        <span class="app-brand-subtitle">PORTFOLIO</span>
+                    </span>
+                </a>
             </div>
 
             <nav class="app-nav">
                 {% if session.get('user') %}
-                    <a class="app-nav-link" href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>Home</a>
-                    <a class="app-nav-link" href="/overview" {% if request.path.startswith('/overview') %}aria-current="page"{% endif %}>Full Overview</a>
-                    
-                    <a class="app-nav-link" href="/fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>Fiat (Cash)</a>
-                    {% if request.path.startswith('/fiat') %}
-                    <div class="app-subnav app-subnav-inline" aria-label="Fiat sections">
-                        <button type="button" class="app-subnav-link" data-fiat-nav="dashboard" onclick="showFiatDashboard()">Overview</button>
-                        <button type="button" class="app-subnav-link" data-fiat-nav="new" onclick="newTransDiv()">New Transaction</button>
-                        <button type="button" class="app-subnav-link" data-fiat-nav="history" onclick="transHistoryDiv()">Transactions History</button>
+
+                    <div class="app-nav-section">
+                        <div class="app-nav-section-title">MAIN</div>
+                        <a class="app-nav-link" href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>
+                            <span class="app-nav-link-left">
+                                <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M3 10.5 12 3l9 7.5v9.5a1 1 0 0 1-1 1h-5.5v-6.5h-5V21H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                                </svg>
+                                <span>Home</span>
+                            </span>
+                        </a>
+                        <a class="app-nav-link" href="/overview" {% if request.path.startswith('/overview') %}aria-current="page"{% endif %}>
+                            <span class="app-nav-link-left">
+                                <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M4 19V5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M4 19h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M6.5 15.5 10 12l3 2.2 4.5-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <span>Full Overview</span>
+                            </span>
+                        </a>
                     </div>
-                    {% endif %}
-                    
-                    <a class="app-nav-link" href="/crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>Crypto</a>
-                    {% if request.path.startswith('/crypto') %}
-                    <div class="app-subnav app-subnav-inline" aria-label="Crypto sections">
-                        <button type="button" class="app-subnav-link" data-crypto-nav="portfolio" onclick="showCryptoPortfolio()">Portfolio</button>
-                        <button type="button" class="app-subnav-link" data-crypto-nav="wallets" onclick="cryptoWalletsDiv()">Wallet Contents</button>
-                        <button type="button" class="app-subnav-link" data-crypto-nav="new" onclick="newCryptoDiv()">New Crypto Transaction</button>
-                        <button type="button" class="app-subnav-link" data-crypto-nav="history" onclick="cryptoHistoryDiv()">Transactions History</button>
-                    </div>
-                    {% endif %}
-                    
-                    <a class="app-nav-link" href="/stock" {% if request.path.startswith('/stock') %}aria-current="page"{% endif %}>Stock</a>
-                    {% if request.path.startswith('/stock') %}
-                    <div class="app-subnav app-subnav-inline" aria-label="Stock sections">
-                        <button type="button" class="app-subnav-link" data-stock-nav="portfolio" onclick="showStockPortfolio()">Portfolio</button>
-                        <button type="button" class="app-subnav-link" data-stock-nav="wallets" onclick="stockWalletsDiv()">Wallet Contents</button>
-                        <button type="button" class="app-subnav-link" data-stock-nav="new" onclick="newStockDiv()">New Stock Transaction</button>
-                        <button type="button" class="app-subnav-link" data-stock-nav="history" onclick="stockHistoryDiv()">Transactions History</button>
-                    </div>
-                    {% endif %}
-                    <a class="app-nav-link" href="/loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>Dept & Loan</a>
-                    {% if request.path.startswith('/loans') %}
-                    <div class="app-subnav app-subnav-inline" aria-label="Loans sections">
-                        <button type="button" class="app-subnav-link" data-loans-nav="portfolio" onclick="showLoansOverview()">Overview</button>
-                        <button type="button" class="app-subnav-link" data-loans-nav="new" onclick="showLoansNew()">New Transaction</button>
-                        <button type="button" class="app-subnav-link" data-loans-nav="history" onclick="showLoansHistory()">Transactions History</button>
-                    </div>
-                    {% endif %}
-                    <a class="app-nav-link" href="/wallet" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>Wallets</a>
-                    {% if request.path.startswith('/wallet') %}
-                    <div class="app-subnav app-subnav-inline" aria-label="Wallet sections">
-                        <button type="button" class="app-subnav-link" data-wallet-nav="list" onclick="walletListDiv()">Wallets</button>
-                        <button type="button" class="app-subnav-link" data-wallet-nav="new" onclick="newWalletDiv()">New Wallet</button>
+
+                    <div class="app-nav-section">
+                        <div class="app-nav-section-title">ASSETS</div>
+
+                        {% set _fiat_open = request.path.startswith('/fiat') %}
+                        <a class="app-nav-link has-sub{% if _fiat_open %} is-open{% endif %}" href="/fiat" {% if _fiat_open %}aria-current="page"{% endif %}>
+                            <span class="app-nav-link-left">
+                                <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M7 7h13l-3-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M17 17H4l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <span>Fiat (Cash)</span>
+                            </span>
+                            <span class="app-nav-link-right" aria-hidden="true">
+                                <svg class="app-nav-caret" viewBox="0 0 24 24">
+                                    <path d="M8 10l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
+                        </a>
+                    {% if _fiat_open %}
+                    <div class="app-subnav app-subnav-sidebar" data-subnav-key="fiat" aria-label="Fiat sections">
+                        <button type="button" class="app-subnav-link" data-subnav-item="dashboard" data-fiat-nav="dashboard" onclick="showFiatDashboard()">Overview</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="new" data-fiat-nav="new" onclick="newTransDiv()">New Transaction</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="history" data-fiat-nav="history" onclick="transHistoryDiv()">Transactions History</button>
                     </div>
                     {% endif %}
 
-                    <a class="app-nav-link" href="/settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>Settings</a>
+                        {% set _crypto_open = request.path.startswith('/crypto') %}
+                        <a class="app-nav-link has-sub{% if _crypto_open %} is-open{% endif %}" href="/crypto" {% if _crypto_open %}aria-current="page"{% endif %}>
+                            <span class="app-nav-link-left">
+                                <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <ellipse cx="12" cy="7" rx="6.5" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <path d="M5.5 7v4c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5V7" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <path d="M5.5 11v4c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5v-4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                </svg>
+                                <span>Crypto</span>
+                            </span>
+                            <span class="app-nav-link-right" aria-hidden="true">
+                                <svg class="app-nav-caret" viewBox="0 0 24 24">
+                                    <path d="M8 10l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
+                        </a>
+                    {% if _crypto_open %}
+                    <div class="app-subnav app-subnav-sidebar" data-subnav-key="crypto" aria-label="Crypto sections">
+                        <button type="button" class="app-subnav-link" data-subnav-item="portfolio" data-crypto-nav="portfolio" onclick="showCryptoPortfolio()">Portfolio</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="wallets" data-crypto-nav="wallets" onclick="cryptoWalletsDiv()">Wallet Contents</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="new" data-crypto-nav="new" onclick="newCryptoDiv()">New Crypto Transaction</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="history" data-crypto-nav="history" onclick="cryptoHistoryDiv()">Transactions History</button>
+                    </div>
+                    {% endif %}
+
+                        {% set _stock_open = request.path.startswith('/stock') %}
+                        <a class="app-nav-link has-sub{% if _stock_open %} is-open{% endif %}" href="/stock" {% if _stock_open %}aria-current="page"{% endif %}>
+                            <span class="app-nav-link-left">
+                                <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M4 19V5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M4 19h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M6.5 15.5 10 12l3 2.2 4.5-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <span>Stock</span>
+                            </span>
+                            <span class="app-nav-link-right" aria-hidden="true">
+                                <svg class="app-nav-caret" viewBox="0 0 24 24">
+                                    <path d="M8 10l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
+                        </a>
+                    {% if _stock_open %}
+                    <div class="app-subnav app-subnav-sidebar" data-subnav-key="stock" aria-label="Stock sections">
+                        <button type="button" class="app-subnav-link" data-subnav-item="portfolio" data-stock-nav="portfolio" onclick="showStockPortfolio()">Portfolio</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="wallets" data-stock-nav="wallets" onclick="stockWalletsDiv()">Wallet Contents</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="new" data-stock-nav="new" onclick="newStockDiv()">New Stock Transaction</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="history" data-stock-nav="history" onclick="stockHistoryDiv()">Transactions History</button>
+                    </div>
+                    {% endif %}
+
+                        {% set _loans_open = request.path.startswith('/loans') %}
+                        <a class="app-nav-link has-sub{% if _loans_open %} is-open{% endif %}" href="/loans" {% if _loans_open %}aria-current="page"{% endif %}>
+                            <span class="app-nav-link-left">
+                                <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M4.5 12.5h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M9 9.5 11.5 12 9 14.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M12.5 8.5h5.5a2.5 2.5 0 0 1 2.5 2.5v5a2.5 2.5 0 0 1-2.5 2.5h-5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M14.5 12a1.5 1.5 0 1 0 0.01 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                </svg>
+                                <span>Debt &amp; Loan</span>
+                            </span>
+                            <span class="app-nav-link-right" aria-hidden="true">
+                                <svg class="app-nav-caret" viewBox="0 0 24 24">
+                                    <path d="M8 10l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
+                        </a>
+                    {% if _loans_open %}
+                    <div class="app-subnav app-subnav-sidebar" data-subnav-key="loans" aria-label="Loans sections">
+                        <button type="button" class="app-subnav-link" data-subnav-item="portfolio" data-loans-nav="portfolio" onclick="showLoansOverview()">Overview</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="new" data-loans-nav="new" onclick="showLoansNew()">New Transaction</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="history" data-loans-nav="history" onclick="showLoansHistory()">Transactions History</button>
+                    </div>
+                    {% endif %}
+
+                        {% set _wallet_open = request.path.startswith('/wallet') %}
+                        <a class="app-nav-link has-sub{% if _wallet_open %} is-open{% endif %}" href="/wallet" {% if _wallet_open %}aria-current="page"{% endif %}>
+                            <span class="app-nav-link-left">
+                                <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <path d="M20 9h-4.5a2 2 0 0 0 0 4H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <path d="M16.5 11h.01" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                                </svg>
+                                <span>Wallets</span>
+                            </span>
+                            <span class="app-nav-link-right" aria-hidden="true">
+                                <svg class="app-nav-caret" viewBox="0 0 24 24">
+                                    <path d="M8 10l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
+                        </a>
+                    {% if _wallet_open %}
+                    <div class="app-subnav app-subnav-sidebar" data-subnav-key="wallet" aria-label="Wallet sections">
+                        <button type="button" class="app-subnav-link" data-subnav-item="list" data-wallet-nav="list" onclick="walletListDiv()">Wallets</button>
+                        <button type="button" class="app-subnav-link" data-subnav-item="new" data-wallet-nav="new" onclick="newWalletDiv()">New Wallet</button>
+                    </div>
+                    {% endif %}
+                    </div>
+
+                    <div class="app-nav-section">
+                        <div class="app-nav-section-title">SYSTEM</div>
+                        <a class="app-nav-link" href="/settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>
+                            <span class="app-nav-link-left">
+                                <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M5 7h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <path d="M5 17h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <circle cx="9" cy="7" r="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <circle cx="15" cy="12" r="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <circle cx="11" cy="17" r="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                </svg>
+                                <span>Settings</span>
+                            </span>
+                        </a>
                     {% if is_admin %}
-                        <a class="app-nav-link" href="/admin/userid-migrate" {% if request.path.startswith('/admin') %}aria-current="page"{% endif %}>Admin Tools</a>
+                        <a class="app-nav-link" href="/admin/userid-migrate" {% if request.path.startswith('/admin') %}aria-current="page"{% endif %}>
+                            <span class="app-nav-link-left">
+                                <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M12 2.5 19 6v6c0 5-3.5 9-7 9s-7-4-7-9V6z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <path d="M9.5 12.5 11 14l3.5-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <span>Admin Tools</span>
+                            </span>
+                        </a>
                     {% endif %}
-                    <a class="app-nav-link app-nav-link-logout" href="/logout">Logout</a>
-                    {% set _user = session.get('user') %}
-                    {% set _email = (_user.get('email') if (_user is mapping) else None) %}
-                    {% if not _email %}{% set _email = session.get('email') %}{% endif %}
-                    {% if _email %}
-                        <div class="app-nav-email">{{ _email }}</div>
-                    {% endif %}
+                    </div>
                 {% else %}
                     <a class="app-nav-link" href="/login" {% if request.path.startswith('/login') %}aria-current="page"{% endif %}>Login</a>
                 {% endif %}
             </nav>
+
+            {% if session.get('user') %}
+            <div class="app-sidebar-footer" aria-label="User">
+                <div class="app-user">
+                    <div class="app-user-meta">
+                        {% if _email %}
+                            <div class="app-user-name">{{ _email }}</div>
+                        {% else %}
+                            <div class="app-user-name">{{ _display_name }}</div>
+                        {% endif %}
+                    </div>
+                    <a class="app-user-logout" href="/logout" aria-label="Logout">
+                        <svg class="app-user-logout-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M10 7v-2a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M4 12h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M7.5 9 4 12l3.5 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
         </aside>
 
         <main class="app-main">
@@ -106,6 +257,45 @@
             </div>
         </main>
     </div>
+
+    <script>
+        // Sidebar submenus: make the clicked item stay highlighted.
+        (function () {
+            function initSidebarSubmenus() {
+                try {
+                    const subnavs = document.querySelectorAll('.app-sidebar .app-subnav[data-subnav-key]');
+                    subnavs.forEach((subnav) => {
+                        const key = subnav.getAttribute('data-subnav-key');
+                        if (!key) return;
+
+                        const buttons = Array.from(subnav.querySelectorAll('.app-subnav-link[data-subnav-item]'));
+                        if (!buttons.length) return;
+
+                        const storageKey = 'sidebarSubnav:' + key;
+                        const saved = localStorage.getItem(storageKey);
+                        const initial = buttons.find((b) => b.getAttribute('data-subnav-item') === saved) || buttons[0];
+                        if (initial) initial.classList.add('is-active');
+
+                        buttons.forEach((btn) => {
+                            btn.addEventListener('click', () => {
+                                buttons.forEach((b) => b.classList.remove('is-active'));
+                                btn.classList.add('is-active');
+                                localStorage.setItem(storageKey, btn.getAttribute('data-subnav-item') || '');
+                            });
+                        });
+                    });
+                } catch (e) {
+                    // ignore
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebarSubmenus);
+            } else {
+                initSidebarSubmenus();
+            }
+        })();
+    </script>
 
     {% if session.get('user') %}
     <nav class="app-bottom-nav" aria-label="Bottom navigation">
