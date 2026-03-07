@@ -2,6 +2,7 @@ import math
 import time
 import uuid
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from decimal import ROUND_HALF_UP, Decimal
 
 import requests
@@ -448,23 +449,28 @@ def crypto_page():
 
         base_currency = _get_user_base_currency(userId)
 
-        # --- Fetch Cryptos ---
-        try:
-            response = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
-            cryptos = response.json().get("cryptos", []) if response.status_code == 200 else []
-            cryptos = filter_records_by_user(cryptos, userId)
-        except Exception as e:
-            print(f"Error fetching cryptos: {e}")
-            cryptos = []
+        # --- Fetch Cryptos + Wallets in parallel ---
+        cryptos = []
+        wallets = []
 
-        # --- Fetch Wallets ---
+        def _fetch_cryptos():
+            resp = requests.get(f"{API_URL}/cryptos", params={"userId": userId}, auth=aws_auth)
+            items = resp.json().get("cryptos", []) if resp.status_code == 200 else []
+            return filter_records_by_user(items, userId)
+
+        def _fetch_wallets():
+            resp = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
+            items = resp.json().get("wallets", []) if resp.status_code == 200 else []
+            return filter_records_by_user(items, userId)
+
         try:
-            response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
-            wallets = response.json().get("wallets", []) if response.status_code == 200 else []
-            wallets = filter_records_by_user(wallets, userId)
+            with ThreadPoolExecutor(max_workers=2) as ex:
+                fut_c = ex.submit(_fetch_cryptos)
+                fut_w = ex.submit(_fetch_wallets)
+                cryptos = fut_c.result()
+                wallets = fut_w.result()
         except Exception as e:
-            print(f"Error fetching wallets: {e}")
-            wallets = []
+            print(f"Error fetching cryptos/wallets: {e}")
 
         # Map wallet names to ids to handle APIs that store walletName in fromWallet/toWallet.
         wallet_ids_set = set()
@@ -571,8 +577,8 @@ def crypto_page():
                 base = best.get("baseToken") or {}
                 return str(base.get("name") or "").strip()
 
-            name_cache = {}
-            remaining_lookups = 20
+            # Collect symbols that need name enrichment
+            symbols_to_lookup = []
             for c in coins:
                 try:
                     sym_up = (c.get("symbol") or "").strip().upper()
@@ -581,16 +587,28 @@ def crypto_page():
                         continue
                     if nm and nm.upper() != sym_up:
                         continue
-                    if remaining_lookups <= 0 and sym_up not in name_cache:
-                        continue
+                    symbols_to_lookup.append(sym_up)
+                except Exception:
+                    continue
 
-                    if sym_up in name_cache:
-                        full = name_cache[sym_up]
-                    else:
-                        full = _best_token_name_for_symbol(sym_up)
-                        name_cache[sym_up] = full
-                        remaining_lookups -= 1
+            # Parallel name enrichment (up to 20 symbols)
+            symbols_to_lookup = symbols_to_lookup[:20]
+            name_cache = {}
+            if symbols_to_lookup:
+                with ThreadPoolExecutor(max_workers=10) as name_ex:
+                    fut_map = {name_ex.submit(_best_token_name_for_symbol, s): s
+                               for s in symbols_to_lookup}
+                    for fut in as_completed(fut_map):
+                        sym = fut_map[fut]
+                        try:
+                            name_cache[sym] = fut.result()
+                        except Exception:
+                            name_cache[sym] = ""
 
+            for c in coins:
+                try:
+                    sym_up = (c.get("symbol") or "").strip().upper()
+                    full = name_cache.get(sym_up, "")
                     if full and full.strip() and full.strip().upper() != sym_up:
                         c["name"] = full.strip()
                 except Exception:
@@ -809,8 +827,9 @@ def crypto_page():
                 price_currency = "USD"
                 usd_to_base = Decimal(1)
 
-            for v in totals_map.values():
-                # Prefer the leading symbol in 'SYMBOL - Name'
+            # --- Parallel price lookups ---
+            def _resolve_price(name_key):
+                v = totals_map[name_key]
                 raw_name = v.get("cryptoName") or ""
                 q1 = raw_name
                 if " - " in str(raw_name):
@@ -822,6 +841,20 @@ def crypto_page():
                     price_usd = _best_price_usd(q2)
                 if not price_usd or price_usd == 0:
                     price_usd = _best_price_usd(str(raw_name).strip())
+                return name_key, price_usd
+
+            price_results = {}
+            with ThreadPoolExecutor(max_workers=10) as price_ex:
+                futs = {price_ex.submit(_resolve_price, k): k for k in totals_map}
+                for fut in as_completed(futs):
+                    try:
+                        k, p = fut.result()
+                        price_results[k] = p
+                    except Exception:
+                        price_results[futs[fut]] = Decimal(0)
+
+            for name_key, v in totals_map.items():
+                price_usd = price_results.get(name_key, Decimal(0))
 
                 v["latest_price"] = (price_usd * usd_to_base) if (price_currency != "USD") else price_usd
                 v["currency"] = price_currency
