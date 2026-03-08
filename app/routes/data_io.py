@@ -57,6 +57,7 @@ LOAN_COLUMNS = [
     ("type", "Type"),
     ("action", "Action"),
     ("counterparty", "Counterparty"),
+    ("position", "Position"),
     ("amount", "Amount"),
     ("currency", "Currency"),
     ("fromWallet", "From Wallet"),
@@ -116,13 +117,23 @@ SAMPLE_ROWS = {
         {"Date": "2025-02-10", "Symbol": "MSFT", "Side": "buy", "Quantity": "5", "Price": "420.00", "Currency": "USD", "Fee": "1", "From Wallet": "Bank Account", "To Wallet": "IBKR", "Note": "Microsoft shares"},
     ],
     "loans": [
-        {"Date": "2025-01-01", "Type": "borrow", "Action": "new", "Counterparty": "ABC Bank", "Amount": "10000", "Currency": "EUR", "From Wallet": "", "To Wallet": "My Bank", "Fee": "50", "Due Date": "2026-01-01", "Note": "Personal loan"},
-        {"Date": "2025-03-01", "Type": "borrow", "Action": "repay", "Counterparty": "ABC Bank", "Amount": "500", "Currency": "EUR", "From Wallet": "My Bank", "To Wallet": "", "Fee": "0", "Due Date": "", "Note": "Monthly payment"},
+        {"Date": "2025-01-01", "Type": "borrow", "Action": "new", "Counterparty": "ABC Bank", "Position": "ABC Bank | EUR | 2025-01-01", "Amount": "10000", "Currency": "EUR", "From Wallet": "", "To Wallet": "My Bank", "Fee": "50", "Due Date": "2026-01-01", "Note": "Personal loan"},
+        {"Date": "2025-03-01", "Type": "borrow", "Action": "repay", "Counterparty": "ABC Bank", "Position": "ABC Bank | EUR | 2025-01-01", "Amount": "500", "Currency": "EUR", "From Wallet": "My Bank", "To Wallet": "", "Fee": "0", "Due Date": "", "Note": "Monthly payment"},
     ],
 }
 
 
 WALLET_FIELDS = {"fromWallet", "toWallet"}
+
+
+def _derive_position(counterparty, currency, tdate):
+    """Derive a position string matching the JS derivePosition() convention."""
+    cp = (counterparty or "").strip()
+    ccy = (currency or "").strip()
+    dt = (tdate or "").strip()[:10]
+    if cp and ccy and dt:
+        return f"{cp} | {ccy} | {dt}"
+    return ""
 
 
 def _fetch_wallets(user_id):
@@ -343,6 +354,18 @@ def import_csv(asset_type):
             if skip:
                 errors += 1
                 continue
+
+            # Auto-derive position for loans if missing
+            if asset_type == "loans" and not record.get("position"):
+                record["position"] = _derive_position(
+                    record.get("counterparty"),
+                    record.get("currency"),
+                    record.get("tdate"),
+                )
+
+            # Send empty position as None so the backend stores it correctly
+            if asset_type == "loans" and not record.get("position"):
+                record["position"] = None
 
             try:
                 resp = requests.post(

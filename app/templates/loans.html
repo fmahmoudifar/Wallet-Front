@@ -452,7 +452,7 @@
 
             <div>
                 <label for="updateLoansPositionSelect">Position</label>
-                <select id="updateLoansPositionSelect" disabled></select>
+                <select id="updateLoansPositionSelect"></select>
                 <input type="hidden" id="updateLoansPosition" name="position" value="" />
             </div>
 
@@ -984,7 +984,7 @@
         try { document.getElementById('updateLoansType').disabled = true; } catch(e) {}
         try { document.getElementById('updateLoansAction').disabled = true; } catch(e) {}
         try { document.getElementById('updateLoansCurrency').disabled = true; } catch(e) {}
-        try { document.getElementById('updateLoansPositionSelect').disabled = true; } catch(e) {}
+        try { document.getElementById('updateLoansPositionSelect').disabled = false; } catch(e) {}
         try { document.getElementById('updateLoansCounterparty').readOnly = true; } catch(e) {}
 
         document.getElementById('deleteForm').action = `/deleteloan/${encodeURIComponent(loanId || '')}`;

@@ -104,7 +104,7 @@
                     Import CSV
                     <input type="file" name="file" accept=".csv" onchange="handleImportFile(this)" hidden>
                 </label>
-                <a href="#" class="btn-insert data-io-btn-sample" id="sampleLink" onclick="return handleSampleDownload()">
+                <a href="#" class="btn-insert data-io-btn-sample disabled" id="sampleLink" style="pointer-events:none;opacity:0.45;" aria-disabled="true">
                     <svg class="data-io-btn-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 15h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 11h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
                     Sample Template
                 </a>
@@ -126,7 +126,7 @@
         fiat:   ["Date", "Transaction Type", "From Wallet", "To Wallet", "Amount", "Currency", "Fee", "Category", "Note"],
         crypto: ["Date", "Crypto", "Operation", "Quantity", "Price", "Currency", "Fee", "From Wallet", "To Wallet"],
         stock:  ["Date", "Symbol", "Side", "Quantity", "Price", "Currency", "Fee", "From Wallet", "To Wallet", "Note"],
-        loans:  ["Date", "Type", "Action", "Counterparty", "Amount", "Currency", "From Wallet", "To Wallet", "Fee", "Due Date", "Note"]
+        loans:  ["Date", "Type", "Action", "Counterparty", "Position", "Amount", "Currency", "From Wallet", "To Wallet", "Fee", "Due Date", "Note"]
     };
 
     // Export: show columns when asset changes
