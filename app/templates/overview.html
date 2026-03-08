@@ -156,7 +156,7 @@
             <div class="crypto-page-title" style="text-align: center; margin: 0 0 6px 0;">Debts & Loans</div>
             {% if loanHomePositions and loanHomePositions|length > 0 %}
                 {% set _loan_count = loanHomePositions|length %}
-                {% set _loan_h = [220, _loan_count * 40 + 60]|max %}
+                {% set _loan_h = _loan_count * 40 + 60 %}
                 <div style="flex: 1 1 auto; max-height: 360px; overflow-y: auto;">
                     <div class="loan-pies" style="height: {{ _loan_h }}px;">
                         <canvas id="loanBarChart"></canvas>
