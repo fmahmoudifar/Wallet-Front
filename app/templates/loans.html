@@ -42,7 +42,7 @@
                     <div style="margin-top:4px;display:flex;flex-direction:column;gap:2px;">
                         {% for ccy, amt in receive_totals|dictsort %}
                             <div class="totals-value">{{ amt|default(0) }} {{ ccy }}</div>
-                        {% endfor %}
+                        {% endfor %}cl
                     </div>
                 {% else %}
                     <div class="totals-value" style="margin-top:4px;">{{ receive_total|default(0) }}{% if base_currency %} {{ base_currency }}{% endif %}</div>
