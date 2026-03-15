@@ -90,7 +90,7 @@
             <div class="totals-meta" style="margin-top: 10px;">
                 <div class="totals-row">
                     <div class="totals-label small-muted">Total value now</div>
-                    <div class="totals-value"><span style="color:#00d4ba;" id="sumNowText"></span></div>
+                    <div class="totals-value"><span style="color:#00b09a;" id="sumNowText"></span></div>
                 </div>
                 <div class="totals-row">
                     <div class="totals-label small-muted">Total value paid</div>
@@ -126,7 +126,7 @@
             <div class="totals-meta" style="margin-top: 10px;">
                 <div class="totals-row">
                     <div class="totals-label small-muted">Total value now</div>
-                    <div class="totals-value"><span style="color:#00d4ba;" id="stockSumNowText"></span></div>
+                    <div class="totals-value"><span style="color:#00b09a;" id="stockSumNowText"></span></div>
                 </div>
                 <div class="totals-row">
                     <div class="totals-label small-muted">Total value paid</div>
@@ -225,9 +225,9 @@
     if (sumNowEl) sumNowEl.textContent = formatMoney(sumNow);
     if (sumPaidEl) sumPaidEl.textContent = formatMoney(sumPaid);
 
-    const colorNow  = 'rgba(0, 212, 186, 0.55)';   // teal  #00d4ba
+    const colorNow  = 'rgba(0, 176, 154, 0.55)';   // teal  #00b09a
     const colorPaid = 'rgba(106, 125, 148, 0.55)';  // charcoal blue-gray  #6a7d94
-    const borderNow  = '#00d4ba';
+    const borderNow  = '#00b09a';
     const borderPaid = '#6a7d94';
 
     const cssVar = (name) => {
@@ -463,7 +463,7 @@
     if (walletCanvas && Array.isArray(walletLabels) && walletLabels.length > 0) {
         // Generate a color palette for the donut slices
         const walletPalette = [
-            'rgba(0, 212, 186, 0.65)',     // teal       #00d4ba
+            'rgba(0, 176, 154, 0.65)',     // teal       #00b09a
             'rgba(106, 125, 148, 0.65)',   // charcoal   #6a7d94
             'rgba(200, 205, 210, 0.65)',   // light grey #c8cdd2
             'rgba(0, 170, 150, 0.65)',     // deep teal
@@ -485,7 +485,7 @@
         const walletTotalEl = document.getElementById('walletTotalText');
         if (walletTotalEl) {
             walletTotalEl.textContent = `${walletTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
-            walletTotalEl.style.color = '#00d4ba';
+            walletTotalEl.style.color = '#00b09a';
             walletTotalEl.className = '';
         }
 
@@ -567,7 +567,7 @@
                         <span style="width:10px; height:10px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
                         <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${label}</span>
                     </span>
-                    <span style="white-space:nowrap; font-weight:500; color:#00d4ba;">${val}</span>
+                    <span style="white-space:nowrap; font-weight:500; color:#00b09a;">${val}</span>
                 </div>`;
             }).join('');
         }
