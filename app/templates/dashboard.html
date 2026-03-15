@@ -90,11 +90,11 @@
             <div class="totals-meta" style="margin-top: 10px;">
                 <div class="totals-row">
                     <div class="totals-label small-muted">Total value now</div>
-                    <div class="totals-value"><span class="pct-positive" id="sumNowText"></span></div>
+                    <div class="totals-value"><span style="color:#00d4ba;" id="sumNowText"></span></div>
                 </div>
                 <div class="totals-row">
                     <div class="totals-label small-muted">Total value paid</div>
-                    <div class="totals-value"><span class="pct-negative" id="sumPaidText"></span></div>
+                    <div class="totals-value"><span style="color:#6a7d94;" id="sumPaidText"></span></div>
                 </div>
                 <div class="totals-row">
                     <div class="totals-label small-muted">Gain / loss</div>
@@ -126,11 +126,11 @@
             <div class="totals-meta" style="margin-top: 10px;">
                 <div class="totals-row">
                     <div class="totals-label small-muted">Total value now</div>
-                    <div class="totals-value"><span class="pct-positive" id="stockSumNowText"></span></div>
+                    <div class="totals-value"><span style="color:#00d4ba;" id="stockSumNowText"></span></div>
                 </div>
                 <div class="totals-row">
                     <div class="totals-label small-muted">Total value paid</div>
-                    <div class="totals-value"><span class="pct-negative" id="stockSumPaidText"></span></div>
+                    <div class="totals-value"><span style="color:#6a7d94;" id="stockSumPaidText"></span></div>
                 </div>
                 <div class="totals-row">
                     <div class="totals-label small-muted">Gain / loss</div>
@@ -225,12 +225,10 @@
     if (sumNowEl) sumNowEl.textContent = formatMoney(sumNow);
     if (sumPaidEl) sumPaidEl.textContent = formatMoney(sumPaid);
 
-    // Green for "Now", Red for "Paid"
-    // Slightly muted ("matte") colors aligned with the app's green/red.
-    const colorNow = 'rgba(76, 180, 100, 0.45)';
-    const colorPaid = 'rgba(240, 87, 87, 0.45)';
-    const borderNow = 'rgba(76, 180, 100, 0.9)';
-    const borderPaid = 'rgba(240, 87, 87, 0.9)';
+    const colorNow  = 'rgba(0, 212, 186, 0.55)';   // teal  #00d4ba
+    const colorPaid = 'rgba(106, 125, 148, 0.55)';  // charcoal blue-gray  #6a7d94
+    const borderNow  = '#00d4ba';
+    const borderPaid = '#6a7d94';
 
     const cssVar = (name) => {
         try {
@@ -252,14 +250,13 @@
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     };
 
-    // Type colors (reuse existing theme/bootstrap variables)
     const bsPrimary = cssVar('--bs-primary');
     const titleAccentHex = cssVar('--title-accent') || '#6c757d';
     const lendHex = bsPrimary || titleAccentHex;
     const lendOutstandingColor = hexToRgba(lendHex, 0.35) || colorPaid;
     const lendOutstandingBorder = hexToRgba(lendHex, 0.9) || borderPaid;
-    const loanOutstandingColor = hexToRgba(titleAccentHex, 0.35) || colorPaid;
-    const loanOutstandingBorder = hexToRgba(titleAccentHex, 0.9) || borderPaid;
+    const loanOutstandingColor  = 'rgba(200, 205, 210, 0.55)'; // light grey
+    const loanOutstandingBorder = '#c8cdd2';
 
     // Pie start angle: put the dividing line at 12 o'clock.
     // Chart.js uses radians for rotation.
@@ -401,6 +398,7 @@
                             labels: {
                                 boxWidth: 40,
                                 boxHeight: 10,
+                                color: cssVar('--muted') || '#9ca3af',
                             }
                         },
                         tooltip: {
@@ -442,6 +440,7 @@
                             min: 0,
                             max: 100,
                             ticks: {
+                                color: cssVar('--muted') || '#9ca3af',
                                 callback: function(value) {
                                     return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}%`;
                                 }
@@ -450,7 +449,8 @@
                         },
                         y: {
                             stacked: true,
-                            grid: { display: false }
+                            grid: { display: false },
+                            ticks: { color: cssVar('--muted') || '#9ca3af' }
                         }
                     }
                 }
@@ -463,18 +463,18 @@
     if (walletCanvas && Array.isArray(walletLabels) && walletLabels.length > 0) {
         // Generate a color palette for the donut slices
         const walletPalette = [
-            'rgba(76, 180, 100, 0.65)',   // green
-            'rgba(54, 162, 235, 0.65)',    // blue
-            'rgba(255, 206, 86, 0.65)',    // yellow
-            'rgba(153, 102, 255, 0.65)',   // purple
-            'rgba(255, 159, 64, 0.65)',    // orange
-            'rgba(255, 99, 132, 0.65)',    // pink
-            'rgba(75, 192, 192, 0.65)',    // teal
-            'rgba(201, 203, 207, 0.65)',   // grey
-            'rgba(139, 195, 74, 0.65)',    // lime
-            'rgba(121, 85, 72, 0.65)',     // brown
-            'rgba(233, 30, 99, 0.65)',     // magenta
-            'rgba(0, 188, 212, 0.65)',     // cyan
+            'rgba(0, 212, 186, 0.65)',     // teal       #00d4ba
+            'rgba(106, 125, 148, 0.65)',   // charcoal   #6a7d94
+            'rgba(200, 205, 210, 0.65)',   // light grey #c8cdd2
+            'rgba(0, 170, 150, 0.65)',     // deep teal
+            'rgba(140, 160, 180, 0.65)',   // slate
+            'rgba(80, 200, 180, 0.65)',    // soft teal
+            'rgba(160, 178, 196, 0.65)',   // muted blue-grey
+            'rgba(0, 140, 125, 0.65)',     // dark teal
+            'rgba(90, 110, 130, 0.65)',    // dark charcoal
+            'rgba(50, 180, 165, 0.65)',    // mid teal
+            'rgba(120, 140, 158, 0.65)',   // cool grey
+            'rgba(175, 192, 208, 0.65)',   // pale blue-grey
         ];
         const walletBorderPalette = walletPalette.map(c => c.replace('0.65)', '1)'));
         const bgColors = walletLabels.map((_, i) => walletPalette[i % walletPalette.length]);
@@ -485,7 +485,8 @@
         const walletTotalEl = document.getElementById('walletTotalText');
         if (walletTotalEl) {
             walletTotalEl.textContent = `${walletTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
-            walletTotalEl.className = walletTotal >= 0 ? 'pct-positive' : 'pct-negative';
+            walletTotalEl.style.color = '#00d4ba';
+            walletTotalEl.className = '';
         }
 
         new Chart(walletCanvas, {
@@ -566,7 +567,7 @@
                         <span style="width:10px; height:10px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
                         <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${label}</span>
                     </span>
-                    <span style="white-space:nowrap; font-weight:500; color:${vBase >= 0 ? 'var(--pct-positive, #4cb464)' : 'var(--pct-negative, #f05757)'};">${val}</span>
+                    <span style="white-space:nowrap; font-weight:500; color:#00d4ba;">${val}</span>
                 </div>`;
             }).join('');
         }
@@ -592,6 +593,9 @@
             radius: '95%',
             rotation: pieTopRotation,
             plugins: {
+                legend: {
+                    labels: { color: cssVar('--muted') || '#9ca3af' }
+                },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
@@ -635,6 +639,9 @@
                 radius: '95%',
                 rotation: pieTopRotation,
                 plugins: {
+                    legend: {
+                        labels: { color: cssVar('--muted') || '#9ca3af' }
+                    },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
