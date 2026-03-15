@@ -102,7 +102,7 @@
                         <span class="{% if cryptoPortfolioGainIsPositive %}pct-positive{% else %}pct-negative{% endif %}">
                             {% if cryptoPortfolioGainIsPositive %}+{% else %}-{% endif %}{{ cryptoPortfolioGainAbsDisplay }} {{ baseCurrency }}
                         </span>
-                        <span class="small-muted">
+                        <span class="{% if cryptoPortfolioGainIsPositive %}pct-positive{% else %}pct-negative{% endif %}" style="font-size:0.85rem;">
                             {% if cryptoPortfolioGainPctDisplay and cryptoPortfolioGainPctDisplay != 'N/A' %}
                                 ({{ cryptoPortfolioGainPctDisplay }})
                             {% else %}
@@ -138,7 +138,7 @@
                         <span class="{% if stockPortfolioGainIsPositive %}pct-positive{% else %}pct-negative{% endif %}">
                             {% if stockPortfolioGainIsPositive %}+{% else %}-{% endif %}{{ stockPortfolioGainAbsDisplay|default('0') }} {{ baseCurrency }}
                         </span>
-                        <span class="small-muted">
+                        <span class="{% if stockPortfolioGainIsPositive %}pct-positive{% else %}pct-negative{% endif %}" style="font-size:0.85rem;">
                             {% if stockPortfolioGainPctDisplay and stockPortfolioGainPctDisplay != 'N/A' %}
                                 ({{ stockPortfolioGainPctDisplay }})
                             {% else %}
