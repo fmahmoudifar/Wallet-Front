@@ -65,7 +65,7 @@
                                 <span>Home</span>
                             </span>
                         </a>
-                        <a class="app-nav-link" href="/overview" {% if request.path.startswith('/overview') %}aria-current="page"{% endif %}>
+                        <a class="app-nav-link" href="/dashboard" {% if request.path.startswith('/dashboard') %}aria-current="page"{% endif %}>
                             <span class="app-nav-link-left">
                                 <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
                                     <rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
@@ -326,7 +326,7 @@
             </svg>
             <span class="app-bottom-text">Home</span>
         </a>
-        <a class="app-bottom-link" href="/overview" aria-label="Overview" {% if request.path.startswith('/overview') %}aria-current="page"{% endif %}>
+        <a class="app-bottom-link" href="/dashboard" aria-label="Dashboard" {% if request.path.startswith('/dashboard') %}aria-current="page"{% endif %}>
             <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
                 <rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>

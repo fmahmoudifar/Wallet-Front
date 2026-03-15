@@ -36,7 +36,7 @@ home_bp = Blueprint("home", __name__, url_prefix="/")
 _OVERVIEW_CTX_CACHE: dict[tuple[str, str], dict] = {}
 
 
-def _overview_cache_ttl_seconds() -> int:
+def _dashboard_cache_ttl_seconds() -> int:
     # In dev (Codespaces), default to no caching so numbers update immediately.
     # In production, caching can be enabled via env var.
     try:
@@ -57,8 +57,8 @@ def _truthy_env(val: str | None) -> bool:
     return s in {"1", "true", "yes", "y", "on"}
 
 
-def _overview_cache_get(user_id: str, base_currency: str):
-    ttl = _overview_cache_ttl_seconds()
+def _dashboard_cache_get(user_id: str, base_currency: str):
+    ttl = _dashboard_cache_ttl_seconds()
     if ttl <= 0:
         return None
     key = (str(user_id or "").strip(), str(base_currency or "").strip().upper())
@@ -69,8 +69,8 @@ def _overview_cache_get(user_id: str, base_currency: str):
     return None
 
 
-def _overview_cache_set(user_id: str, base_currency: str, ctx: dict):
-    ttl = _overview_cache_ttl_seconds()
+def _dashboard_cache_set(user_id: str, base_currency: str, ctx: dict):
+    ttl = _dashboard_cache_ttl_seconds()
     if ttl <= 0:
         return
     key = (str(user_id or "").strip(), str(base_currency or "").strip().upper())
@@ -140,8 +140,8 @@ def _ensure_user_settings_row(user_id: str) -> None:
         print(f"Error creating default settings (home init): {e}")
 
 
-@home_bp.route("/overview", methods=["GET"])
-def overview():
+@home_bp.route("/dashboard", methods=["GET"])
+def dashboard():
     user = session.get("user")
     if user:
         userId = user.get("username")
@@ -154,9 +154,9 @@ def overview():
         if cg_vs_currency not in ("eur", "usd"):
             cg_vs_currency = "eur"
 
-        cached_ctx = _overview_cache_get(userId, base_currency)
+        cached_ctx = _dashboard_cache_get(userId, base_currency)
         if isinstance(cached_ctx, dict):
-            return render_template("overview.html", **cached_ctx)
+            return render_template("dashboard.html", **cached_ctx)
 
         # Fetch all API resources in parallel to reduce total wall time.
         cryptos: list = []
@@ -204,21 +204,21 @@ def overview():
             try:
                 in_codespaces = str(os.getenv("CODESPACES") or "").strip().lower() in {"1", "true", "yes", "y", "on"}
                 print(
-                    "[overview debug] userId=", userId,
+                    "[dashboard debug] userId=", userId,
                     "baseCurrency=", base_currency,
                     "codespaces=", in_codespaces,
-                    "cacheTTL=", _overview_cache_ttl_seconds(),
+                    "cacheTTL=", _dashboard_cache_ttl_seconds(),
                     "wallets=", len(wallets or []),
                     "cryptos=", len(cryptos or []),
                     "transactions=", len(transactions or []),
                     "loans=", len(loans or []),
                     "stocks=", len(stocks or []),
                 )
-                print("[overview debug] wallets.userId distinct:", _distinct_user_ids(wallets))
-                print("[overview debug] transactions.userId distinct:", _distinct_user_ids(transactions))
-                print("[overview debug] loans.userId distinct:", _distinct_user_ids(loans))
-                print("[overview debug] stocks.userId distinct:", _distinct_user_ids(stocks))
-                print("[overview debug] cryptos.userId distinct:", _distinct_user_ids(cryptos))
+                print("[dashboard debug] wallets.userId distinct:", _distinct_user_ids(wallets))
+                print("[dashboard debug] transactions.userId distinct:", _distinct_user_ids(transactions))
+                print("[dashboard debug] loans.userId distinct:", _distinct_user_ids(loans))
+                print("[dashboard debug] stocks.userId distinct:", _distinct_user_ids(stocks))
+                print("[dashboard debug] cryptos.userId distinct:", _distinct_user_ids(cryptos))
             except Exception:
                 pass
 
@@ -955,7 +955,7 @@ def overview():
             if _truthy_env(os.getenv("OVERVIEW_DEBUG_WALLETS")):
                 try:
                     print(
-                        "[overview wallet]",
+                        "[dashboard wallet]",
                         "walletId=", wallet_id,
                         "name=", wallet_name,
                         "walletCcy=", w_ccy,
@@ -1110,11 +1110,11 @@ def overview():
             "loanHomePositions": loanHomePositions,
             "userId": userId,
         }
-        _overview_cache_set(userId, base_currency, ctx)
-        return render_template("overview.html", **ctx)
+        _dashboard_cache_set(userId, base_currency, ctx)
+        return render_template("dashboard.html", **ctx)
 
     else:
-        return render_template("overview.html")
+        return render_template("dashboard.html")
 
 
 @home_bp.route("/", methods=["GET"])
