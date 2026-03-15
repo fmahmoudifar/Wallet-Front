@@ -683,21 +683,18 @@
         }
 
         function colorsForLabels(labels) {
-            const count = (labels || []).length;
-            // Golden-ratio hue step keeps each slice visually distinct.
-            // Hues are anchored in the teal-to-blue-grey range (160–220°),
-            // with lightness and saturation varied in two alternating tiers
-            // so adjacent slices never look the same even at high counts.
-            const BASE_HUE = 168;
-            const HUE_SPAN = 52;        // stays within teal → slate-blue
-            const GOLDEN  = 0.618034;
-            return Array.from({ length: count }, (_, i) => {
-                const t   = (i * GOLDEN) % 1;           // 0..1, no repeats via golden ratio
-                const hue = BASE_HUE + t * HUE_SPAN;
-                const sat = (i % 2 === 0) ? 52 : 38;    // alternate richer / muted tiers
-                const lit = 45 + (i % 3) * 8;           // three lightness steps: 45 / 53 / 61
-                return `hsla(${hue.toFixed(1)}, ${sat}%, ${lit}%, 0.70)`;
-            });
+            // Teal Base + Warm Accents — teal theme with warm pops for key slice distinction.
+            const PALETTE = [
+                'rgba(  0, 176, 154, 0.75)',  // #00b09a  teal (brand primary)
+                'rgba( 91, 141, 217, 0.75)',  // #5b8dd9  blue
+                'rgba(240, 146,  43, 0.75)',  // #f0922b  orange
+                'rgba( 61, 189, 181, 0.75)',  // #3dbdb5  light teal
+                'rgba(123,  94, 167, 0.75)',  // #7b5ea7  purple
+                'rgba(165, 143, 216, 0.75)',  // #a58fd8  lavender
+                'rgba(212, 132,  42, 0.75)',  // #d4842a  amber
+                'rgba(106, 180, 212, 0.75)',  // #6ab4d4  sky blue
+            ];
+            return (labels || []).map((_, i) => PALETTE[i % PALETTE.length]);
         }
 
         const incomeColors = colorsForLabels(income.labels);
@@ -762,6 +759,7 @@
                         layout: { padding: { top: 4, bottom: 4, left: 6, right: 6 } },
                         plugins: {
                             legend: {
+                                display: false, // hidden — bar chart below shows the same labels
                                 position: 'top',
                                 labels: {
                                     boxWidth: legendBoxWidth,
@@ -804,6 +802,7 @@
                         layout: { padding: { top: 4, bottom: 4, left: 6, right: 6 } },
                         plugins: {
                             legend: {
+                                display: false, // hidden — bar chart below shows the same labels
                                 position: 'top',
                                 labels: {
                                     boxWidth: legendBoxWidth,
