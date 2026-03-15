@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, redirect, render_template, request, sessio
 
 from app.services.user_scope import filter_records_by_user
 from config import API_URL, aws_auth
+from .home import _ensure_user_settings_row
 
 wallet_bp = Blueprint("wallet", __name__)
 
@@ -14,6 +15,7 @@ def wallet_page():
     user = session.get("user")
     if user:
         userId = user.get("username")
+        _ensure_user_settings_row(userId)
         try:
             response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
             wallets = response.json().get("wallets", []) if response.status_code == 200 else []

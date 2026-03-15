@@ -8,11 +8,15 @@
         // Theme: prefer localStorage, fallback to server session setting.
         (function () {
             try {
+                const serverTheme = "{{ session.get('theme', '') }}";
                 const stored = localStorage.getItem('theme');
-                const serverTheme = "{{ session.get('theme', 'Light') }}";
-                const raw = (stored || serverTheme || 'Light');
+                // Server session is authoritative (always freshly fetched from DB).
+                // localStorage is only a fallback when there is no server value.
+                const raw = (serverTheme || stored || 'Light');
                 const t = String(raw).toLowerCase();
                 const theme = t.startsWith('d') ? 'dark' : 'light';
+                // Keep localStorage in sync with the server value.
+                localStorage.setItem('theme', theme);
                 document.documentElement.setAttribute('data-theme', theme);
             } catch (e) {
                 document.documentElement.setAttribute('data-theme', 'light');

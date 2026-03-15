@@ -96,17 +96,11 @@ def _api_list(path: str, *, user_id: str, list_key: str, timeout: int = 12) -> l
 
 
 def _ensure_user_settings_row(user_id: str) -> None:
-    """Ensure a user has a settings row; if missing, create defaults.
+    """Fetch the user's settings from the DB on every call and sync to session.
 
-    Defaults match the Settings page: currency=EUR, theme=Light.
+    Always does a round-trip so that changes made in another browser/session
+    are picked up immediately on the next page load.
     """
-    # If we already initialized settings for this session, avoid a round-trip.
-    try:
-        if session.get("_settings_initialized") and session.get("currency") and session.get("theme"):
-            return
-    except Exception:
-        pass
-
     try:
         resp = requests.get(f"{API_URL}/settings", params={"userId": user_id}, auth=aws_auth, timeout=10)
         settings = resp.json().get("settings", []) if resp.status_code == 200 else []
@@ -122,7 +116,6 @@ def _ensure_user_settings_row(user_id: str) -> None:
                 session["theme"] = first.get("theme")
             if first.get("currency"):
                 session["currency"] = first.get("currency")
-            session["_settings_initialized"] = True
         except Exception:
             pass
         return
@@ -138,7 +131,6 @@ def _ensure_user_settings_row(user_id: str) -> None:
         if upsert.status_code in (200, 201):
             session["currency"] = default_data["currency"]
             session["theme"] = default_data["theme"]
-            session["_settings_initialized"] = True
         else:
             try:
                 print(f"Settings default upsert failed: {upsert.status_code} {upsert.text}")

@@ -8,6 +8,7 @@ from flask import Blueprint, jsonify, redirect, render_template, request, sessio
 
 from app.services.user_scope import filter_records_by_user
 from config import API_URL, aws_auth
+from .home import _ensure_user_settings_row
 
 loans_bp = Blueprint("loans", __name__)
 
@@ -87,6 +88,7 @@ def loans_page():
         return render_template("home.html")
 
     user_id = user.get("username")
+    _ensure_user_settings_row(user_id)
 
     # --- Fetch loans ---
     try:

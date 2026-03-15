@@ -8,6 +8,7 @@ from flask import Blueprint, Response, redirect, render_template, request, sessi
 
 from app.services.user_scope import filter_records_by_user
 from config import API_URL, aws_auth
+from .home import _ensure_user_settings_row
 
 data_io_bp = Blueprint("data_io", __name__)
 
@@ -185,6 +186,7 @@ def data_page():
     user = session.get("user")
     if not user:
         return render_template("home.html")
+    _ensure_user_settings_row(user.get("username"))
     return render_template("data_io.html")
 
 
