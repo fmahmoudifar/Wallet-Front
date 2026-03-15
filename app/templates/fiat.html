@@ -683,24 +683,27 @@
         }
 
         function colorsForLabels(labels) {
-            const usedHues = new Set();
-            const goldenStep = 137; // spreads hues evenly; helps avoid collisions
-
-            return (labels || []).map(label => {
-                let hue = Math.abs(hashString(label)) % 360;
-                let guard = 0;
-                while (usedHues.has(hue) && guard < 360) {
-                    hue = (hue + goldenStep) % 360;
-                    guard += 1;
-                }
-                usedHues.add(hue);
-                // Dimmer (more subtle) palette: lower saturation + lower alpha.
-                return `hsla(${hue}, 45%, 52%, 0.62)`;
+            const count = (labels || []).length;
+            // Golden-ratio hue step keeps each slice visually distinct.
+            // Hues are anchored in the teal-to-blue-grey range (160–220°),
+            // with lightness and saturation varied in two alternating tiers
+            // so adjacent slices never look the same even at high counts.
+            const BASE_HUE = 168;
+            const HUE_SPAN = 52;        // stays within teal → slate-blue
+            const GOLDEN  = 0.618034;
+            return Array.from({ length: count }, (_, i) => {
+                const t   = (i * GOLDEN) % 1;           // 0..1, no repeats via golden ratio
+                const hue = BASE_HUE + t * HUE_SPAN;
+                const sat = (i % 2 === 0) ? 52 : 38;    // alternate richer / muted tiers
+                const lit = 45 + (i % 3) * 8;           // three lightness steps: 45 / 53 / 61
+                return `hsla(${hue.toFixed(1)}, ${sat}%, ${lit}%, 0.70)`;
             });
         }
 
         const incomeColors = colorsForLabels(income.labels);
         const expenseColors = colorsForLabels(expense.labels);
+        const incomeBorderColors = incomeColors.map(c => c.replace(/,\s*[\d.]+\)$/, ', 1)'));
+        const expenseBorderColors = expenseColors.map(c => c.replace(/,\s*[\d.]+\)$/, ', 1)'));
 
         const emptyIncome = document.getElementById('incomeChartEmpty');
         const emptyExpense = document.getElementById('expenseChartEmpty');
@@ -712,6 +715,10 @@
         const expenseChartsBlock = document.getElementById('expenseChartsBlock');
         if (incomeChartsBlock) incomeChartsBlock.style.display = income.labels.length ? '' : 'none';
         if (expenseChartsBlock) expenseChartsBlock.style.display = expense.labels.length ? '' : 'none';
+
+        const cssVar = (name) => {
+            try { return (getComputedStyle(document.documentElement).getPropertyValue(name) || '').trim(); } catch(_) { return ''; }
+        };
 
         // Charts
         if (window.Chart) {
@@ -743,8 +750,8 @@
                             label: 'Income',
                             data: income.values,
                             backgroundColor: incomeColors,
-                            borderColor: 'rgba(255,255,255,0.35)',
-                            borderWidth: 1.5,
+                            borderColor: incomeBorderColors,
+                            borderWidth: 1,
                             radius: '78%',
                         }]
                     },
@@ -758,8 +765,10 @@
                                 position: 'top',
                                 labels: {
                                     boxWidth: legendBoxWidth,
+                                    boxHeight: legendBoxWidth,
                                     padding: legendPadding,
                                     font: { size: legendFontSize },
+                                    color: cssVar('--muted') || '#9ca3af',
                                 }
                             },
                             tooltip: {
@@ -783,8 +792,8 @@
                             label: 'Expense',
                             data: expense.values,
                             backgroundColor: expenseColors,
-                            borderColor: 'rgba(255,255,255,0.35)',
-                            borderWidth: 1.5,
+                            borderColor: expenseBorderColors,
+                            borderWidth: 1,
                             radius: '78%',
                         }]
                     },
@@ -798,8 +807,10 @@
                                 position: 'top',
                                 labels: {
                                     boxWidth: legendBoxWidth,
+                                    boxHeight: legendBoxWidth,
                                     padding: legendPadding,
                                     font: { size: legendFontSize },
+                                    color: cssVar('--muted') || '#9ca3af',
                                 }
                             },
                             tooltip: {
@@ -824,7 +835,7 @@
                             label: 'Income',
                             data: income.values,
                             backgroundColor: incomeColors,
-                            borderColor: incomeColors,
+                            borderColor: incomeBorderColors,
                             borderWidth: 1,
                         }]
                     },
@@ -849,9 +860,13 @@
                                     autoSkip: true,
                                     maxRotation: isMobile ? 55 : 35,
                                     minRotation: isMobile ? 35 : 0,
+                                    color: cssVar('--muted') || '#9ca3af',
                                 }
                             },
-                            y: { beginAtZero: true }
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: cssVar('--muted') || '#9ca3af' }
+                            }
                         }
                     }
                 });
@@ -866,7 +881,7 @@
                             label: 'Expense',
                             data: expense.values,
                             backgroundColor: expenseColors,
-                            borderColor: expenseColors,
+                            borderColor: expenseBorderColors,
                             borderWidth: 1,
                         }]
                     },
@@ -891,9 +906,13 @@
                                     autoSkip: true,
                                     maxRotation: isMobile ? 55 : 35,
                                     minRotation: isMobile ? 35 : 0,
+                                    color: cssVar('--muted') || '#9ca3af',
                                 }
                             },
-                            y: { beginAtZero: true }
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: cssVar('--muted') || '#9ca3af' }
+                            }
                         }
                     }
                 });
