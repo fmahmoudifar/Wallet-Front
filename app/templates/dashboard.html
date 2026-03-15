@@ -463,20 +463,16 @@
     if (walletCanvas && Array.isArray(walletLabels) && walletLabels.length > 0) {
         // Generate a color palette for the donut slices
         const walletPalette = [
-            'rgba(0, 176, 154, 0.65)',     // teal       #00b09a
-            'rgba(106, 125, 148, 0.65)',   // charcoal   #6a7d94
-            'rgba(200, 205, 210, 0.65)',   // light grey #c8cdd2
-            'rgba(0, 170, 150, 0.65)',     // deep teal
-            'rgba(140, 160, 180, 0.65)',   // slate
-            'rgba(80, 200, 180, 0.65)',    // soft teal
-            'rgba(160, 178, 196, 0.65)',   // muted blue-grey
-            'rgba(0, 140, 125, 0.65)',     // dark teal
-            'rgba(90, 110, 130, 0.65)',    // dark charcoal
-            'rgba(50, 180, 165, 0.65)',    // mid teal
-            'rgba(120, 140, 158, 0.65)',   // cool grey
-            'rgba(175, 192, 208, 0.65)',   // pale blue-grey
+            'rgba(  0, 176, 154, 0.75)',   // #00b09a  teal (brand primary)
+            'rgba( 91, 141, 217, 0.75)',   // #5b8dd9  blue
+            'rgba(240, 146,  43, 0.75)',   // #f0922b  orange
+            'rgba( 61, 189, 181, 0.75)',   // #3dbdb5  light teal
+            'rgba(123,  94, 167, 0.75)',   // #7b5ea7  purple
+            'rgba(165, 143, 216, 0.75)',   // #a58fd8  lavender
+            'rgba(212, 132,  42, 0.75)',   // #d4842a  amber
+            'rgba(106, 180, 212, 0.75)',   // #6ab4d4  sky blue
         ];
-        const walletBorderPalette = walletPalette.map(c => c.replace('0.65)', '1)'));
+        const walletBorderPalette = walletPalette.map(c => c.replace(/,\s*[\d.]+\)$/, ', 1)'));
         const bgColors = walletLabels.map((_, i) => walletPalette[i % walletPalette.length]);
         const bdColors = walletLabels.map((_, i) => walletBorderPalette[i % walletBorderPalette.length]);
 
