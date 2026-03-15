@@ -212,7 +212,7 @@
     // Sum totals across all cryptos (overall portfolio)
     const sumNow = (Array.isArray(nowData) ? nowData : []).reduce((acc, v) => acc + (Number(v) || 0), 0);
     const sumPaid = (Array.isArray(paidData) ? paidData : []).reduce((acc, v) => acc + (Number(v) || 0), 0);
-    const labels = ['Total Value Now', 'Total Value Paid'];
+    const labels = ['Total Value Paid', 'Total Value Now'];
 
     const formatMoney = (v) => {
         const n = Number(v || 0);
@@ -576,9 +576,9 @@
             datasets: [
                 {
                     label: `Crypto Portfolio (${baseCurrency})`,
-                    data: [sumNow, sumPaid],
-                    backgroundColor: [colorNow, colorPaid],
-                    borderColor: [borderNow, borderPaid],
+                    data: [sumPaid, sumNow],
+                    backgroundColor: [colorPaid, colorNow],
+                    borderColor: [borderPaid, borderNow],
                     borderWidth: 1
                 }
             ]
@@ -622,9 +622,9 @@
                 datasets: [
                     {
                         label: `Stock Portfolio (${baseCurrency})`,
-                        data: [stockSumNow, stockSumPaid],
-                        backgroundColor: [colorNow, colorPaid],
-                        borderColor: [borderNow, borderPaid],
+                        data: [stockSumPaid, stockSumNow],
+                        backgroundColor: [colorPaid, colorNow],
+                        borderColor: [borderPaid, borderNow],
                         borderWidth: 1
                     }
                 ]
