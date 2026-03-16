@@ -81,6 +81,30 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    /* Thin scrollbar for Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+}
+/* Show subtle track on hover (Firefox) */
+.app-nav:hover {
+    scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+/* Thin scrollbar for Chrome/Safari/Edge */
+.app-nav::-webkit-scrollbar {
+    width: 4px;
+}
+.app-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+.app-nav::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 4px;
+}
+.app-nav:hover::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.15);
+}
+.app-nav:hover::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.25);
 }
 
 .app-nav-section {
