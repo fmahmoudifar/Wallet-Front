@@ -2198,4 +2198,7 @@ html[data-theme="dark"] .data-io-alert-warn {
         word-break: break-all;
         max-width: 100%;
     }
+    .home-actions {
+        flex-direction: column !important;
+    }
 }
