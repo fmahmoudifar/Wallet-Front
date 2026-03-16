@@ -4,29 +4,149 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dev Login</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/css/site_styles.css">
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg, #f4f5f7);
+            font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .dev-login-card {
+            width: 100%;
+            max-width: 380px;
+            margin: 0 16px;
+            background: var(--card-bg, #fff);
+            border: 1px solid var(--border, #e2e4ea);
+            border-radius: 14px;
+            padding: 40px 32px 36px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+        }
+        .dev-login-logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 28px;
+        }
+        .dev-login-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text, #1a1d26);
+            text-align: center;
+            margin: 0 0 4px;
+        }
+        .dev-login-subtitle {
+            font-size: 12px;
+            color: var(--muted, #7a7f96);
+            text-align: center;
+            margin: 0 0 28px;
+            letter-spacing: 0.3px;
+        }
+        .dev-login-badge {
+            display: inline-block;
+            background: rgba(0, 176, 154, 0.12);
+            color: #00b09a;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+        .dev-login-field {
+            margin-bottom: 18px;
+        }
+        .dev-login-field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted, #7a7f96);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 6px;
+        }
+        .dev-login-field input {
+            width: 100%;
+            padding: 10px 14px;
+            font-size: 14px;
+            color: var(--text, #1a1d26);
+            background: var(--bg, #f4f5f7);
+            border: 1px solid var(--border, #e2e4ea);
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        .dev-login-field input:focus {
+            border-color: #00b09a;
+            box-shadow: 0 0 0 3px rgba(0, 176, 154, 0.12);
+        }
+        .dev-login-btn {
+            width: 100%;
+            padding: 11px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            background: #00b09a;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            margin-top: 6px;
+        }
+        .dev-login-btn:hover {
+            background: #009a86;
+        }
+        .dev-login-btn:active {
+            transform: scale(0.98);
+        }
+        .dev-login-error {
+            background: rgba(224, 82, 82, 0.1);
+            color: #e05252;
+            font-size: 13px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 18px;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-<div class="container" style="max-width: 520px; padding-top: 48px;">
-    <h1 class="h3 mb-3">Dev Login</h1>
-    <p class="text-muted mb-4">Codespaces development only.</p>
-
-    {% if error %}
-    <div class="alert alert-danger" role="alert">{{ error }}</div>
-    {% endif %}
-
-    <form method="post">
-        <div class="mb-3">
-            <label class="form-label" for="username">Username:</label>
-            <input class="form-control" id="username" name="username" autocomplete="username" value="{{ username }}" required>
+    <div class="dev-login-card">
+        <div class="dev-login-logo">
+            <svg width="180" height="50" viewBox="0 0 150 40" fill="none">
+                <rect x="22" y="8" width="28" height="22" rx="4" stroke="#00b09a" stroke-width="1.6"/>
+                <path d="M22 15h28" stroke="#00b09a" stroke-width="1.6"/>
+                <rect x="40" y="19" width="8" height="5" rx="1.5" stroke="#00b09a" stroke-width="1.4"/>
+                <text x="56" y="19" font-family="Bricolage Grotesque,sans-serif" font-weight="800" font-size="13" fill="var(--text, #1a1d26)" letter-spacing="-.4">Wallets</text>
+                <text x="57" y="30" font-family="Geist,sans-serif" font-weight="500" font-size="7.5" fill="var(--muted, #7a7f96)" letter-spacing="2.2">PORTFOLIO</text>
+            </svg>
         </div>
-        <div class="mb-3">
-            <label class="form-label" for="password">Password:</label>
-            <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required>
+        <div style="text-align: center;">
+            <span class="dev-login-badge">Development Mode</span>
         </div>
-        <button class="btn btn-primary" type="submit">Sign in</button>
-    </form>
-</div>
+        <h1 class="dev-login-title">Sign in</h1>
+        <p class="dev-login-subtitle">Codespaces development environment</p>
+
+        {% if error %}
+        <div class="dev-login-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post">
+            <div class="dev-login-field">
+                <label for="username">Username</label>
+                <input id="username" name="username" autocomplete="username" value="{{ username }}" required>
+            </div>
+            <div class="dev-login-field">
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+            </div>
+            <button class="dev-login-btn" type="submit">Sign in</button>
+        </form>
+    </div>
 </body>
 </html>
