@@ -1288,7 +1288,7 @@
     </div>
     <div>
     <label for="amount">Amount:</label>
-    <input type="number" name="amount" step="any" inputmode="decimal" required>
+    <input type="text" name="amount" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" required>
     </div>
     <div id="createFromWalletRow">
     <label for="fromWallet">From Wallet:</label>
@@ -1325,7 +1325,7 @@
     </div>
     <div id="createFeeRow">
     <label for="fee">Fee:</label>
-    <input type="number" id="fee" name="fee" step="any" inputmode="decimal">
+    <input type="text" id="fee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
     </div>
     <div>
     <label for="note">Note:</label>
@@ -1478,7 +1478,7 @@
             </div>
             <div>
                 <label>Amount:</label>
-                <input type="number" id="updateAmount" name="amount" step="any" inputmode="decimal" required>
+                <input type="text" id="updateAmount" name="amount" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" required>
             </div>
             <div id="updateFromWalletRow">
                 <label>From Wallet:</label>
@@ -1515,7 +1515,7 @@
             </div>
             <div id="updateFeeRow">
                 <label>Fee:</label>
-                <input type="number" id="updateFee" name="fee" step="any" inputmode="decimal">
+                <input type="text" id="updateFee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
             </div>
             <div>
                 <label>Note:</label>

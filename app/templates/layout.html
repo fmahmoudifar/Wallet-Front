@@ -282,6 +282,34 @@
     </div>
 
     <script>
+        // Block non-numeric input on decimal fields (allow digits, one dot or comma, minus).
+        document.addEventListener('input', function (e) {
+            var inp = e.target;
+            if (!inp || inp.getAttribute('inputmode') !== 'decimal') return;
+            // Strip anything that isn't 0-9 , . or leading -
+            inp.value = inp.value.replace(/[^0-9.,-]/g, '')
+                                 .replace(/^(-?)(.*)/, function (_, sign, rest) {
+                                     // Allow only one decimal separator
+                                     var first = true;
+                                     rest = rest.replace(/[.,]/g, function (m) {
+                                         if (first) { first = false; return m; }
+                                         return '';
+                                     });
+                                     // Remove any extra minus signs
+                                     rest = rest.replace(/-/g, '');
+                                     return sign + rest;
+                                 });
+        }, true);
+
+        // Normalize comma decimals (e.g. Swedish locale) to dots before form submission.
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (!form || form.tagName !== 'FORM') return;
+            form.querySelectorAll('input[inputmode="decimal"]').forEach(function (inp) {
+                if (inp.value) inp.value = inp.value.replace(',', '.');
+            });
+        }, true);
+
         // Sidebar submenus: make the clicked item stay highlighted.
         (function () {
             function initSidebarSubmenus() {

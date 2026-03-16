@@ -636,7 +636,7 @@ def crypto_page():
                 try:
                     if val is None:
                         return Decimal(0)
-                    s = str(val).strip()
+                    s = str(val).strip().replace(",", ".")
                     if s == "":
                         return Decimal(0)
                     return Decimal(s)
