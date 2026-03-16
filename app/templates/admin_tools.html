@@ -31,7 +31,7 @@
 
             <form method="post" class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">Table</label>
+                    <label class="form-label">Table:</label>
                     <select class="form-select" name="table" onchange="this.form.submit()">
                         {% for t in tables %}
                             <option value="{{ t }}" {% if t == selected_table %}selected{% endif %}>{{ t }}</option>
@@ -40,7 +40,7 @@
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">UserId field (attribute name)</label>
+                    <label class="form-label">UserId field (attribute name):</label>
                     <input class="form-control" name="field" value="{{ selected_field }}" list="candidateFields" placeholder="userId" />
                     <datalist id="candidateFields">
                         {% for f in candidate_fields %}
@@ -51,22 +51,22 @@
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">Old userId (current value)</label>
+                    <label class="form-label">Old userId (current value):</label>
                     <input class="form-control" name="old_user_id" value="{{ old_user_id }}" placeholder="old Cognito sub" />
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">New userId (replacement)</label>
+                    <label class="form-label">New userId (replacement):</label>
                     <input class="form-control" name="new_user_id" value="{{ new_user_id }}" placeholder="new Cognito sub" />
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">Max items (safety cap)</label>
+                    <label class="form-label">Max items (safety cap):</label>
                     <input class="form-control" name="max_items" value="{{ max_items }}" />
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">Mode</label>
+                    <label class="form-label">Mode:</label>
                     <select class="form-select" name="mode">
                         <option value="preview">Preview (dry run)</option>
                         <option value="apply">Apply (write changes)</option>

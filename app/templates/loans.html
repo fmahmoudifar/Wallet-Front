@@ -162,9 +162,16 @@
 <div id="newLoan" class="block-new" style="display: none;">
     <!-- <h2 class="center-text" style="display:none;">Add New Transaction</h2> -->
     <div class="form-container">
+        <div class="totals-card" style="padding: 12px 16px; margin-bottom: 14px; font-size: 12px; line-height: 1.6; text-align: left;">
+            <div class="small-muted">
+                <strong>Borrow/Lend/Loan &rarr; New:</strong> Adding a new transaction.<br>
+                <strong>Borrow/Lend/Loan &rarr; Repay:</strong> Repay for an existing transaction or position.<br>
+                <strong>Position:</strong> Groups transactions by counterparty + currency + date. Select an existing one for adding a new transaction to this group or repayment for this position. or create a new position to start tracking a new set of transactions.
+            </div>
+        </div>
         <form id="createLoanForm" action="/loans" method="POST">
             <div>
-                <label for="loansType">Type</label>
+                <label for="loansType">Type:</label>
                 <select id="loansType" name="type" required>
                     <option value="borrow">Borrow</option>
                     <option value="lend">Lend</option>
@@ -173,7 +180,7 @@
             </div>
 
             <div>
-                <label for="loansAction">Action</label>
+                <label for="loansAction">Transaction:</label>
                 <select id="loansAction" name="action" required>
                     <option value="new">New</option>
                     <option value="repay">Repay</option>
@@ -181,18 +188,18 @@
             </div>
 
             <div>
-                <label for="loansCounterparty">Counterparty</label>
+                <label for="loansCounterparty">Counterparty:</label>
                 <input id="loansCounterparty" type="text" name="counterparty" placeholder="Name" required>
                 <div id="loansCounterpartyList" class="autocomplete-list" style="position:relative"></div>
             </div>
 
             <div>
-                <label for="loansAmount">Amount</label>
+                <label for="loansAmount">Amount:</label>
                 <input id="loansAmount" type="number" name="amount" step="any" inputmode="decimal" placeholder="0" required>
             </div>
 
             <div>
-                <label for="loansCurrency">Currency</label>
+                <label for="loansCurrency">Currency:</label>
                 <select id="loansCurrency" name="currency" required>
                     <option value="EUR">EUR</option>
                     <option value="USD">USD</option>
@@ -208,7 +215,7 @@
             </div>
 
             <div>
-                <label for="loansPositionSelect">Position</label>
+                <label for="loansPositionSelect">Position:</label>
                 <select id="loansPositionSelect">
                     <option value="" selected disabled>-- Select counterparty first --</option>
                     <option value="__new__">New position</option>
@@ -237,17 +244,17 @@
             </div>
 
             <div>
-                <label for="loansDate">Date</label>
+                <label for="loansDate">Date:</label>
                 <input id="loansDate" type="date" name="tdate" placeholder="Select date" required>
             </div>
 
             <div id="loansDDateRow">
-                <label for="loansDDate">Due date (optional)</label>
+                <label for="loansDDate">Due date (optional):</label>
                 <input id="loansDDate" type="date" name="ddate" placeholder="Select due date">
             </div>
 
             <div>
-                <label for="loansNote">Note</label>
+                <label for="loansNote">Note:</label>
                 <input id="loansNote" type="text" name="note" placeholder="Optional">
             </div>
 
@@ -286,7 +293,7 @@
                 </select>
             </div>
             <div>
-                <label for="filterAction">Action:</label>
+                <label for="filterAction">Transaction:</label>
                 <select id="filterAction" name="action">
                     <option value="">-- All --</option>
                     <option value="new">New</option>
@@ -407,7 +414,7 @@
             <input type="hidden" id="updateLockedTdate" name="tdate" />
 
             <div>
-                <label for="updateLoansType">Type</label>
+                <label for="updateLoansType">Type:</label>
                 <select id="updateLoansType" name="type_display" required disabled>
                     <option value="borrow">Borrow</option>
                     <option value="lend">Lend</option>
@@ -416,7 +423,7 @@
             </div>
 
             <div>
-                <label for="updateLoansAction">Action</label>
+                <label for="updateLoansAction">Transaction:</label>
                 <select id="updateLoansAction" name="action_display" required disabled>
                     <option value="new">New</option>
                     <option value="repay">Repay</option>
@@ -424,18 +431,18 @@
             </div>
 
             <div>
-                <label for="updateLoansCounterparty">Counterparty</label>
+                <label for="updateLoansCounterparty">Counterparty:</label>
                 <input id="updateLoansCounterparty" type="text" name="counterparty" placeholder="Name" required readonly />
                 <div id="updateLoansCounterpartyList" class="autocomplete-list" style="position:relative"></div>
             </div>
 
             <div>
-                <label for="updateLoansAmount">Amount</label>
+                <label for="updateLoansAmount">Amount:</label>
                 <input id="updateLoansAmount" type="number" name="amount" step="any" inputmode="decimal" required />
             </div>
 
             <div>
-                <label for="updateLoansCurrency">Currency</label>
+                <label for="updateLoansCurrency">Currency:</label>
                 <select id="updateLoansCurrency" name="currency_display" required disabled>
                     <option value="EUR">EUR</option>
                     <option value="USD">USD</option>
@@ -451,7 +458,7 @@
             </div>
 
             <div>
-                <label for="updateLoansPositionSelect">Position</label>
+                <label for="updateLoansPositionSelect">Position:</label>
                 <select id="updateLoansPositionSelect"></select>
                 <input type="hidden" id="updateLoansPosition" name="position" value="" />
             </div>
@@ -477,17 +484,17 @@
             </div>
 
             <div>
-                <label for="updateLoansDate">Date</label>
+                <label for="updateLoansDate">Date:</label>
                 <input id="updateLoansDate" type="date" name="tdate_display" placeholder="Select date" required disabled />
             </div>
 
             <div id="updateDDateRow">
-                <label for="updateLoansDDate">Due date (optional)</label>
+                <label for="updateLoansDDate">Due date (optional):</label>
                 <input id="updateLoansDDate" type="date" name="ddate" placeholder="Select due date" />
             </div>
 
             <div>
-                <label for="updateLoansNote">Note</label>
+                <label for="updateLoansNote">Note:</label>
                 <input id="updateLoansNote" type="text" name="note" placeholder="Optional" />
             </div>
 

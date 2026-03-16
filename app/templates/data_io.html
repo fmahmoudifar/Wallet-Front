@@ -43,7 +43,7 @@
 
         <form id="exportForm" class="data-io-form" onsubmit="return handleExport(event)">
             <div class="data-io-form-row">
-                <label for="exportAsset">Asset</label>
+                <label for="exportAsset">Asset:</label>
                 <select id="exportAsset" name="asset" required>
                     <option value="">Select asset…</option>
                     <option value="fiat">Fiat</option>
@@ -53,11 +53,11 @@
                 </select>
             </div>
             <div class="data-io-form-row">
-                <label for="exportFrom">From Date</label>
+                <label for="exportFrom">From Date:</label>
                 <input type="date" id="exportFrom" name="from">
             </div>
             <div class="data-io-form-row">
-                <label for="exportTo">To Date</label>
+                <label for="exportTo">To Date:</label>
                 <input type="date" id="exportTo" name="to">
             </div>
             <div class="data-io-form-actions">
@@ -89,7 +89,7 @@
 
         <form id="importForm" action="" method="POST" enctype="multipart/form-data" class="data-io-form">
             <div class="data-io-form-row">
-                <label for="importAsset">Asset</label>
+                <label for="importAsset">Asset:</label>
                 <select id="importAsset" name="asset" required onchange="updateImportAction()">
                     <option value="">Select asset…</option>
                     <option value="fiat">Fiat</option>
