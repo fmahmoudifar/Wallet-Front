@@ -2,8 +2,8 @@
 
 {% block content %}
 
-<!-- coins data provided to JS via data attribute to avoid inline template tags in scripts -->
-<div id="coins-data" style="display:none" data-coins='{{ coins|tojson | safe }}'></div>
+<!-- Data containers populated via fetch -->
+<div id="coins-data" style="display:none" data-coins='[]'></div>
 {% block head_extra %}
     <link rel="stylesheet" href="/static/css/site_styles.css">
 {% endblock %}
@@ -190,27 +190,174 @@
         }
     }  
 
-    document.addEventListener("DOMContentLoaded", function() {
-        // Safely handle the optional crypto list: if it's missing, continue without failing.
-        let list = document.getElementById("cryptoList");
-        let items = [];
-        if (list && list.children && list.children.length) {
-            items = Array.from(list.children);
-            if (items.length > 1) {
-                items.sort((a, b) => {
-                    let dateA = new Date(a.getAttribute("data-tdate") || 0);
-                    let dateB = new Date(b.getAttribute("data-tdate") || 0);
-                    return dateB - dateA;
-                });
-                items.forEach(item => list.appendChild(item));
-            }
+    function _escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, function(ch) {
+            switch(ch) { case '&': return '&amp;'; case '<': return '&lt;'; case '>': return '&gt;'; case '"': return '&quot;'; case "'": return '&#39;'; default: return ch; }
+        });
+    }
 
-            // After sorting, insert month/year group headers (since rows don't show dates)
-            if (typeof ensureCryptoGroupsBuilt === 'function') {
-                ensureCryptoGroupsBuilt(true);
-            }
+    function _populateCryptoWalletSelects(wallets) {
+        var sorted = (wallets || []).slice().sort(function(a, b) {
+            return String(a.walletName || '').localeCompare(String(b.walletName || ''));
+        });
+        var selectIds = ['fromWallet','toWallet','updateFromWallet','updateToWallet','filterFromWallet','filterToWallet'];
+        selectIds.forEach(function(id) {
+            var sel = document.getElementById(id);
+            if (!sel) return;
+            while (sel.options.length > 1) sel.remove(1);
+            sorted.forEach(function(w) {
+                var opt = document.createElement('option');
+                opt.value = w.walletId || '';
+                var label = w.walletName || w.walletId || '';
+                if (w.walletType) label += ' - ' + w.walletType;
+                if (w.currency) label += ' - ' + w.currency;
+                opt.textContent = label;
+                sel.appendChild(opt);
+            });
+        });
+    }
+
+    function _buildCryptoTotals(totals, baseCurrency) {
+        var grid = document.getElementById('cryptoTotalsGrid');
+        var emptyMsg = document.getElementById('cryptoTotalsEmpty');
+        if (!grid) return;
+
+        if (!totals || !totals.length) {
+            grid.innerHTML = '';
+            if (emptyMsg) emptyMsg.style.display = '';
+            return;
         }
+        if (emptyMsg) emptyMsg.style.display = 'none';
 
+        var sorted = totals.slice().sort(function(a, b) {
+            return String(a.cryptoName || '').toLowerCase().localeCompare(String(b.cryptoName || '').toLowerCase());
+        });
+
+        grid.innerHTML = sorted.map(function(t) {
+            var badgeClass = 'pct-neutral';
+            if (t.price_pct > 0) badgeClass = 'pct-positive';
+            else if (t.price_pct < 0) badgeClass = 'pct-negative';
+            var cur = t.currency ? ' ' + _escapeHtml(t.currency) : '';
+            var changeAmt = Number(t.value_change_amount || 0);
+            var glClass = changeAmt >= 0 ? 'pct-positive' : 'pct-negative';
+            var glSign = changeAmt >= 0 ? '+' : '-';
+
+            return '<div class="totals-card">'
+                + '<div class="totals-header"><div><div style="font-size:1rem;font-weight:700">' + _escapeHtml(t.cryptoName) + '</div></div>'
+                + '<div class="pct-badge ' + badgeClass + '">' + _escapeHtml(t.price_pct_display || '') + '</div></div>'
+                + '<div class="totals-meta">'
+                + '<div class="totals-row"><span class="totals-label small-muted">Total Quantity:</span><span class="totals-value">' + _escapeHtml(t.total_qty_display || '') + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Total Value Now:</span><span class="totals-value">' + _escapeHtml(t.total_value_live_display || '') + cur + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Total Value Paid:</span><span class="totals-value">' + _escapeHtml(t.total_value_buy_display || '') + cur + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Unit price now:</span><span class="totals-value">' + _escapeHtml(t.latest_price_display || '') + cur + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Avg Buy Price:</span><span class="totals-value">' + _escapeHtml(t.avg_buy_price_display || '') + cur + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Fees paid:</span><span class="totals-value">' + _escapeHtml(t.total_fee_display || '') + cur + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Gain / Loss:</span><span class="totals-value" style="font-weight:bold;"><span class="' + glClass + '">' + glSign + _escapeHtml(t.value_change_amount_abs_display || '0') + '</span>' + cur + '</span></div>'
+                + '</div></div>';
+        }).join('');
+    }
+
+    function _buildCryptoWalletHoldings(walletHoldings, baseCurrency) {
+        var grid = document.getElementById('cryptoWalletsGrid');
+        var emptyMsg = document.getElementById('cryptoWalletsEmpty');
+        if (!grid) return;
+
+        var withHoldings = (walletHoldings || []).filter(function(w) { return w.holdings && w.holdings.length; });
+        if (!withHoldings.length) {
+            grid.innerHTML = '';
+            if (emptyMsg) emptyMsg.style.display = '';
+            return;
+        }
+        if (emptyMsg) emptyMsg.style.display = 'none';
+
+        var sorted = withHoldings.slice().sort(function(a, b) {
+            return String(a.walletName || '').toLowerCase().localeCompare(String(b.walletName || '').toLowerCase());
+        });
+
+        var bc = baseCurrency || 'EUR';
+        grid.innerHTML = sorted.map(function(w) {
+            var holdingsSorted = (w.holdings || []).slice().sort(function(a, b) {
+                return String(a.cryptoName || '').toLowerCase().localeCompare(String(b.cryptoName || '').toLowerCase());
+            });
+            return '<div class="totals-card">'
+                + '<div class="totals-header">'
+                + '<div class="crypto-wallets-header-title">' + _escapeHtml(w.walletName || w.walletId) + '</div>'
+                + '<div class="pct-badge pct-neutral crypto-wallets-total-badge">' + _escapeHtml(w.total_value_live_display || '0') + ' ' + _escapeHtml(bc) + '</div>'
+                + '</div>'
+                + '<div class="totals-meta crypto-wallets-list">'
+                + holdingsSorted.map(function(h) {
+                    return '<div class="crypto-wallets-row">'
+                        + '<div class="crypto-wallets-left">'
+                        + '<span class="crypto-wallets-symbol">' + _escapeHtml(h.cryptoName) + '</span>'
+                        + '<span class="crypto-wallets-qty small-muted">' + _escapeHtml(h.qty_display) + '</span>'
+                        + '</div>'
+                        + '<div class="crypto-wallets-right small-muted">' + _escapeHtml(h.value_live_display) + ' ' + _escapeHtml(bc) + '</div>'
+                        + '</div>';
+                }).join('')
+                + '</div></div>';
+        }).join('');
+    }
+
+    function _buildCryptoHistoryList(cryptos, wallets) {
+        var list = document.getElementById('cryptoList');
+        var emptyMsg = document.getElementById('cryptoListEmpty');
+        if (!list) return;
+
+        var walletNameById = {};
+        (wallets || []).forEach(function(w) {
+            if (w.walletId) walletNameById[w.walletId] = w.walletName || w.walletId;
+        });
+
+        if (!cryptos || !cryptos.length) {
+            list.innerHTML = '';
+            if (emptyMsg) emptyMsg.style.display = '';
+            return;
+        }
+        if (emptyMsg) emptyMsg.style.display = 'none';
+
+        list.innerHTML = cryptos.map(function(c) {
+            var op = String(c.operation || c.side || '').trim();
+            var note = String(c.note || '').trim();
+            var fromW = String(c.fromWallet || '').trim();
+            var toW = String(c.toWallet || '').trim();
+            var fromName = fromW ? (walletNameById[fromW] || fromW) : '';
+            var toName = toW ? (walletNameById[toW] || toW) : '';
+            var walletLine = '';
+            if (fromName && toName) walletLine = fromName + ' -> ' + toName;
+            else if (fromName || toName) walletLine = fromName || toName;
+            var isTransfer = op.toLowerCase() === 'transfer';
+
+            return '<li data-id="' + _escapeHtml(c.cryptoId || '') + '" data-tdate="' + _escapeHtml(c.tdate || '') + '" data-crypto="' + _escapeHtml(c.cryptoName || '') + '" data-operation="' + _escapeHtml(op) + '" data-qty="' + _escapeHtml(c.quantity || '') + '" data-fee="' + _escapeHtml(c.fee || 0) + '" data-note="' + _escapeHtml(note) + '" data-from="' + _escapeHtml(c.fromWallet || '') + '" data-to="' + _escapeHtml(c.toWallet || '') + '">'
+                + '<div class="crypto-history-row">'
+                + '<div class="crypto-history-left">'
+                + '<div class="crypto-history-title">' + _escapeHtml(c.cryptoName || '') + '</div>'
+                + '<div class="crypto-history-sub">' + _escapeHtml(op) + '</div>'
+                + (walletLine ? '<div class="crypto-history-sub">' + _escapeHtml(walletLine) + '</div>' : '')
+                + '</div>'
+                + '<div class="crypto-history-right">'
+                + '<div class="crypto-history-amount">' + _escapeHtml(c.quantity || '') + '</div>'
+                + (!isTransfer ? '<div class="crypto-history-sub">' + _escapeHtml(c.price || '') + (c.currency ? ' ' + _escapeHtml(c.currency) : '') + '</div>' : '')
+                + (note ? '<div class="crypto-history-sub">' + _escapeHtml(note) + '</div>' : '')
+                + '</div>'
+                + '<div class="crypto-history-actions">'
+                + '<button class="btn-insert" onclick="editCrypto(\'' + _escapeHtml(c.cryptoId || '') + '\',\'' + _escapeHtml(c.userId || '') + '\',\'' + _escapeHtml(c.cryptoName || '') + '\',\'' + _escapeHtml(c.tdate || '') + '\',\'' + _escapeHtml(c.fromWallet || '') + '\',\'' + _escapeHtml(c.toWallet || '') + '\',\'' + _escapeHtml(op) + '\',\'' + _escapeHtml(c.quantity || '') + '\',\'' + _escapeHtml(c.price || '') + '\',\'' + _escapeHtml(c.currency || '') + '\',\'' + _escapeHtml(c.fee || '') + '\',\'' + _escapeHtml(note) + '\')">Edit</button>'
+                + '</div>'
+                + '</div>'
+                + '</li>';
+        }).join('');
+
+        // Sort by date descending
+        var items = Array.from(list.querySelectorAll('li[data-tdate]'));
+        items.sort(function(a, b) {
+            var dateA = new Date(a.getAttribute('data-tdate') || 0);
+            var dateB = new Date(b.getAttribute('data-tdate') || 0);
+            return dateB - dateA;
+        });
+        items.forEach(function(item) { list.appendChild(item); });
+        if (typeof ensureCryptoGroupsBuilt === 'function') ensureCryptoGroupsBuilt(true);
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
         // initialize autocomplete with coins data passed from server (via data attribute)
         let coinsDataElem = document.getElementById('coins-data');
         let coinsList = [];
@@ -634,6 +781,57 @@
             if (fFrom) fFrom.addEventListener(evt, applyCryptoFilters);
             if (fTo) fTo.addEventListener(evt, applyCryptoFilters);
         });
+
+        // Fetch data async and populate page
+        fetch('/api/crypto-data')
+            .then(function(resp) {
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                return resp.json();
+            })
+            .then(function(data) {
+                var loadingEl = document.getElementById('cryptoDataLoading');
+                if (loadingEl) loadingEl.style.display = 'none';
+
+                // Inject coins for autocomplete
+                var coinsEl = document.getElementById('coins-data');
+                if (coinsEl && data.coins) {
+                    coinsEl.setAttribute('data-coins', JSON.stringify(data.coins));
+                    // Merge into existing coinsList used by autocomplete
+                    try {
+                        var newCoins = data.coins || [];
+                        for (var i = 0; i < newCoins.length; i++) {
+                            var nc = newCoins[i];
+                            var sym = String((nc && nc.symbol) || '').trim().toUpperCase();
+                            if (!sym) continue;
+                            var found = false;
+                            for (var j = 0; j < coinsList.length; j++) {
+                                if (String((coinsList[j] && coinsList[j].symbol) || '').trim().toUpperCase() === sym) { found = true; break; }
+                            }
+                            if (!found) coinsList.push(nc);
+                        }
+                    } catch(e) {}
+                }
+
+                // Populate wallet dropdowns
+                _populateCryptoWalletSelects(data.wallets || []);
+
+                // Build portfolio totals
+                _buildCryptoTotals(data.totals || [], data.baseCurrency || 'EUR');
+
+                // Build wallet holdings
+                _buildCryptoWalletHoldings(data.walletHoldings || [], data.baseCurrency || 'EUR');
+
+                // Build history list
+                _buildCryptoHistoryList(data.cryptos || [], data.wallets || []);
+
+                // Default to portfolio view
+                setCryptoNavVisibility('portfolio');
+            })
+            .catch(function(err) {
+                console.error('Crypto data fetch failed:', err);
+                var loadingEl = document.getElementById('cryptoDataLoading');
+                if (loadingEl) loadingEl.innerHTML = '<div class="small-muted">Failed to load crypto data</div>';
+            });
     });
 
     // Minimal vanilla JS autocomplete
@@ -1000,97 +1198,18 @@
 
 
 <div id="panel" class="panel" style="padding:12px;margin-bottom:12px;">
-    <!-- <h2 class="page-title">Totals by Crypto</h2> -->
-    {% if totals and totals|length > 0 %}
-        <div class="totals-grid">
-            {% for t in totals|sort(attribute='cryptoName', case_sensitive=false) %}
-            <div class="totals-card">
-                <div class="totals-header">
-                    <div>
-                        <div style="font-size:1rem;font-weight:700">{{ t.cryptoName }}</div>
-                    </div>
-                    {% set badge_class = 'pct-neutral' %}
-                    {% if t.price_pct is defined and t.price_pct > 0 %}
-                        {% set badge_class = 'pct-positive' %}
-                    {% elif t.price_pct is defined and t.price_pct < 0 %}
-                        {% set badge_class = 'pct-negative' %}
-                    {% endif %}
-                    <div class="pct-badge {{ badge_class }}">{{ t.price_pct_display }}</div>
-                </div>
-
-                <div class="totals-meta">
-                    <div class="totals-row">
-                        <span class="totals-label small-muted">Total Quantity:</span>
-                        <span class="totals-value">{{ t.total_qty_display }}</span>
-                    </div>
-                    <div class="totals-row">
-                        <span class="totals-label small-muted">Total Value Now:</span>
-                        <span class="totals-value">{{ t.total_value_live_display }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
-                    </div>
-                    <div class="totals-row">
-                        <span class="totals-label small-muted">Total Value Paid:</span>
-                        <span class="totals-value">{{ t.total_value_buy_display }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
-                    </div>
-                    <div class="totals-row">
-                        <span class="totals-label small-muted">Unit price now:</span>
-                        <span class="totals-value">{{ t.latest_price_display }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
-                    </div>
-                    <div class="totals-row">
-                        <span class="totals-label small-muted">Avg Buy Price:</span>
-                        <span class="totals-value">{{ t.avg_buy_price_display }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
-                    </div>
-                    <div class="totals-row">
-                        <span class="totals-label small-muted">Fees paid:</span>
-                        <span class="totals-value">{{ t.total_fee_display }}{% if t.currency %} {{ t.currency }}{% endif %}</span>
-                    </div>
-                    <div class="totals-row">
-                        <span class="totals-label small-muted">Gain / Loss:</span>
-                        <span class="totals-value" style="font-weight: bold;">
-                            {% if t.value_change_amount >= 0 %}
-                                <span class="pct-positive">+{{ t.value_change_amount_abs_display }}</span>{% if t.currency %} {{ t.currency }}{% endif %}
-                            {% else %}
-                                <span class="pct-negative">-{{ t.value_change_amount_abs_display }}</span>{% if t.currency %} {{ t.currency }}{% endif %}
-                            {% endif %}
-                        </span>
-                    </div>
-                    <!-- <div><span class="small-muted">Gain / Loss (%%):</span> {{ t.value_pct_display }}</div> -->
-                </div>
-            </div>
-            {% endfor %}
+    <div id="cryptoDataLoading" style="display:flex;align-items:center;justify-content:center;min-height:120px;">
+        <div class="spinner-border text-secondary" role="status" style="width:2rem;height:2rem;">
+            <span class="visually-hidden">Loading...</span>
         </div>
-    {% else %}
-        <p>No crypto transactions to summarize.</p>
-    {% endif %}
+    </div>
+    <div id="cryptoTotalsGrid" class="totals-grid"></div>
+    <p id="cryptoTotalsEmpty" style="display:none;">No crypto transactions to summarize.</p>
 </div>
 
 <div id="cryptoWalletsPanel" class="panel crypto-wallets-panel" style="display:none;">
-    {% set walletsWithHoldings = (walletHoldings|selectattr('holdings')|list) if walletHoldings else [] %}
-    {% if walletsWithHoldings and walletsWithHoldings|length > 0 %}
-        <div class="totals-grid">
-            {% for w in walletsWithHoldings|sort(attribute='walletName', case_sensitive=false) %}
-                <div class="totals-card">
-                    <div class="totals-header">
-                        <div class="crypto-wallets-header-title">{{ w.walletName|default(w.walletId) }}</div>
-                        <div class="pct-badge pct-neutral crypto-wallets-total-badge">{{ w.total_value_live_display|default('0') }} {{ baseCurrency|default('EUR') }}</div>
-                    </div>
-
-                    <div class="totals-meta crypto-wallets-list">
-                        {% for h in w.holdings|sort(attribute='cryptoName', case_sensitive=false) %}
-                            <div class="crypto-wallets-row">
-                                <div class="crypto-wallets-left">
-                                    <span class="crypto-wallets-symbol">{{ h.cryptoName }}</span>
-                                    <span class="crypto-wallets-qty small-muted">{{ h.qty_display }}</span>
-                                </div>
-                                <div class="crypto-wallets-right small-muted">{{ h.value_live_display }} {{ baseCurrency|default('EUR') }}</div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="small-muted">No wallets with current holdings.</div>
-    {% endif %}
+    <div id="cryptoWalletsGrid" class="totals-grid"></div>
+    <div id="cryptoWalletsEmpty" class="small-muted" style="display:none;">No wallets with current holdings.</div>
 </div>
 
 
@@ -1125,21 +1244,13 @@
             <div>
                 <label for="fromWallet">From Wallet:</label>
                 <select name="fromWallet" id="fromWallet">
-                    <option value="">-- Select Wallet --</option> 
-                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
-                    {% endfor %}
+                    <option value="">-- Select Wallet --</option>
                 </select>
             </div>
             <div>
-                <!-- <label for="toWallet">To Wallet:</label>
-                <input type="text" name="toWallet" required> -->
                 <label for="toWallet">To Wallet:</label>
                 <select name="toWallet" id="toWallet" required>
-                    <option value="">-- Select Wallet --</option> 
-                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
-                    {% endfor %}
+                    <option value="">-- Select Wallet --</option>
                 </select>
             </div>
             <div>
@@ -1204,18 +1315,12 @@
                 <label for="filterFromWallet">From Wallet:</label>
                 <select id="filterFromWallet" name="fromWallet">
                     <option value="">-- Any --</option>
-                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
-                    {% endfor %}
                 </select>
             </div>
             <div>
                 <label for="filterToWallet">To Wallet:</label>
                 <select id="filterToWallet" name="toWallet">
                     <option value="">-- Any --</option>
-                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
-                    {% endfor %}
                 </select>
             </div>
             <div class="filters-actions">
@@ -1229,56 +1334,9 @@
             <button id="cryptoNextPage" type="button" class="btn-clear" onclick="cryptoGoToNextPage()">Next</button>
         </div>
     </div>
-{% if cryptos %}
-{% set walletNameById = {} %}
-{% for w in wallets %}
-    {% if w['walletId'] is defined %}
-        {% set _ = walletNameById.update({ w['walletId']: (w['walletName']|default(w['walletId'])) }) %}
-    {% endif %}
-{% endfor %}
-<ul id="cryptoList">
-    {% for crypto in cryptos %}
-    <li data-id="{{ crypto.cryptoId }}" data-tdate="{{ crypto.tdate }}" data-crypto="{{ crypto.cryptoName }}" data-operation="{{ crypto.operation|default(crypto.side) }}" data-qty="{{ crypto.quantity }}" data-fee="{{ crypto.fee|default(0, true) }}" data-note="{{ crypto.note|default('') }}" data-from="{{ crypto.fromWallet }}" data-to="{{ crypto.toWallet }}">
-        <div class="crypto-history-row">
-            <div class="crypto-history-left">
-                <div class="crypto-history-title">{{ crypto.cryptoName }}</div>
-                <div class="crypto-history-sub">{{ crypto.operation|default(crypto.side) }}</div>
-                {% set _from = crypto.fromWallet|default('', true) %}
-                {% set _to = crypto.toWallet|default('', true) %}
-                {% set fromName = walletNameById.get(_from, _from) %}
-                {% set toName = walletNameById.get(_to, _to) %}
-                {% if fromName or toName %}
-                <div class="crypto-history-sub">{% if fromName and toName %}{{ fromName }} -> {{ toName }}{% else %}{{ fromName or toName }}{% endif %}</div>
-                {% endif %}
-            </div>
-
-            <div class="crypto-history-right">
-                <div class="crypto-history-amount">{{ crypto.quantity }}</div>
-                {% set _op = (crypto.operation|default(crypto.side)) %}
-                {% if (_op|string)|lower != 'transfer' %}
-                    <div class="crypto-history-sub">
-                        {{ crypto.price }}{% if crypto.currency %} {{ crypto.currency }}{% endif %}
-                    </div>
-                {% endif %}
-                {% if crypto.note %}
-                <div class="crypto-history-sub">{{ crypto.note }}</div>
-                {% endif %}
-            </div>
-
-            <div class="crypto-history-actions">
-                <button class="btn-insert" onclick="editCrypto('{{ crypto.cryptoId }}','{{ crypto.userId }}','{{ crypto.cryptoName }}','{{ crypto.tdate }}','{{ crypto.fromWallet }}',
-                '{{ crypto.toWallet }}','{{ crypto.operation|default(crypto.side) }}','{{ crypto.quantity }}','{{ crypto.price }}','{{ crypto.currency }}','{{ crypto.fee }}','{{ crypto.note }}')">Edit</button>
-            </div>
-        </div>
-    </li>
-    {% endfor %}
-</ul>
-
+<ul id="cryptoList"></ul>
+<p id="cryptoListEmpty" style="display:none;">No Cryptos found.</p>
 </div>
-
-{% else %}
-<p>No Cryptos found.</p>
-{% endif %}
 
 <div id="updateCryptoDiv" class="block-update" style="display: none;">
     <h2 class="center-text" style="display:none;">Update Crypto Transaction</h2>
@@ -1314,18 +1372,12 @@
                 <label for="updateFromWallet">From Wallet:</label>
                 <select name="fromWallet" id="updateFromWallet">
                     <option value="">-- Select Wallet --</option>
-                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
-                    {% endfor %}
                 </select>
             </div>
             <div>
                 <label for="updateToWallet">To Wallet:</label>
                 <select name="toWallet" id="updateToWallet" required>
                     <option value="">-- Select Wallet --</option>
-                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
-                    {% endfor %}
                 </select>
             </div>
             <div>

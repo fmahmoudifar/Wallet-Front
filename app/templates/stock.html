@@ -5,9 +5,9 @@
 
 {% block content %}
 
-<!-- stocks data provided to JS via data attribute to avoid inline template tags in scripts -->
-<div id="stocks-data" style="display:none" data-stocks='{{ stocks|tojson | safe }}'></div>
-<div id="stock-wallets-data" style="display:none" data-wallets='{{ wallets|tojson | safe }}'></div>
+<!-- Data containers populated via fetch -->
+<div id="stocks-data" style="display:none" data-stocks='[]'></div>
+<div id="stock-wallets-data" style="display:none" data-wallets='[]'></div>
 <input type="hidden" id="stockBaseCurrency" value="{{ base_currency|default('EUR') }}">
 
 <script>
@@ -1063,38 +1063,148 @@
         applyStockFilters();
     }
 
-document.addEventListener("DOMContentLoaded", function() {
-    let list = document.getElementById("stockList");
-    if (list) {
-        let items = Array.from(list.querySelectorAll('li[data-tdate]'));
+    function _populateWalletSelects(wallets) {
+        const sorted = (wallets || []).slice().sort(function(a, b) {
+            return String(a.walletName || '').localeCompare(String(b.walletName || ''));
+        });
+        const selectIds = ['fromWallet','toWallet','updateFromWallet','updateToWallet','stockFilterFromWallet','stockFilterToWallet'];
+        selectIds.forEach(function(id) {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            // Keep the first option (placeholder)
+            while (sel.options.length > 1) sel.remove(1);
+            sorted.forEach(function(w) {
+                var opt = document.createElement('option');
+                opt.value = w.walletId || '';
+                var label = w.walletName || w.walletId || '';
+                if (w.walletType) label += ' - ' + w.walletType;
+                if (w.currency) label += ' - ' + w.currency;
+                opt.textContent = label;
+                sel.appendChild(opt);
+            });
+        });
+    }
 
-        items.sort((a, b) => {
-            let dateA = parseTxDate(a.getAttribute("data-tdate")) || new Date(0);
-            let dateB = parseTxDate(b.getAttribute("data-tdate")) || new Date(0);
-            return dateB - dateA;  // Sort descending
+    function _buildStockHistoryList(stocks, wallets) {
+        var list = document.getElementById('stockList');
+        var emptyMsg = document.getElementById('stockListEmpty');
+        if (!list) return;
+
+        var walletNameById = {};
+        (wallets || []).forEach(function(w) {
+            if (w.walletId) walletNameById[w.walletId] = w.walletName || w.walletId;
         });
 
-        items.forEach(item => list.appendChild(item));
+        if (!stocks || !stocks.length) {
+            list.innerHTML = '';
+            if (emptyMsg) emptyMsg.style.display = '';
+            return;
+        }
+        if (emptyMsg) emptyMsg.style.display = 'none';
+
+        list.innerHTML = stocks.map(function(s) {
+            var op = String(s.operation || s.side || '').trim();
+            if (op === 'None') op = '';
+            var note = String(s.note || '').trim();
+            if (note === 'None') note = '';
+            var fromW = String(s.fromWallet || '').trim();
+            if (fromW === 'None') fromW = '';
+            var toW = String(s.toWallet || '').trim();
+            if (toW === 'None') toW = '';
+            var fromName = fromW ? (walletNameById[fromW] || fromW) : '';
+            var toName = toW ? (walletNameById[toW] || toW) : '';
+            var walletLine = '';
+            if (fromName && toName) walletLine = fromName + ' - ' + toName;
+            else if (fromName || toName) walletLine = fromName || toName;
+
+            return '<li data-id="' + escapeHtml(s.stockId || '') + '" data-userid="' + escapeHtml(s.userId || '') + '" data-tdate="' + escapeHtml(s.tdate || '') + '" data-stock="' + escapeHtml(s.stockName || '') + '" data-operation="' + escapeHtml(op) + '" data-qty="' + escapeHtml(s.quantity || '') + '" data-price="' + escapeHtml(s.price || '') + '" data-currency="' + escapeHtml(s.currency || '') + '" data-fee="' + escapeHtml(s.fee || 0) + '" data-note="' + escapeHtml(note) + '" data-from="' + escapeHtml(s.fromWallet || '') + '" data-to="' + escapeHtml(s.toWallet || '') + '">'
+                + '<div class="crypto-history-row">'
+                + '<div class="crypto-history-left">'
+                + '<div class="crypto-history-title">' + escapeHtml(s.stockName || '') + '</div>'
+                + (op ? '<div class="crypto-history-sub">' + escapeHtml(op) + '</div>' : '')
+                + (walletLine ? '<div class="crypto-history-sub">' + escapeHtml(walletLine) + '</div>' : '')
+                + '</div>'
+                + '<div class="crypto-history-right">'
+                + '<div class="crypto-history-amount">' + escapeHtml(s.quantity || '') + '</div>'
+                + '<div class="crypto-history-sub">' + escapeHtml(s.price || '') + (s.currency ? ' ' + escapeHtml(s.currency) : '') + '</div>'
+                + (note ? '<div class="crypto-history-sub">' + escapeHtml(note) + '</div>' : '')
+                + '</div>'
+                + '<div class="crypto-history-actions">'
+                + '<button class="btn-insert" type="button" onclick="editStockFromRow(this)">Edit</button>'
+                + '</div>'
+                + '</div>'
+                + '</li>';
+        }).join('');
+
+        // Sort by date descending
+        var items = Array.from(list.querySelectorAll('li[data-tdate]'));
+        items.sort(function(a, b) {
+            var dateA = parseTxDate(a.getAttribute('data-tdate')) || new Date(0);
+            var dateB = parseTxDate(b.getAttribute('data-tdate')) || new Date(0);
+            return dateB - dateA;
+        });
+        items.forEach(function(item) { list.appendChild(item); });
         ensureStockGroupsBuilt(true);
     }
 
-    // Default view: Portfolio.
-    showStockPortfolio();
-
+document.addEventListener("DOMContentLoaded", function() {
     initStockAutocomplete('stockSearch', 'stockSearchList', 'stockName', { priceId: 'stockPrice', currencyId: 'stockCurrency' });
     initStockAutocomplete('updateStockSearch', 'updateStockSearchList', 'updateStockName', { priceId: 'updatePrice', currencyId: 'updateCurrency' });
 
-    // Wire filter events (if filters exist)
-    ['stockFilterStart','stockFilterEnd','stockFilterSymbol','stockFilterNote','stockFilterFromWallet','stockFilterToWallet'].forEach(id => {
-        const el = document.getElementById(id);
+    // Wire filter events
+    ['stockFilterStart','stockFilterEnd','stockFilterSymbol','stockFilterNote','stockFilterFromWallet','stockFilterToWallet'].forEach(function(id) {
+        var el = document.getElementById(id);
         if (!el) return;
-        ['input','change'].forEach(evt => {
+        ['input','change'].forEach(function(evt) {
             el.addEventListener(evt, function () {
                 window.stockCurrentPage = 1;
                 applyStockFilters();
             });
         });
     });
+
+    // Fetch data async and populate page
+    fetch('/api/stock-data')
+        .then(function(resp) {
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            return resp.json();
+        })
+        .then(function(data) {
+            var loadingEl = document.getElementById('stockDataLoading');
+            if (loadingEl) loadingEl.style.display = 'none';
+
+            // Inject into data containers for existing JS (getStocksData/getStockWalletsData)
+            var stocksEl = document.getElementById('stocks-data');
+            var walletsEl = document.getElementById('stock-wallets-data');
+            if (stocksEl) stocksEl.setAttribute('data-stocks', JSON.stringify(data.stocks || []));
+            if (walletsEl) walletsEl.setAttribute('data-wallets', JSON.stringify(data.wallets || []));
+
+            var bcEl = document.getElementById('stockBaseCurrency');
+            if (bcEl && data.base_currency) bcEl.value = data.base_currency;
+
+            // FX warning
+            if (data.fx_warning) {
+                var fxEl = document.getElementById('stockFxWarning');
+                if (fxEl) {
+                    fxEl.textContent = 'Some transactions could not be converted to ' + (data.base_currency || 'EUR') + ' (FX unavailable). Portfolio values may be approximate.';
+                    fxEl.style.display = '';
+                }
+            }
+
+            // Populate wallet dropdowns
+            _populateWalletSelects(data.wallets || []);
+
+            // Build history list
+            _buildStockHistoryList(data.stocks || [], data.wallets || []);
+
+            // Show portfolio view
+            showStockPortfolio();
+        })
+        .catch(function(err) {
+            console.error('Stock data fetch failed:', err);
+            var loadingEl = document.getElementById('stockDataLoading');
+            if (loadingEl) loadingEl.innerHTML = '<div class="small-muted">Failed to load stock data</div>';
+        });
 });
 
 // Keep these names for menu/sidebar compatibility.
@@ -1129,12 +1239,13 @@ function stockWalletsDiv() { showStockWallets(); }
 
 
 <div id="stockPanel" class="panel" style="padding:12px;margin-bottom:12px;">
-    <div id="stockPortfolioEmpty" style="display:none;">No stock transactions to summarize.</div>
-    {% if fx_warning %}
-    <div class="small-muted" style="margin-bottom:8px;">
-        Some transactions could not be converted to {{ base_currency|default('EUR') }} (FX unavailable). Portfolio values may be approximate.
+    <div id="stockDataLoading" style="display:flex;align-items:center;justify-content:center;min-height:120px;">
+        <div class="spinner-border text-secondary" role="status" style="width:2rem;height:2rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
     </div>
-    {% endif %}
+    <div id="stockPortfolioEmpty" style="display:none;">No stock transactions to summarize.</div>
+    <div id="stockFxWarning" class="small-muted" style="display:none;margin-bottom:8px;"></div>
     <div id="stockPortfolioCards" class="totals-grid"></div>
 </div>
 
@@ -1162,18 +1273,12 @@ function stockWalletsDiv() { showStockWallets(); }
         <label for="fromWallet">From Wallet:</label>
         <select name="fromWallet" id="fromWallet" >
             <option value="">-- Select Wallet --</option>
-            {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-            <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
-            {% endfor %}
         </select>
         </div>
         <div>
         <label for="toWallet">To Wallet:</label>
         <select name="toWallet" id="toWallet" required>
             <option value="">-- Select Wallet --</option>
-            {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-            <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
-            {% endfor %}
         </select>
         </div>
         <div>
@@ -1251,18 +1356,12 @@ function stockWalletsDiv() { showStockWallets(); }
                 <label for="stockFilterFromWallet">From Wallet:</label>
                 <select id="stockFilterFromWallet" name="fromWallet">
                     <option value="">All</option>
-                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
-                    {% endfor %}
                 </select>
             </div>
             <div>
                 <label for="stockFilterToWallet">To Wallet:</label>
                 <select id="stockFilterToWallet" name="toWallet">
                     <option value="">All</option>
-                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
-                    {% endfor %}
                 </select>
             </div>
             <div class="filters-actions">
@@ -1276,56 +1375,9 @@ function stockWalletsDiv() { showStockWallets(); }
             <button id="stockNextPage" type="button" class="btn-clear" onclick="stockGoToNextPage()">Next</button>
         </div>
     </div>
-{% if stocks %}
-{% set walletNameById = {} %}
-{% for w in wallets %}
-    {% if w['walletId'] is defined %}
-        {% set _ = walletNameById.update({ w['walletId']: (w['walletName']|default(w['walletId'])) }) %}
-    {% endif %}
-{% endfor %}
-<ul id="stockList">
-    {% for stock in stocks %}
-    {% set _op = stock.operation|default(stock.side, true)|default('', true) %}
-    {% set _note = stock.note|default('', true) %}
-    <li data-id="{{ stock.stockId }}" data-userid="{{ stock.userId }}" data-tdate="{{ stock.tdate }}" data-stock="{{ stock.stockName }}" data-operation="{{ '' if _op == 'None' else _op }}" data-qty="{{ stock.quantity }}" data-price="{{ stock.price }}" data-currency="{{ stock.currency }}" data-fee="{{ stock.fee|default(0, true) }}" data-note="{{ '' if _note == 'None' else _note }}" data-from="{{ stock.fromWallet }}" data-to="{{ stock.toWallet }}">
-        <div class="crypto-history-row">
-            <div class="crypto-history-left">
-                <div class="crypto-history-title">{{ stock.stockName }}</div>
-                {% if _op and _op != 'None' %}
-                <div class="crypto-history-sub">{{ _op }}</div>
-                {% endif %}
-                {% set _from = '' if (stock.fromWallet|default('', true)) == 'None' else (stock.fromWallet|default('', true)) %}
-                {% set _to = '' if (stock.toWallet|default('', true)) == 'None' else (stock.toWallet|default('', true)) %}
-                {% set fromName = walletNameById.get(_from, _from) %}
-                {% set toName = walletNameById.get(_to, _to) %}
-                {% if fromName or toName %}
-                <div class="crypto-history-sub">{% if fromName and toName %}{{ fromName }} - {{ toName }}{% else %}{{ fromName or toName }}{% endif %}</div>
-                {% endif %}
-            </div>
-
-            <div class="crypto-history-right">
-                <div class="crypto-history-amount">{{ stock.quantity }}</div>
-                <div class="crypto-history-sub">
-                    {{ stock.price }}{% if stock.currency %} {{ stock.currency }}{% endif %}
-                </div>
-                {% if _note and _note != 'None' %}
-                <div class="crypto-history-sub">{{ _note }}</div>
-                {% endif %}
-            </div>
-
-            <div class="crypto-history-actions">
-                <button class="btn-insert" type="button" onclick="editStockFromRow(this)">Edit</button>
-            </div>
-        </div>
-    </li>
-    {% endfor %}
-</ul>
-
+<ul id="stockList"></ul>
+<p id="stockListEmpty" style="display:none;">No stocks found.</p>
 </div>
-
-{% else %}
-<p>No stocks found.</p>
-{% endif %}
 
 <div id="updateStockDiv" class="block-update" style="display: none;">
     <!-- <h2 class="center-text">Update Stock Transaction</h2> -->
@@ -1347,18 +1399,12 @@ function stockWalletsDiv() { showStockWallets(); }
                 <label>From Wallet:</label>
                 <select id="updateFromWallet" name="fromWallet">
                     <option value="">-- Select Wallet --</option>
-                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
-                    {% endfor %}
                 </select>
             </div>
             <div>
                 <label>To Wallet:</label>
                 <select id="updateToWallet" name="toWallet" required>
                     <option value="">-- Select Wallet --</option>
-                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
-                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
-                    {% endfor %}
                 </select>
             </div>
             <div>

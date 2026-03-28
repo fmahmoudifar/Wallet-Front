@@ -1,5 +1,6 @@
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from decimal import Decimal
 
@@ -478,60 +479,72 @@ def stock_page():
     user = session.get("user")
     if user:
         userId = user.get("username")
-
         base_currency = _get_user_base_currency(userId)
-        fx_warning = False
-        try:
-            # Assuming your API accepts a username filter as a query parameter
-            response = requests.get(f"{API_URL}/stocks", params={"userId": userId}, auth=aws_auth)
-            stocks = response.json().get("stocks", []) if response.status_code == 200 else []
-            stocks = filter_records_by_user(stocks, userId)
-        except Exception as e:
-            print(f"Error fetching stocks: {e}")
-            stocks = []
-
-        # Convert transaction price/fee/value into website/base currency for portfolio display.
-        for s in stocks:
-            try:
-                tx_ccy_raw = _normalize_currency(s.get("currency"), base_currency)
-                qty = _to_decimal(s.get("quantity", 0))
-                price_raw = _to_decimal(s.get("price", 0))
-                fee_raw = _to_decimal(s.get("fee", 0))
-
-                price_major, tx_ccy = _scale_minor_currency(price_raw, tx_ccy_raw)
-                fee_major, _ = _scale_minor_currency(fee_raw, tx_ccy_raw)
-
-                # Only convert when tx currency differs.
-                fx = _get_fx_rate(tx_ccy, base_currency)
-
-                s["currencyBase"] = base_currency
-                s["priceBase"] = float(price_major * fx)
-                s["feeBase"] = float(fee_major * fx)
-                s["valuePaidBase"] = float(((qty * price_major) + fee_major) * fx)
-                s["baseCurrency"] = base_currency
-            except Exception:
-                # If FX fails, leave base fields absent and let UI fall back to original.
-                fx_warning = True
-
-        # --- Fetch Wallets (for From/To dropdowns) ---
-        try:
-            response = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
-            wallets = response.json().get("wallets", []) if response.status_code == 200 else []
-            wallets = filter_records_by_user(wallets, userId)
-        except Exception as e:
-            print(f"Error fetching wallets: {e}")
-            wallets = []
-
-        return render_template(
-            "stock.html",
-            stocks=stocks,
-            wallets=wallets,
-            userId=userId,
-            base_currency=base_currency,
-            fx_warning=fx_warning,
-        )
+        return render_template("stock.html", base_currency=base_currency, userId=userId)
     else:
         return render_template("home.html")
+
+
+@stock_bp.route("/api/stock-data", methods=["GET"])
+def stock_data():
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    userId = user.get("username")
+    base_currency = _get_user_base_currency(userId)
+    fx_warning = False
+
+    stocks = []
+    wallets = []
+
+    def _fetch_stocks():
+        resp = requests.get(f"{API_URL}/stocks", params={"userId": userId}, auth=aws_auth)
+        items = resp.json().get("stocks", []) if resp.status_code == 200 else []
+        return filter_records_by_user(items, userId)
+
+    def _fetch_wallets():
+        resp = requests.get(f"{API_URL}/wallets", params={"userId": userId}, auth=aws_auth)
+        items = resp.json().get("wallets", []) if resp.status_code == 200 else []
+        return filter_records_by_user(items, userId)
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            fut_s = ex.submit(_fetch_stocks)
+            fut_w = ex.submit(_fetch_wallets)
+            stocks = fut_s.result()
+            wallets = fut_w.result()
+    except Exception as e:
+        print(f"Error fetching stocks/wallets: {e}")
+
+    # Convert transaction price/fee/value into website/base currency for portfolio display.
+    for s in stocks:
+        try:
+            tx_ccy_raw = _normalize_currency(s.get("currency"), base_currency)
+            qty = _to_decimal(s.get("quantity", 0))
+            price_raw = _to_decimal(s.get("price", 0))
+            fee_raw = _to_decimal(s.get("fee", 0))
+
+            price_major, tx_ccy = _scale_minor_currency(price_raw, tx_ccy_raw)
+            fee_major, _ = _scale_minor_currency(fee_raw, tx_ccy_raw)
+
+            fx = _get_fx_rate(tx_ccy, base_currency)
+
+            s["currencyBase"] = base_currency
+            s["priceBase"] = float(price_major * fx)
+            s["feeBase"] = float(fee_major * fx)
+            s["valuePaidBase"] = float(((qty * price_major) + fee_major) * fx)
+            s["baseCurrency"] = base_currency
+        except Exception:
+            fx_warning = True
+
+    return jsonify({
+        "stocks": stocks,
+        "wallets": wallets,
+        "base_currency": base_currency,
+        "fx_warning": fx_warning,
+        "userId": userId,
+    })
 
 
 # @stock_bp.route('/stock', methods=['GET'])
