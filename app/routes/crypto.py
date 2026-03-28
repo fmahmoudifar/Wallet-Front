@@ -452,6 +452,50 @@ def crypto_page():
         return render_template("home.html")
 
 
+@crypto_bp.route("/crypto/quote", methods=["GET"])
+def crypto_quote():
+    """Per-symbol live price endpoint (called client-side to hydrate portfolio cards)."""
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    symbol = (request.args.get("symbol") or "").strip()
+    if not symbol:
+        return jsonify({"error": "Missing symbol"}), 400
+
+    user_id = user.get("username")
+    base_currency = _get_user_base_currency(user_id)
+
+    try:
+        # Try symbol as-is, then first part of "SYMBOL - Name"
+        q1 = symbol
+        q2 = ""
+        if " - " in symbol:
+            q1 = symbol.split(" - ", 1)[0].strip()
+            q2 = symbol.split(" - ", 1)[1].strip()
+
+        price_usd = _best_price_usd(q1)
+        if (not price_usd or price_usd == 0) and q2:
+            price_usd = _best_price_usd(q2)
+        if not price_usd or price_usd == 0:
+            price_usd = _best_price_usd(symbol)
+
+        if not price_usd or price_usd == 0:
+            return jsonify({"symbol": symbol, "price": None, "currency": base_currency})
+
+        usd_to_base = _get_fx_rate("USD", base_currency)
+        price_base = float(price_usd * usd_to_base)
+
+        return jsonify({
+            "symbol": symbol,
+            "price": price_base,
+            "currency": base_currency,
+        })
+    except Exception as e:
+        print(f"Error in crypto quote for {symbol}: {e}")
+        return jsonify({"symbol": symbol, "price": None, "currency": base_currency})
+
+
 @crypto_bp.route("/api/crypto-data", methods=["GET"])
 def crypto_data():
     user = session.get("user")
@@ -827,105 +871,31 @@ def crypto_data():
     except Exception as e:
         print(f"Error computing crypto totals: {e}")
 
-    # --- Compute live prices from DexScreener and attach live totals ---
-    try:
-        # Convert USD prices into the user's base currency (fiat).
-        # If base currency conversion fails, fall back to USD.
-        price_currency = base_currency
-        usd_to_base = Decimal(1)
+    # --- Set placeholder values for live price fields (prices fetched client-side) ---
+    for name_key, v in totals_map.items():
+        v["latest_price"] = None
+        v["currency"] = base_currency
+        v["total_value_live"] = None
+        v["value_change_amount"] = None
+
+        # compute weighted average buy price from current cost basis
         try:
-            usd_to_base = _get_fx_rate("USD", price_currency)
-        except Exception:
-            price_currency = "USD"
-            usd_to_base = Decimal(1)
-
-        # --- Parallel price lookups ---
-        def _resolve_price(name_key):
-            v = totals_map[name_key]
-            raw_name = v.get("cryptoName") or ""
-            q1 = raw_name
-            if " - " in str(raw_name):
-                q1 = str(raw_name).split(" - ", 1)[0].strip()
-            q2 = str(raw_name).split(" - ", 1)[1].strip() if " - " in str(raw_name) else ""
-
-            price_usd = _best_price_usd(q1)
-            if (not price_usd or price_usd == 0) and q2:
-                price_usd = _best_price_usd(q2)
-            if not price_usd or price_usd == 0:
-                price_usd = _best_price_usd(str(raw_name).strip())
-            return name_key, price_usd
-
-        price_results = {}
-        with ThreadPoolExecutor(max_workers=10) as price_ex:
-            futs = {price_ex.submit(_resolve_price, k): k for k in totals_map}
-            for fut in as_completed(futs):
-                try:
-                    k, p = fut.result()
-                    price_results[k] = p
-                except Exception:
-                    price_results[futs[fut]] = Decimal(0)
-
-        for name_key, v in totals_map.items():
-            price_usd = price_results.get(name_key, Decimal(0))
-
-            v["latest_price"] = (price_usd * usd_to_base) if (price_currency != "USD") else price_usd
-            v["currency"] = price_currency
-
-            # compute live total value based on latest price
-            v["total_value_live"] = v["total_qty"] * (v["latest_price"] or Decimal(0))
-
-            # compute weighted average buy price from current cost basis
-            try:
-                if v["total_qty"] and v["total_qty"] > 0:
-                    # Use current cost basis divided by current quantity
-                    v["avg_buy_price"] = v["total_cost"] / v["total_qty"]
-                else:
-                    v["avg_buy_price"] = Decimal(0)
-            except Exception:
+            if v["total_qty"] and v["total_qty"] > 0:
+                v["avg_buy_price"] = v["total_cost"] / v["total_qty"]
+            else:
                 v["avg_buy_price"] = Decimal(0)
+        except Exception:
+            v["avg_buy_price"] = Decimal(0)
 
-            # We no longer compute a combined average; downstream template will show:
-            # - 'latest_price' as the unit price now
-            # - 'total_value_live' as the total value now (qty * latest_price)
-            # Compute gain/loss: (Current Value + Revenue from Sales) - Total Investment
-            # For accurate P&L calculation across all scenarios (holding, sold, oversold)
-            try:
-                total_revenue = v.get("total_value_sell", Decimal(0))
-                total_investment = v.get("total_value_buy", Decimal(0))
-                current_market_value = v["total_value_live"]
-
-                # Total current worth = market value of holdings + cash received from sales
-                total_current_worth = current_market_value + total_revenue
-
-                # Gain/Loss = What we have now - What we invested
-                v["value_change_amount"] = total_current_worth - total_investment
-            except Exception:
-                v["value_change_amount"] = Decimal(0)
-    except Exception as e:
-        print(f"Error computing live prices: {e}")
-
-    # --- Compute holdings by wallet (qty + live value) ---
+    # --- Compute holdings by wallet (quantities only; live values hydrated client-side) ---
     wallet_holdings = []
     try:
-        # Map SYMBOL -> latest unit price in base currency (DexScreener USD price converted to base)
-        latest_price_by_symbol = {}
-        try:
-            for v in totals_map.values():
-                raw_name = v.get("cryptoName") or ""
-                sym = str(raw_name).split(" - ", 1)[0].strip().upper() if raw_name else ""
-                if sym:
-                    latest_price_by_symbol[sym] = v.get("latest_price") or Decimal(0)
-        except Exception:
-            latest_price_by_symbol = {}
-
-        # Wallet id -> wallet name
         wallet_name_by_id = {}
         for w in wallets or []:
             wid = (w.get("walletId") or "").strip()
             if wid:
                 wallet_name_by_id[wid] = w.get("walletName") or wid
 
-        # Build an ordered list of wallets so UI is stable
         ordered_wallet_ids = [w.get("walletId") for w in (wallets or []) if w.get("walletId")]
         for wid in ordered_wallet_ids:
             if wallet_ids_seen and wid not in wallet_ids_seen:
@@ -937,36 +907,26 @@ def crypto_data():
                     q = qty or Decimal(0)
                     if q == 0:
                         continue
-                    # cname is a normalized symbol key
-                    p = latest_price_by_symbol.get(str(cname).upper(), Decimal(0)) or Decimal(0)
-                    live_val = q * p
                     holdings_rows.append(
                         {
                             "cryptoName": cname,
                             "qty": float(q),
                             "qty_display": _format_number_trim(q, 8),
-                            "value_live": float(live_val),
-                            "value_live_display": _format_number_trim(live_val, 2),
+                            "value_live": None,
+                            "value_live_display": "\u2014",
                         }
                     )
                 except Exception:
                     continue
 
-            # Sort holdings by live value desc (fallback: qty)
-            holdings_rows.sort(key=lambda r: (r.get("value_live", 0.0), r.get("qty", 0.0)), reverse=True)
+            holdings_rows.sort(key=lambda r: abs(r.get("qty", 0.0)), reverse=True)
 
-            wallet_total_live = Decimal(0)
-            for r in holdings_rows:
-                try:
-                    wallet_total_live += Decimal(str(r.get("value_live", 0.0) or 0.0))
-                except Exception:
-                    pass
             wallet_holdings.append(
                 {
                     "walletId": wid,
                     "walletName": wallet_name_by_id.get(wid, wid),
-                    "total_value_live": float(wallet_total_live),
-                    "total_value_live_display": _format_number_trim(wallet_total_live, 2),
+                    "total_value_live": None,
+                    "total_value_live_display": "\u2014",
                     "holdings": holdings_rows,
                 }
             )
@@ -1078,20 +1038,24 @@ def crypto_data():
         except Exception:
             change_amt = 0.0
 
+        try:
+            tv_sell = float(v.get("total_value_sell", 0) or 0)
+        except Exception:
+            tv_sell = 0.0
+
         totals.append(
             {
                 "cryptoName": v["cryptoName"],
                 "total_qty": tq,
                 "total_qty_display": _format_number_trim(v.get("total_qty", 0), 8),
-                # total_value: kept for backwards-compatibility (raw stored aggregate)
                 "total_value": tv,
-                # total_value_buy: the total amount user spent on buy transactions (includes buy fees)
                 "total_value_buy": tv_buy,
                 "total_value_buy_display": _format_number_trim(v.get("total_value_buy", 0), 2),
+                "total_value_sell": tv_sell,
                 "latest_price": lp,
-                "latest_price_display": _format_number_trim(v.get("latest_price", 0), 6),
+                "latest_price_display": _format_number_trim(v.get("latest_price", 0), 6) if lp else "\u2014",
                 "total_value_live": tv_live,
-                "total_value_live_display": _format_number_trim(v.get("total_value_live", 0), 2),
+                "total_value_live_display": _format_number_trim(v.get("total_value_live", 0), 2) if tv_live else "\u2014",
                 "currency": v.get("currency", ""),
                 "price_pct": price_pct if price_pct is not None else 0.0,
                 "value_pct": value_pct if value_pct is not None else 0.0,
@@ -1105,8 +1069,8 @@ def crypto_data():
                 "total_fee": fee_total,
                 "total_fee_display": _format_number_trim(v.get("total_fee", 0), 2),
                 "value_change_amount": change_amt,
-                "value_change_amount_abs_display": _format_number_trim(
-                    abs(v.get("value_change_amount", Decimal(0))), 2
+                "value_change_amount_abs_display": "\u2014" if change_amt is None else _format_number_trim(
+                    abs(change_amt), 2
                 ),
             }
         )

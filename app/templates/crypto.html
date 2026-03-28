@@ -217,6 +217,13 @@
         });
     }
 
+    function _formatNumber(value, maxDigits) {
+        var v = Number(value);
+        if (!isFinite(v)) return '0';
+        var opts = { maximumFractionDigits: (typeof maxDigits === 'number' ? maxDigits : 6) };
+        try { return new Intl.NumberFormat(undefined, opts).format(v); } catch (e) { return String(v); }
+    }
+
     function _buildCryptoTotals(totals, baseCurrency) {
         var grid = document.getElementById('cryptoTotalsGrid');
         var emptyMsg = document.getElementById('cryptoTotalsEmpty');
@@ -234,25 +241,19 @@
         });
 
         grid.innerHTML = sorted.map(function(t) {
-            var badgeClass = 'pct-neutral';
-            if (t.price_pct > 0) badgeClass = 'pct-positive';
-            else if (t.price_pct < 0) badgeClass = 'pct-negative';
             var cur = t.currency ? ' ' + _escapeHtml(t.currency) : '';
-            var changeAmt = Number(t.value_change_amount || 0);
-            var glClass = changeAmt >= 0 ? 'pct-positive' : 'pct-negative';
-            var glSign = changeAmt >= 0 ? '+' : '-';
 
-            return '<div class="totals-card">'
+            return '<div class="totals-card" data-crypto-symbol="' + _escapeHtml(t.cryptoName) + '" data-crypto-qty="' + t.total_qty + '" data-crypto-paid="' + t.total_value_buy + '" data-crypto-sell="' + (t.total_value_sell || 0) + '">'
                 + '<div class="totals-header"><div><div style="font-size:1rem;font-weight:700">' + _escapeHtml(t.cryptoName) + '</div></div>'
-                + '<div class="pct-badge ' + badgeClass + '">' + _escapeHtml(t.price_pct_display || '') + '</div></div>'
+                + '<div class="pct-badge pct-neutral" data-crypto-pct>\u2014</div></div>'
                 + '<div class="totals-meta">'
                 + '<div class="totals-row"><span class="totals-label small-muted">Total Quantity:</span><span class="totals-value">' + _escapeHtml(t.total_qty_display || '') + '</span></div>'
-                + '<div class="totals-row"><span class="totals-label small-muted">Total Value Now:</span><span class="totals-value">' + _escapeHtml(t.total_value_live_display || '') + cur + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Total Value Now:</span><span class="totals-value" data-crypto-now>\u2014</span></div>'
                 + '<div class="totals-row"><span class="totals-label small-muted">Total Value Paid:</span><span class="totals-value">' + _escapeHtml(t.total_value_buy_display || '') + cur + '</span></div>'
-                + '<div class="totals-row"><span class="totals-label small-muted">Unit price now:</span><span class="totals-value">' + _escapeHtml(t.latest_price_display || '') + cur + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Unit price now:</span><span class="totals-value" data-crypto-live>\u2014</span></div>'
                 + '<div class="totals-row"><span class="totals-label small-muted">Avg Buy Price:</span><span class="totals-value">' + _escapeHtml(t.avg_buy_price_display || '') + cur + '</span></div>'
                 + '<div class="totals-row"><span class="totals-label small-muted">Fees paid:</span><span class="totals-value">' + _escapeHtml(t.total_fee_display || '') + cur + '</span></div>'
-                + '<div class="totals-row"><span class="totals-label small-muted">Gain / Loss:</span><span class="totals-value" style="font-weight:bold;"><span class="' + glClass + '">' + glSign + _escapeHtml(t.value_change_amount_abs_display || '0') + '</span>' + cur + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Gain / Loss:</span><span class="totals-value" style="font-weight:bold;" data-crypto-gl>\u2014</span></div>'
                 + '</div></div>';
         }).join('');
     }
@@ -279,19 +280,19 @@
             var holdingsSorted = (w.holdings || []).slice().sort(function(a, b) {
                 return String(a.cryptoName || '').toLowerCase().localeCompare(String(b.cryptoName || '').toLowerCase());
             });
-            return '<div class="totals-card">'
+            return '<div class="totals-card" data-wallet-card>'
                 + '<div class="totals-header">'
                 + '<div class="crypto-wallets-header-title">' + _escapeHtml(w.walletName || w.walletId) + '</div>'
-                + '<div class="pct-badge pct-neutral crypto-wallets-total-badge">' + _escapeHtml(w.total_value_live_display || '0') + ' ' + _escapeHtml(bc) + '</div>'
+                + '<div class="pct-badge pct-neutral crypto-wallets-total-badge" data-wallet-total>\u2014 ' + _escapeHtml(bc) + '</div>'
                 + '</div>'
                 + '<div class="totals-meta crypto-wallets-list">'
                 + holdingsSorted.map(function(h) {
-                    return '<div class="crypto-wallets-row">'
+                    return '<div class="crypto-wallets-row" data-holding-symbol="' + _escapeHtml(h.cryptoName) + '" data-holding-qty="' + (h.qty || 0) + '">'
                         + '<div class="crypto-wallets-left">'
                         + '<span class="crypto-wallets-symbol">' + _escapeHtml(h.cryptoName) + '</span>'
                         + '<span class="crypto-wallets-qty small-muted">' + _escapeHtml(h.qty_display) + '</span>'
                         + '</div>'
-                        + '<div class="crypto-wallets-right small-muted">' + _escapeHtml(h.value_live_display) + ' ' + _escapeHtml(bc) + '</div>'
+                        + '<div class="crypto-wallets-right small-muted" data-holding-value>\u2014 ' + _escapeHtml(bc) + '</div>'
                         + '</div>';
                 }).join('')
                 + '</div></div>';
@@ -782,6 +783,80 @@
             if (fTo) fTo.addEventListener(evt, applyCryptoFilters);
         });
 
+        // --- Two-phase live price hydration ---
+        var _cryptoPriceCache = {}; // symbol -> price in base currency
+
+        function hydrateCryptoPortfolioLiveQuotes(baseCurrency) {
+            var cards = document.querySelectorAll('#cryptoTotalsGrid [data-crypto-symbol]');
+            if (!cards.length) return;
+            var bc = baseCurrency || 'EUR';
+            var promises = [];
+            cards.forEach(function(card) {
+                var symbol = card.getAttribute('data-crypto-symbol');
+                var qty = parseFloat(card.getAttribute('data-crypto-qty')) || 0;
+                var paid = parseFloat(card.getAttribute('data-crypto-paid')) || 0;
+                var sell = parseFloat(card.getAttribute('data-crypto-sell')) || 0;
+
+                var p = fetch('/crypto/quote?symbol=' + encodeURIComponent(symbol))
+                    .then(function(r) { return r.ok ? r.json() : null; })
+                    .then(function(d) {
+                        if (!d || d.price == null) return;
+                        var price = d.price;
+                        _cryptoPriceCache[symbol] = price;
+
+                        var totalNow = price * qty;
+                        var netCost = paid - sell;
+                        var gl = totalNow - netCost;
+                        var pct = netCost !== 0 ? ((gl / netCost) * 100) : 0;
+
+                        var pctBadge = card.querySelector('[data-crypto-pct]');
+                        var nowEl = card.querySelector('[data-crypto-now]');
+                        var liveEl = card.querySelector('[data-crypto-live]');
+                        var glEl = card.querySelector('[data-crypto-gl]');
+
+                        if (nowEl) nowEl.textContent = _formatNumber(totalNow, 2) + ' ' + bc;
+                        if (liveEl) liveEl.textContent = _formatNumber(price, 6) + ' ' + bc;
+                        if (glEl) {
+                            glEl.textContent = (gl >= 0 ? '+' : '') + _formatNumber(gl, 2) + ' ' + bc;
+                            glEl.style.color = gl >= 0 ? '#198754' : '#dc3545';
+                        }
+                        if (pctBadge) {
+                            pctBadge.textContent = (pct >= 0 ? '+' : '') + _formatNumber(pct, 2) + '%';
+                            pctBadge.classList.remove('pct-neutral');
+                            pctBadge.classList.add(pct >= 0 ? 'pct-up' : 'pct-down');
+                        }
+                    })
+                    .catch(function() {});
+                promises.push(p);
+            });
+
+            Promise.all(promises).then(function() {
+                hydrateCryptoWalletHoldings(bc);
+            });
+        }
+
+        function hydrateCryptoWalletHoldings(baseCurrency) {
+            var bc = baseCurrency || 'EUR';
+            var walletCards = document.querySelectorAll('#cryptoWalletsGrid [data-wallet-card]');
+            walletCards.forEach(function(card) {
+                var rows = card.querySelectorAll('[data-holding-symbol]');
+                var walletTotal = 0;
+                rows.forEach(function(row) {
+                    var sym = row.getAttribute('data-holding-symbol');
+                    var qty = parseFloat(row.getAttribute('data-holding-qty')) || 0;
+                    var price = _cryptoPriceCache[sym];
+                    var valEl = row.querySelector('[data-holding-value]');
+                    if (price != null) {
+                        var val = price * qty;
+                        walletTotal += val;
+                        if (valEl) valEl.textContent = _formatNumber(val, 2) + ' ' + bc;
+                    }
+                });
+                var totalBadge = card.querySelector('[data-wallet-total]');
+                if (totalBadge) totalBadge.textContent = _formatNumber(walletTotal, 2) + ' ' + bc;
+            });
+        }
+
         // Fetch data async and populate page
         fetch('/api/crypto-data')
             .then(function(resp) {
@@ -826,11 +901,14 @@
 
                 // Default to portfolio view
                 setCryptoNavVisibility('portfolio');
+
+                // Phase 2: hydrate live prices per symbol
+                hydrateCryptoPortfolioLiveQuotes(data.baseCurrency || 'EUR');
             })
             .catch(function(err) {
                 console.error('Crypto data fetch failed:', err);
                 var loadingEl = document.getElementById('cryptoDataLoading');
-                if (loadingEl) loadingEl.innerHTML = '<div class="small-muted">Failed to load crypto data</div>';
+                if (loadingEl) loadingEl.innerHTML = '<div class="small-muted">Failed to load crypto data: ' + _escapeHtml(err.message || err) + '</div>';
             });
     });
 
