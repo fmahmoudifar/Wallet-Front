@@ -323,9 +323,15 @@
                 </select>
             </div>
             <div>
+                <label for="filterCurrency">Currency:</label>
+                <select id="filterCurrency" name="currency">
+                    <option value="">-- All --</option>
+                </select>
+            </div>
+            <div style="position:relative">
                 <label for="filterParty">Counterparty(Person):</label>
                 <input type="text" id="filterParty" name="party" placeholder="Contains..." autocomplete="off" />
-                <div id="filterPartyList" class="autocomplete-list" style="position:relative"></div>
+                <div id="filterPartyList" class="autocomplete-list" style="position:absolute;top:100%;left:0;z-index:10"></div>
             </div>
             <div class="filters-actions">
                 <button type="button" class="btn-clear" onclick="resetLoansFilters()">Clear</button>
@@ -1172,6 +1178,7 @@
         const noteVal = (document.getElementById('filterNote')?.value || '').trim().toLowerCase();
         const fromVal = String(document.getElementById('filterFromWallet')?.value || '').trim();
         const toVal = String(document.getElementById('filterToWallet')?.value || '').trim();
+        const ccyVal = (document.getElementById('filterCurrency')?.value || '').trim().toUpperCase();
         const startDt = parseLocalDateTime(startVal);
         const endDt = parseLocalDateTime(endVal);
 
@@ -1200,6 +1207,10 @@
             if (show && noteVal) {
                 const n = (li.getAttribute('data-note') || '').toLowerCase();
                 if (!n.includes(noteVal)) show = false;
+            }
+            if (show && ccyVal) {
+                const c = (li.getAttribute('data-currency') || '').trim().toUpperCase();
+                if (c !== ccyVal) show = false;
             }
             if (show && fromVal) {
                 const f = String(li.getAttribute('data-from') || '').trim();
@@ -1239,7 +1250,7 @@
     window.applyLoansFilters = applyLoansFilters;
 
     function resetLoansFilters() {
-        ['filterStart','filterEnd','filterType','filterAction','filterParty','filterNote','filterFromWallet','filterToWallet'].forEach(id => {
+        ['filterStart','filterEnd','filterType','filterAction','filterParty','filterNote','filterCurrency','filterFromWallet','filterToWallet'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             if (el.tagName === 'SELECT') el.selectedIndex = 0;
@@ -1283,8 +1294,25 @@
         const fAction = document.getElementById('filterAction');
         const fParty = document.getElementById('filterParty');
         const fNote = document.getElementById('filterNote');
+        const fCcy = document.getElementById('filterCurrency');
         const fFrom = document.getElementById('filterFromWallet');
         const fTo = document.getElementById('filterToWallet');
+
+        // Populate currency dropdown from transaction data
+        if (fCcy) {
+            const ccySet = new Set();
+            document.querySelectorAll('#loansList li[data-currency]').forEach(li => {
+                const c = (li.getAttribute('data-currency') || '').trim().toUpperCase();
+                if (c) ccySet.add(c);
+            });
+            Array.from(ccySet).sort().forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                fCcy.appendChild(opt);
+            });
+        }
+
         ['input','change'].forEach(evt => {
             if (fStart) fStart.addEventListener(evt, applyLoansFilters);
             if (fEnd) fEnd.addEventListener(evt, applyLoansFilters);
@@ -1292,6 +1320,7 @@
             if (fAction) fAction.addEventListener(evt, applyLoansFilters);
             if (fParty) fParty.addEventListener(evt, applyLoansFilters);
             if (fNote) fNote.addEventListener(evt, applyLoansFilters);
+            if (fCcy) fCcy.addEventListener(evt, applyLoansFilters);
             if (fFrom) fFrom.addEventListener(evt, applyLoansFilters);
             if (fTo) fTo.addEventListener(evt, applyLoansFilters);
         });
