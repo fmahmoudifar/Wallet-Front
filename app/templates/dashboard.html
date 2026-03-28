@@ -5,10 +5,7 @@
 {% endblock %}
 
 {% block content %}
-<!-- <h1>Home</h1> -->
 {% if session.get('user') %}
-<!-- <h6>Username : {{ userId }}</h6> -->
-
 
 <style>
     .grid-container {
@@ -22,7 +19,7 @@
         display: flex;
         align-items: stretch;
         justify-content: stretch;
-        min-height: 250px; 
+        min-height: 250px;
     }
 
     .home-card {
@@ -37,7 +34,7 @@
 
     @media (max-width: 768px) {
         .grid-container {
-            grid-template-columns: 1fr; 
+            grid-template-columns: 1fr;
         }
     }
 
@@ -51,16 +48,35 @@
         display: block;
     }
 
-    @media (max-width: 768px) {
-        /* keep bar chart full-width */
+    .dash-spinner {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .dash-content {
+        display: none;
+        flex-direction: column;
+        flex: 1;
+    }
+    .dash-error {
+        display: none;
+        text-align: center;
+        padding: 10px 0;
     }
 </style>
 
 <div class="grid-container">
+    <!-- Wallet Balances -->
     <div class="grid-item">
         <div class="totals-card home-card" style="display: flex; flex-direction: column;">
             <div class="crypto-page-title" style="text-align: center; margin: 0 0 6px 0;">Wallet Balances</div>
-            {% if wallets and wallets|length > 0 %}
+            <div id="walletLoading" class="dash-spinner">
+                <div class="spinner-border text-secondary" role="status" style="width: 2rem; height: 2rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            <div id="walletContent" class="dash-content">
                 <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center;">
                     <div style="width: 100%; max-width: 320px; height: 200px;">
                         <canvas id="walletChart"></canvas>
@@ -73,164 +89,157 @@
                     </div>
                 </div>
                 <div id="walletLegend" style="margin-top: 8px; max-height: 140px; overflow-y: auto; padding: 0 4px;"></div>
-            {% else %}
-                <div class="small-muted" style="text-align: center; padding: 10px 0;">No wallets found</div>
-            {% endif %}
+            </div>
+            <div id="walletError" class="dash-error small-muted">Failed to load wallet data</div>
         </div>
     </div>
 
+    <!-- Crypto Portfolio -->
     <div class="grid-item">
         <div class="totals-card home-card" style="display: flex; flex-direction: column;">
             <div class="crypto-page-title" style="text-align: center; margin: 0 0 6px 0;">Crypto Portfolio</div>
-            <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center;">
-                <div style="width: 100%; max-width: 440px; height: 260px;">
-                    <canvas id="myChart"></canvas>
+            <div id="cryptoLoading" class="dash-spinner">
+                <div class="spinner-border text-secondary" role="status" style="width: 2rem; height: 2rem;">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
             </div>
-            <div class="totals-meta" style="margin-top: 10px;">
-                <div class="totals-row">
-                    <div class="totals-label small-muted">Total value now</div>
-                    <div class="totals-value"><span style="color:#00b09a;" id="sumNowText"></span></div>
+            <div id="cryptoContent" class="dash-content">
+                <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center;">
+                    <div style="width: 100%; max-width: 440px; height: 260px;">
+                        <canvas id="myChart"></canvas>
+                    </div>
                 </div>
-                <div class="totals-row">
-                    <div class="totals-label small-muted">Total value paid</div>
-                    <div class="totals-value"><span style="color:#6a7d94;" id="sumPaidText"></span></div>
-                </div>
-                <div class="totals-row">
-                    <div class="totals-label small-muted">Gain / loss</div>
-                    <div class="totals-value">
-                        <span class="{% if cryptoPortfolioGainIsPositive %}pct-positive{% else %}pct-negative{% endif %}">
-                            {% if cryptoPortfolioGainIsPositive %}+{% else %}-{% endif %}{{ cryptoPortfolioGainAbsDisplay }} {{ baseCurrency }}
-                        </span>
-                        <span class="{% if cryptoPortfolioGainIsPositive %}pct-positive{% else %}pct-negative{% endif %}" style="font-size:0.85rem;">
-                            {% if cryptoPortfolioGainPctDisplay and cryptoPortfolioGainPctDisplay != 'N/A' %}
-                                ({{ cryptoPortfolioGainPctDisplay }})
-                            {% else %}
-                                (N/A)
-                            {% endif %}
-                        </span>
+                <div class="totals-meta" style="margin-top: 10px;">
+                    <div class="totals-row">
+                        <div class="totals-label small-muted">Total value now</div>
+                        <div class="totals-value"><span style="color:#00b09a;" id="sumNowText"></span></div>
+                    </div>
+                    <div class="totals-row">
+                        <div class="totals-label small-muted">Total value paid</div>
+                        <div class="totals-value"><span style="color:#6a7d94;" id="sumPaidText"></span></div>
+                    </div>
+                    <div class="totals-row">
+                        <div class="totals-label small-muted">Gain / loss</div>
+                        <div class="totals-value">
+                            <span id="cryptoGainText"></span>
+                            <span id="cryptoGainPctText" style="font-size:0.85rem;"></span>
+                        </div>
                     </div>
                 </div>
             </div>
+            <div id="cryptoError" class="dash-error small-muted">Failed to load crypto data</div>
         </div>
     </div>
 
+    <!-- Stock Portfolio -->
     <div class="grid-item">
         <div class="totals-card home-card" style="display: flex; flex-direction: column;">
             <div class="crypto-page-title" style="text-align: center; margin: 0 0 6px 0;">Stock Portfolio</div>
-            <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center;">
-                <div style="width: 100%; max-width: 440px; height: 260px;">
-                    <canvas id="stockChart"></canvas>
+            <div id="stockLoading" class="dash-spinner">
+                <div class="spinner-border text-secondary" role="status" style="width: 2rem; height: 2rem;">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
             </div>
-            <div class="totals-meta" style="margin-top: 10px;">
-                <div class="totals-row">
-                    <div class="totals-label small-muted">Total value now</div>
-                    <div class="totals-value"><span style="color:#00b09a;" id="stockSumNowText"></span></div>
+            <div id="stockContent" class="dash-content">
+                <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center;">
+                    <div style="width: 100%; max-width: 440px; height: 260px;">
+                        <canvas id="stockChart"></canvas>
+                    </div>
                 </div>
-                <div class="totals-row">
-                    <div class="totals-label small-muted">Total value paid</div>
-                    <div class="totals-value"><span style="color:#6a7d94;" id="stockSumPaidText"></span></div>
-                </div>
-                <div class="totals-row">
-                    <div class="totals-label small-muted">Gain / loss</div>
-                    <div class="totals-value">
-                        <span class="{% if stockPortfolioGainIsPositive %}pct-positive{% else %}pct-negative{% endif %}">
-                            {% if stockPortfolioGainIsPositive %}+{% else %}-{% endif %}{{ stockPortfolioGainAbsDisplay|default('0') }} {{ baseCurrency }}
-                        </span>
-                        <span class="{% if stockPortfolioGainIsPositive %}pct-positive{% else %}pct-negative{% endif %}" style="font-size:0.85rem;">
-                            {% if stockPortfolioGainPctDisplay and stockPortfolioGainPctDisplay != 'N/A' %}
-                                ({{ stockPortfolioGainPctDisplay }})
-                            {% else %}
-                                (N/A)
-                            {% endif %}
-                        </span>
+                <div class="totals-meta" style="margin-top: 10px;">
+                    <div class="totals-row">
+                        <div class="totals-label small-muted">Total value now</div>
+                        <div class="totals-value"><span style="color:#00b09a;" id="stockSumNowText"></span></div>
+                    </div>
+                    <div class="totals-row">
+                        <div class="totals-label small-muted">Total value paid</div>
+                        <div class="totals-value"><span style="color:#6a7d94;" id="stockSumPaidText"></span></div>
+                    </div>
+                    <div class="totals-row">
+                        <div class="totals-label small-muted">Gain / loss</div>
+                        <div class="totals-value">
+                            <span id="stockGainText"></span>
+                            <span id="stockGainPctText" style="font-size:0.85rem;"></span>
+                        </div>
                     </div>
                 </div>
             </div>
+            <div id="stockError" class="dash-error small-muted">Failed to load stock data</div>
         </div>
     </div>
 
-
+    <!-- Debts & Loans -->
     <div class="grid-item">
         <div class="totals-card home-card" style="display: flex; flex-direction: column;">
             <div class="crypto-page-title" style="text-align: center; margin: 0 0 6px 0;">Debts & Loans</div>
-            {% if loanHomePositions and loanHomePositions|length > 0 %}
-                {% set _loan_count = loanHomePositions|length %}
-                {% set _loan_h = _loan_count * 40 + 60 %}
+            <div id="loanLoading" class="dash-spinner">
+                <div class="spinner-border text-secondary" role="status" style="width: 2rem; height: 2rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            <div id="loanContent" class="dash-content">
                 <div style="flex: 1 1 auto; max-height: 360px; overflow-y: auto;">
-                    <div class="loan-pies" style="height: {{ _loan_h }}px;">
+                    <div id="loanPiesContainer" class="loan-pies">
                         <canvas id="loanBarChart"></canvas>
                     </div>
                 </div>
-            {% else %}
-                <div class="small-muted" style="text-align: center; padding: 10px 0;">No open loan positions</div>
-            {% endif %}
+            </div>
+            <div id="loanError" class="dash-error small-muted">Failed to load loan data</div>
         </div>
     </div>
 </div>
 
 <script>
-    // Wallet balances chart
-    const walletItems = [
-        {% if wallets and wallets|length > 0 %}
-            {% for wallet in wallets %}
-                {
-                    name: {{ (wallet.walletName or wallet.walletId or '') | tojson }},
-                    type: {{ (wallet.walletType or '') | tojson }},
-                    currency: {{ (wallet.currency or '') | tojson }},
-                    balance: {{ (wallet.balance or 0) | tojson }},
-                    balanceBase: {{ (wallet.balanceBase or 0) | tojson }},
-                    balanceWallet: {{ (wallet.balanceWallet or 0) | tojson }},
-                }{% if not loop.last %},{% endif %}
-            {% endfor %}
-        {% endif %}
-    ];
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/dashboard-data')
+        .then(function(response) {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.json();
+        })
+        .then(function(data) {
+            renderDashboard(data);
+        })
+        .catch(function(err) {
+            console.error('Dashboard data fetch failed:', err);
+            showErrorStates();
+        });
+});
 
-    // Filter out zero-balance wallets, then sort by balanceBase descending.
-    const walletFiltered = (walletItems || [])
-        .filter(w => Math.abs(Number(w?.balanceBase ?? w?.balance) || 0) >= 0.01)
-        .sort((a, b) => Math.abs(Number(b?.balanceBase ?? b?.balance) || 0) - Math.abs(Number(a?.balanceBase ?? a?.balance) || 0));
+function showCard(id) {
+    var loading = document.getElementById(id + 'Loading');
+    var content = document.getElementById(id + 'Content');
+    if (loading) loading.style.display = 'none';
+    if (content) { content.style.display = 'flex'; }
+}
 
-    const walletLabels = walletFiltered.map(w => {
-        const name = String(w?.name || '').trim();
-        const cur = String(w?.currency || '').trim();
-        return cur ? `${name} (${cur})` : name;
+function showEmpty(id, message) {
+    var loading = document.getElementById(id + 'Loading');
+    var content = document.getElementById(id + 'Content');
+    if (loading) loading.style.display = 'none';
+    if (content) {
+        content.innerHTML = '<div class="small-muted" style="text-align: center; padding: 10px 0;">' + message + '</div>';
+        content.style.display = 'flex';
+    }
+}
+
+function showErrorStates() {
+    ['wallet', 'crypto', 'stock', 'loan'].forEach(function(id) {
+        var loading = document.getElementById(id + 'Loading');
+        var error = document.getElementById(id + 'Error');
+        if (loading) loading.style.display = 'none';
+        if (error) error.style.display = 'block';
     });
-    const walletBalances = walletFiltered.map(w => Math.abs(Number(w?.balanceBase ?? w?.balance) || 0));
+}
 
-    const nowData = {{ cryptoNowValues | tojson }};
-    const paidData = {{ cryptoPaidValues | tojson }};
-    const stockNowData = {{ (stockNowValues or []) | tojson }};
-    const stockPaidData = {{ (stockPaidValues or []) | tojson }};
-    const baseCurrency = {{ (baseCurrency or 'EUR') | tojson }};
-    const loanHomePositions = {{ (loanHomePositions or []) | tojson }};
-    const gainIsPositive = {{ (cryptoPortfolioGainIsPositive or false) | tojson }};
-    const gainAbsDisplay = {{ (cryptoPortfolioGainAbsDisplay or '0') | tojson }};
-    const gainPctDisplay = {{ (cryptoPortfolioGainPctDisplay or 'N/A') | tojson }};
+function renderDashboard(data) {
+    var baseCurrency = data.baseCurrency || 'EUR';
 
-    // Sum totals across all cryptos (overall portfolio)
-    const sumNow = (Array.isArray(nowData) ? nowData : []).reduce((acc, v) => acc + (Number(v) || 0), 0);
-    const sumPaid = (Array.isArray(paidData) ? paidData : []).reduce((acc, v) => acc + (Number(v) || 0), 0);
-    const labels = ['Total Value Paid', 'Total Value Now'];
+    var colorNow  = 'rgba(0, 176, 154, 0.55)';
+    var colorPaid = 'rgba(106, 125, 148, 0.55)';
+    var borderNow  = '#00b09a';
+    var borderPaid = '#6a7d94';
 
-    const formatMoney = (v) => {
-        const n = Number(v || 0);
-        return `${n.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
-    };
-
-    // Fill below-chart totals
-    const sumNowEl = document.getElementById('sumNowText');
-    const sumPaidEl = document.getElementById('sumPaidText');
-    if (sumNowEl) sumNowEl.textContent = formatMoney(sumNow);
-    if (sumPaidEl) sumPaidEl.textContent = formatMoney(sumPaid);
-
-    const colorNow  = 'rgba(0, 176, 154, 0.55)';   // teal  #00b09a
-    const colorPaid = 'rgba(106, 125, 148, 0.55)';  // charcoal blue-gray  #6a7d94
-    const borderNow  = '#00b09a';
-    const borderPaid = '#6a7d94';
-
-    const cssVar = (name) => {
+    var cssVar = function(name) {
         try {
             return (getComputedStyle(document.documentElement).getPropertyValue(name) || '').trim();
         } catch (_e) {
@@ -238,104 +247,322 @@
         }
     };
 
-    const hexToRgba = (hex, alpha) => {
-        const raw = String(hex || '').trim().replace('#', '');
-        const isShort = raw.length === 3;
-        const isLong = raw.length === 6;
+    var hexToRgba = function(hex, alpha) {
+        var raw = String(hex || '').trim().replace('#', '');
+        var isShort = raw.length === 3;
+        var isLong = raw.length === 6;
         if (!isShort && !isLong) return null;
-        const r = parseInt(isShort ? raw[0] + raw[0] : raw.slice(0, 2), 16);
-        const g = parseInt(isShort ? raw[1] + raw[1] : raw.slice(2, 4), 16);
-        const b = parseInt(isShort ? raw[2] + raw[2] : raw.slice(4, 6), 16);
-        if ([r, g, b].some(n => Number.isNaN(n))) return null;
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        var r = parseInt(isShort ? raw[0] + raw[0] : raw.slice(0, 2), 16);
+        var g = parseInt(isShort ? raw[1] + raw[1] : raw.slice(2, 4), 16);
+        var b = parseInt(isShort ? raw[2] + raw[2] : raw.slice(4, 6), 16);
+        if ([r, g, b].some(function(n) { return Number.isNaN(n); })) return null;
+        return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
     };
 
-    const bsPrimary = cssVar('--bs-primary');
-    const titleAccentHex = cssVar('--title-accent') || '#6c757d';
-    const lendHex = bsPrimary || titleAccentHex;
-    const lendOutstandingColor = hexToRgba(lendHex, 0.35) || colorPaid;
-    const lendOutstandingBorder = hexToRgba(lendHex, 0.9) || borderPaid;
-    const loanOutstandingColor  = 'rgba(232, 168, 56, 0.55)';  // orange #e8a838
-    const loanOutstandingBorder = '#e8a838';
+    var formatMoney = function(v) {
+        var n = Number(v || 0);
+        return n.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + baseCurrency;
+    };
 
-    // Pie start angle: put the dividing line at 12 o'clock.
-    // Chart.js uses radians for rotation.
-    const pieTopRotation = -0.5 * Math.PI;
+    var bsPrimary = cssVar('--bs-primary');
+    var titleAccentHex = cssVar('--title-accent') || '#6c757d';
+    var lendHex = bsPrimary || titleAccentHex;
+    var lendOutstandingColor = hexToRgba(lendHex, 0.35) || colorPaid;
+    var lendOutstandingBorder = hexToRgba(lendHex, 0.9) || borderPaid;
+    var loanOutstandingColor  = 'rgba(232, 168, 56, 0.55)';
+    var loanOutstandingBorder = '#e8a838';
+    var pieTopRotation = -0.5 * Math.PI;
 
-    // Loans: small progress pies (one per open position)
-    if (Array.isArray(loanHomePositions) && loanHomePositions.length > 0) {
-        const loanCanvas = document.getElementById('loanBarChart');
+    // ── Wallet Balances ──
+    var walletItems = data.wallets || [];
+    var walletFiltered = walletItems
+        .filter(function(w) { return Math.abs(Number(w.balanceBase || w.balance) || 0) >= 0.01; })
+        .sort(function(a, b) { return Math.abs(Number(b.balanceBase || b.balance) || 0) - Math.abs(Number(a.balanceBase || a.balance) || 0); });
+
+    if (walletFiltered.length === 0) {
+        showEmpty('wallet', 'No wallets found');
+    } else {
+        var walletLabels = walletFiltered.map(function(w) {
+            var name = String(w.name || w.walletName || '').trim();
+            var cur = String(w.currency || '').trim();
+            return cur ? name + ' (' + cur + ')' : name;
+        });
+        var walletBalances = walletFiltered.map(function(w) { return Math.abs(Number(w.balanceBase || w.balance) || 0); });
+
+        var walletPalette = [
+            'rgba(  0, 176, 154, 0.75)', 'rgba( 91, 141, 217, 0.75)',
+            'rgba(240, 146,  43, 0.75)', 'rgba( 61, 189, 181, 0.75)',
+            'rgba(123,  94, 167, 0.75)', 'rgba(165, 143, 216, 0.75)',
+            'rgba(212, 132,  42, 0.75)', 'rgba(106, 180, 212, 0.75)',
+        ];
+        var walletBorderPalette = walletPalette.map(function(c) { return c.replace(/,\s*[\d.]+\)$/, ', 1)'); });
+        var bgColors = walletLabels.map(function(_, i) { return walletPalette[i % walletPalette.length]; });
+        var bdColors = walletLabels.map(function(_, i) { return walletBorderPalette[i % walletBorderPalette.length]; });
+
+        var walletTotal = walletFiltered.reduce(function(s, w) { return s + (Number(w.balanceBase || w.balance) || 0); }, 0);
+        var walletTotalEl = document.getElementById('walletTotalText');
+        if (walletTotalEl) {
+            walletTotalEl.textContent = walletTotal.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + baseCurrency;
+            walletTotalEl.style.color = '#00b09a';
+            walletTotalEl.className = '';
+        }
+
+        new Chart(document.getElementById('walletChart'), {
+            type: 'doughnut',
+            data: {
+                labels: walletLabels,
+                datasets: [{ data: walletBalances, backgroundColor: bgColors, borderColor: bdColors, borderWidth: 1 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '58%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                var idx = context && context[0] ? context[0].dataIndex : 0;
+                                var w = walletFiltered[idx] || {};
+                                var name = String(w.name || w.walletName || '').trim();
+                                var type = String(w.walletType || w.type || '').trim();
+                                var cur = String(w.currency || '').trim();
+                                var bits = [name]; if (type) bits.push(type); if (cur) bits.push(cur);
+                                return bits.filter(Boolean).join(' - ');
+                            },
+                            label: function(context) {
+                                var idx = context.dataIndex || 0;
+                                var w = walletFiltered[idx] || {};
+                                var vBase = Number(w.balanceBase || w.balance) || 0;
+                                var vWallet = Number(w.balanceWallet || 0);
+                                var cur = String(w.currency || '').trim();
+                                var base = String(baseCurrency || '').trim();
+                                var curUpper = cur ? cur.toUpperCase() : '';
+                                var baseUpper = base ? base.toUpperCase() : '';
+                                var a = base ? vBase.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + base : vBase.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                                var b = cur ? vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + cur : vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                                if (curUpper && baseUpper && curUpper === baseUpper) return a;
+                                if (baseUpper && !curUpper) return a;
+                                if (!baseUpper && curUpper) return b;
+                                return a + ' - ' + b;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Scrollable legend
+        var legendEl = document.getElementById('walletLegend');
+        if (legendEl) {
+            legendEl.innerHTML = walletFiltered.map(function(w, i) {
+                var color = bgColors[i];
+                var name = String(w.name || w.walletName || '').trim();
+                var cur = String(w.currency || '').trim();
+                var vBase = Number(w.balanceBase || w.balance) || 0;
+                var vWallet = Number(w.balanceWallet || 0);
+                var label = cur ? name + ' (' + cur + ')' : name;
+                var val = cur
+                    ? vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + cur
+                    : vBase.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + baseCurrency;
+                return '<div style="display:flex; align-items:center; justify-content:space-between; padding:3px 0; font-size:12px; gap:8px;">'
+                    + '<span style="display:flex; align-items:center; gap:6px; min-width:0;">'
+                    + '<span style="width:10px; height:10px; border-radius:50%; background:' + color + '; flex-shrink:0;"></span>'
+                    + '<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + label + '</span>'
+                    + '</span>'
+                    + '<span style="white-space:nowrap; font-weight:500; color:#00b09a;">' + val + '</span>'
+                    + '</div>';
+            }).join('');
+        }
+
+        showCard('wallet');
+    }
+
+    // ── Crypto Portfolio ──
+    var nowData = data.cryptoNowValues || [];
+    var paidData = data.cryptoPaidValues || [];
+    var sumNow = nowData.reduce(function(acc, v) { return acc + (Number(v) || 0); }, 0);
+    var sumPaid = paidData.reduce(function(acc, v) { return acc + (Number(v) || 0); }, 0);
+
+    var sumNowEl = document.getElementById('sumNowText');
+    var sumPaidEl = document.getElementById('sumPaidText');
+    if (sumNowEl) sumNowEl.textContent = formatMoney(sumNow);
+    if (sumPaidEl) sumPaidEl.textContent = formatMoney(sumPaid);
+
+    // Gain/loss
+    var cryptoGainEl = document.getElementById('cryptoGainText');
+    var cryptoGainPctEl = document.getElementById('cryptoGainPctText');
+    var cryptoIsPositive = data.cryptoPortfolioGainIsPositive;
+    var cryptoGainClass = cryptoIsPositive ? 'pct-positive' : 'pct-negative';
+    var cryptoSign = cryptoIsPositive ? '+' : '-';
+    if (cryptoGainEl) {
+        cryptoGainEl.className = cryptoGainClass;
+        cryptoGainEl.textContent = cryptoSign + (data.cryptoPortfolioGainAbsDisplay || '0') + ' ' + baseCurrency;
+    }
+    if (cryptoGainPctEl) {
+        cryptoGainPctEl.className = cryptoGainClass;
+        var pctVal = data.cryptoPortfolioGainPctDisplay;
+        cryptoGainPctEl.textContent = (pctVal && pctVal !== 'N/A') ? '(' + pctVal + ')' : '(N/A)';
+    }
+
+    new Chart(document.getElementById('myChart'), {
+        type: 'pie',
+        data: {
+            labels: ['Total Value Paid', 'Total Value Now'],
+            datasets: [{
+                label: 'Crypto Portfolio (' + baseCurrency + ')',
+                data: [sumPaid, sumNow],
+                backgroundColor: [colorPaid, colorNow],
+                borderColor: [borderPaid, borderNow],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, radius: '95%', rotation: pieTopRotation,
+            plugins: {
+                legend: { labels: { color: cssVar('--muted') || '#9ca3af' } },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            var v = Number(context.parsed || 0);
+                            return context.label + ': ' + v.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + baseCurrency;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    showCard('crypto');
+
+    // ── Stock Portfolio ──
+    var stockNowData = data.stockNowValues || [];
+    var stockPaidData = data.stockPaidValues || [];
+    var stockSumNow = stockNowData.reduce(function(acc, v) { return acc + (Number(v) || 0); }, 0);
+    var stockSumPaid = stockPaidData.reduce(function(acc, v) { return acc + (Number(v) || 0); }, 0);
+
+    var stockSumNowEl = document.getElementById('stockSumNowText');
+    var stockSumPaidEl = document.getElementById('stockSumPaidText');
+    if (stockSumNowEl) stockSumNowEl.textContent = formatMoney(stockSumNow);
+    if (stockSumPaidEl) stockSumPaidEl.textContent = formatMoney(stockSumPaid);
+
+    // Stock gain/loss
+    var stockGainEl = document.getElementById('stockGainText');
+    var stockGainPctEl = document.getElementById('stockGainPctText');
+    var stockIsPositive = data.stockPortfolioGainIsPositive;
+    var stockGainClass = stockIsPositive ? 'pct-positive' : 'pct-negative';
+    var stockSign = stockIsPositive ? '+' : '-';
+    if (stockGainEl) {
+        stockGainEl.className = stockGainClass;
+        stockGainEl.textContent = stockSign + (data.stockPortfolioGainAbsDisplay || '0') + ' ' + baseCurrency;
+    }
+    if (stockGainPctEl) {
+        stockGainPctEl.className = stockGainClass;
+        var sPctVal = data.stockPortfolioGainPctDisplay;
+        stockGainPctEl.textContent = (sPctVal && sPctVal !== 'N/A') ? '(' + sPctVal + ')' : '(N/A)';
+    }
+
+    var stockCanvas = document.getElementById('stockChart');
+    if (stockCanvas) {
+        new Chart(stockCanvas, {
+            type: 'pie',
+            data: {
+                labels: ['Total Value Paid', 'Total Value Now'],
+                datasets: [{
+                    label: 'Stock Portfolio (' + baseCurrency + ')',
+                    data: [stockSumPaid, stockSumNow],
+                    backgroundColor: [colorPaid, colorNow],
+                    borderColor: [borderPaid, borderNow],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, radius: '95%', rotation: pieTopRotation,
+                plugins: {
+                    legend: { labels: { color: cssVar('--muted') || '#9ca3af' } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                var v = Number(context.parsed || 0);
+                                return context.label + ': ' + v.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + baseCurrency;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    showCard('stock');
+
+    // ── Debts & Loans ──
+    var loanHomePositions = data.loanHomePositions || [];
+    if (!loanHomePositions.length) {
+        showEmpty('loan', 'No open loan positions');
+    } else {
+        var loanH = loanHomePositions.length * 40 + 60;
+        var container = document.getElementById('loanPiesContainer');
+        if (container) container.style.height = loanH + 'px';
+
+        var loanCanvas = document.getElementById('loanBarChart');
         if (loanCanvas) {
-            const loanMeta = loanHomePositions.map((p) => {
-                const principal = Number(p?.principal || 0);
-                const repaid = Number(p?.repaid || 0);
-                const outstanding = Number(p?.outstanding || 0);
-                const ccy = String(p?.currency || '').trim();
-                const name = String(p?.counterparty || '—').trim() || '—';
-                const typeLabel = String(p?.typeLabel || 'Loan').trim() || 'Loan';
+            var loanMeta = loanHomePositions.map(function(p) {
+                var principal = Number(p.principal || 0);
+                var repaid = Number(p.repaid || 0);
+                var outstanding = Number(p.outstanding || 0);
+                var ccy = String(p.currency || '').trim();
+                var name = String(p.counterparty || '\u2014').trim() || '\u2014';
+                var typeLabel = String(p.typeLabel || 'Loan').trim() || 'Loan';
 
-                const repaidVal = Math.max(0, Math.min(repaid, principal || repaid));
-                const remainingVal = Math.max(0, outstanding);
-                const total = principal > 0 ? principal : (repaidVal + remainingVal);
-                const repaidPct = total > 0 ? (repaidVal / total) * 100 : 0;
-                const remainingPct = Math.max(0, 100 - repaidPct);
+                var repaidVal = Math.max(0, Math.min(repaid, principal || repaid));
+                var remainingVal = Math.max(0, outstanding);
+                var total = principal > 0 ? principal : (repaidVal + remainingVal);
+                var repaidPct = total > 0 ? (repaidVal / total) * 100 : 0;
+                var remainingPct = Math.max(0, 100 - repaidPct);
 
-                const fmt = (v) => Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
-                const totalText = `${fmt(total)}${ccy ? ' ' + ccy : ''}`;
-                const displayLabel = name;
+                var fmt = function(v) { return Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }); };
+                var totalText = fmt(total) + (ccy ? ' ' + ccy : '');
 
                 return {
-                    label: [displayLabel, totalText],
-                    displayLabel,
-                    totalText,
-                    typeLabel,
-                    ccy,
-                    repaidVal,
-                    remainingVal,
-                    repaidPct,
-                    remainingPct,
+                    label: [name, totalText],
+                    displayLabel: name,
+                    totalText: totalText,
+                    typeLabel: typeLabel,
+                    ccy: ccy,
+                    repaidVal: repaidVal,
+                    remainingVal: remainingVal,
+                    repaidPct: repaidPct,
+                    remainingPct: remainingPct,
                 };
             });
 
-            const loanLabels = loanMeta.map(x => x.label);
-            const repaidPctData = loanMeta.map(x => x.repaidPct);
+            var loanLabels = loanMeta.map(function(x) { return x.label; });
+            var repaidPctData = loanMeta.map(function(x) { return x.repaidPct; });
 
-            const typeKey = (m) => String(m?.typeLabel || '').trim().toLowerCase();
-            const isBorrow = (m) => typeKey(m).includes('borrow');
-            const isLend = (m) => typeKey(m).includes('lend');
-            const isLoan = (m) => typeKey(m).includes('loan');
+            var typeKey = function(m) { return String(m.typeLabel || '').trim().toLowerCase(); };
+            var isBorrow = function(m) { return typeKey(m).indexOf('borrow') >= 0; };
+            var isLend = function(m) { return typeKey(m).indexOf('lend') >= 0; };
+            var isLoan = function(m) { return typeKey(m).indexOf('loan') >= 0; };
 
-            const remainingBorrowPctData = loanMeta.map(m => (isBorrow(m) ? m.remainingPct : 0));
-            const remainingLendPctData = loanMeta.map(m => (isLend(m) ? m.remainingPct : 0));
-            const remainingLoanPctData = loanMeta.map(m => (isLoan(m) ? m.remainingPct : 0));
+            var remainingBorrowPctData = loanMeta.map(function(m) { return isBorrow(m) ? m.remainingPct : 0; });
+            var remainingLendPctData = loanMeta.map(function(m) { return isLend(m) ? m.remainingPct : 0; });
+            var remainingLoanPctData = loanMeta.map(function(m) { return isLoan(m) ? m.remainingPct : 0; });
 
-            const segmentRadius = (ctx) => {
-                const v = Number(ctx?.raw || 0);
+            var segmentRadius = function(ctx) {
+                var v = Number(ctx.raw || 0);
                 if (!(v > 0)) return 0;
-
-                const chart = ctx?.chart;
-                const dataIndex = ctx?.dataIndex;
-                const datasetIndex = ctx?.datasetIndex;
-                const ds = chart?.data?.datasets || [];
-
-                const vals = ds.map(d => Number(d?.data?.[dataIndex] || 0));
-                const nonZero = vals
-                    .map((val, idx) => ({ val, idx }))
-                    .filter(x => x.val > 0);
+                var chart = ctx.chart;
+                var dataIndex = ctx.dataIndex;
+                var datasetIndex = ctx.datasetIndex;
+                var ds = chart.data.datasets || [];
+                var vals = ds.map(function(d) { return Number(d.data[dataIndex] || 0); });
+                var nonZero = [];
+                vals.forEach(function(val, idx) { if (val > 0) nonZero.push({ val: val, idx: idx }); });
                 if (nonZero.length <= 1) return 6;
-
-                const firstIdx = nonZero[0].idx;
-                const lastIdx = nonZero[nonZero.length - 1].idx;
-
-                const left = datasetIndex === firstIdx;
-                const right = datasetIndex === lastIdx;
-
+                var firstIdx = nonZero[0].idx;
+                var lastIdx = nonZero[nonZero.length - 1].idx;
+                var left = datasetIndex === firstIdx;
+                var right = datasetIndex === lastIdx;
                 if (left && right) return 6;
                 return {
-                    topLeft: left ? 6 : 0,
-                    bottomLeft: left ? 6 : 0,
-                    topRight: right ? 6 : 0,
-                    bottomRight: right ? 6 : 0,
+                    topLeft: left ? 6 : 0, bottomLeft: left ? 6 : 0,
+                    topRight: right ? 6 : 0, bottomRight: right ? 6 : 0,
                 };
             };
 
@@ -344,312 +571,66 @@
                 data: {
                     labels: loanLabels,
                     datasets: [
-                        {
-                            label: 'Repaid',
-                            data: repaidPctData,
-                            backgroundColor: colorNow,
-                            borderColor: borderNow,
-                            borderWidth: 0,
-                            borderRadius: segmentRadius,
-                            borderSkipped: false,
-                            barThickness: 14,
-                        },
-                        {
-                            label: 'Borrow',
-                            data: remainingBorrowPctData,
-                            backgroundColor: colorPaid,
-                            borderColor: borderPaid,
-                            borderWidth: 0,
-                            borderRadius: segmentRadius,
-                            borderSkipped: false,
-                            barThickness: 14,
-                        },
-                        {
-                            label: 'Lend',
-                            data: remainingLendPctData,
-                            backgroundColor: lendOutstandingColor,
-                            borderColor: lendOutstandingBorder,
-                            borderWidth: 0,
-                            borderRadius: segmentRadius,
-                            borderSkipped: false,
-                            barThickness: 14,
-                        },
-                        {
-                            label: 'Loan',
-                            data: remainingLoanPctData,
-                            backgroundColor: loanOutstandingColor,
-                            borderColor: loanOutstandingBorder,
-                            borderWidth: 0,
-                            borderRadius: segmentRadius,
-                            borderSkipped: false,
-                            barThickness: 14,
-                        }
+                        { label: 'Repaid', data: repaidPctData, backgroundColor: colorNow, borderColor: borderNow, borderWidth: 0, borderRadius: segmentRadius, borderSkipped: false, barThickness: 14 },
+                        { label: 'Borrow', data: remainingBorrowPctData, backgroundColor: colorPaid, borderColor: borderPaid, borderWidth: 0, borderRadius: segmentRadius, borderSkipped: false, barThickness: 14 },
+                        { label: 'Lend', data: remainingLendPctData, backgroundColor: lendOutstandingColor, borderColor: lendOutstandingBorder, borderWidth: 0, borderRadius: segmentRadius, borderSkipped: false, barThickness: 14 },
+                        { label: 'Loan', data: remainingLoanPctData, backgroundColor: loanOutstandingColor, borderColor: loanOutstandingBorder, borderWidth: 0, borderRadius: segmentRadius, borderSkipped: false, barThickness: 14 }
                     ]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y',
+                    responsive: true, maintainAspectRatio: false, indexAxis: 'y',
                     interaction: { mode: 'index', axis: 'y', intersect: false },
                     plugins: {
                         legend: {
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                boxWidth: 12,
-                                boxHeight: 12,
-                                color: cssVar('--muted') || '#9ca3af',
-                            }
+                            display: true, position: 'top',
+                            labels: { boxWidth: 12, boxHeight: 12, color: cssVar('--muted') || '#9ca3af' }
                         },
                         tooltip: {
-                            filter: function(context) {
-                                const v = Number(context?.parsed?.x ?? 0);
-                                return v > 0;
-                            },
+                            filter: function(context) { return Number(context.parsed.x || 0) > 0; },
                             callbacks: {
                                 title: function(context) {
-                                    const idx = context && context[0] ? context[0].dataIndex : 0;
-                                    const m = loanMeta[idx] || {};
-                                    return `${m.displayLabel || ''} - ${m.typeLabel || ''}`.trim();
+                                    var idx = context && context[0] ? context[0].dataIndex : 0;
+                                    var m = loanMeta[idx] || {};
+                                    return (m.displayLabel || '') + ' - ' + (m.typeLabel || '');
                                 },
                                 label: function(context) {
-                                    const idx = context?.dataIndex ?? 0;
-                                    const m = loanMeta[idx] || {};
-                                    const repaidPct = Number(m.repaidPct || 0);
-                                    const remainingPct = Number(m.remainingPct || 0);
-                                    const repaidAmt = Number(m.repaidVal || 0);
-                                    const remainingAmt = Number(m.remainingVal || 0);
-                                    const ccy = m.ccy ? ' ' + m.ccy : '';
-                                    const repaidText = repaidAmt.toLocaleString(undefined, { maximumFractionDigits: 2 });
-                                    const remainingText = remainingAmt.toLocaleString(undefined, { maximumFractionDigits: 2 });
-
-                                    const dsLabel = String(context?.dataset?.label || '').trim();
-                                    const pct = Number(context?.parsed?.x ?? 0);
-                                    const isRepaid = dsLabel === 'Repaid';
-                                    const amtText = isRepaid ? repaidText : remainingText;
-                                    const pctText = (isRepaid ? repaidPct : remainingPct).toLocaleString(undefined, { maximumFractionDigits: 0 });
-                                    const label = isRepaid ? 'Repaid' : dsLabel;
-                                    return `${label}: ${pctText}% (${amtText}${ccy})`;
+                                    var idx = context.dataIndex || 0;
+                                    var m = loanMeta[idx] || {};
+                                    var repaidAmt = Number(m.repaidVal || 0);
+                                    var remainingAmt = Number(m.remainingVal || 0);
+                                    var ccy = m.ccy ? ' ' + m.ccy : '';
+                                    var repaidText = repaidAmt.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                                    var remainingText = remainingAmt.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                                    var dsLabel = String(context.dataset.label || '').trim();
+                                    var isRepaid = dsLabel === 'Repaid';
+                                    var amtText = isRepaid ? repaidText : remainingText;
+                                    var pctText = (isRepaid ? m.repaidPct : m.remainingPct).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                                    var label = isRepaid ? 'Repaid' : dsLabel;
+                                    return label + ': ' + pctText + '% (' + amtText + ccy + ')';
                                 }
                             }
                         }
                     },
                     scales: {
                         x: {
-                            stacked: true,
-                            min: 0,
-                            max: 100,
+                            stacked: true, min: 0, max: 100,
                             ticks: {
                                 color: cssVar('--muted') || '#9ca3af',
-                                callback: function(value) {
-                                    return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}%`;
-                                }
+                                callback: function(value) { return Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 }) + '%'; }
                             },
                             grid: { display: true }
                         },
                         y: {
-                            stacked: true,
-                            grid: { display: false },
+                            stacked: true, grid: { display: false },
                             ticks: { color: cssVar('--muted') || '#9ca3af' }
                         }
                     }
                 }
             });
         }
+        showCard('loan');
     }
-
-    // Render wallet donut chart (if the canvas exists)
-    const walletCanvas = document.getElementById('walletChart');
-    if (walletCanvas && Array.isArray(walletLabels) && walletLabels.length > 0) {
-        // Generate a color palette for the donut slices
-        const walletPalette = [
-            'rgba(  0, 176, 154, 0.75)',   // #00b09a  teal (brand primary)
-            'rgba( 91, 141, 217, 0.75)',   // #5b8dd9  blue
-            'rgba(240, 146,  43, 0.75)',   // #f0922b  orange
-            'rgba( 61, 189, 181, 0.75)',   // #3dbdb5  light teal
-            'rgba(123,  94, 167, 0.75)',   // #7b5ea7  purple
-            'rgba(165, 143, 216, 0.75)',   // #a58fd8  lavender
-            'rgba(212, 132,  42, 0.75)',   // #d4842a  amber
-            'rgba(106, 180, 212, 0.75)',   // #6ab4d4  sky blue
-        ];
-        const walletBorderPalette = walletPalette.map(c => c.replace(/,\s*[\d.]+\)$/, ', 1)'));
-        const bgColors = walletLabels.map((_, i) => walletPalette[i % walletPalette.length]);
-        const bdColors = walletLabels.map((_, i) => walletBorderPalette[i % walletBorderPalette.length]);
-
-        // Total balance for center text
-        const walletTotal = walletFiltered.reduce((s, w) => s + (Number(w?.balanceBase ?? w?.balance) || 0), 0);
-        const walletTotalEl = document.getElementById('walletTotalText');
-        if (walletTotalEl) {
-            walletTotalEl.textContent = `${walletTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
-            walletTotalEl.style.color = '#00b09a';
-            walletTotalEl.className = '';
-        }
-
-        new Chart(walletCanvas, {
-            type: 'doughnut',
-            data: {
-                labels: walletLabels,
-                datasets: [{
-                    data: walletBalances,
-                    backgroundColor: bgColors,
-                    borderColor: bdColors,
-                    borderWidth: 1,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '58%',
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            title: function(context) {
-                                const idx = context && context[0] ? context[0].dataIndex : 0;
-                                const w = walletFiltered[idx] || {};
-                                const name = String(w?.name || '').trim();
-                                const type = String(w?.type || '').trim();
-                                const cur = String(w?.currency || '').trim();
-                                const bits = [name];
-                                if (type) bits.push(type);
-                                if (cur) bits.push(cur);
-                                return bits.filter(Boolean).join(' - ');
-                            },
-                            label: function(context) {
-                                const idx = context?.dataIndex ?? 0;
-                                const w = walletFiltered[idx] || {};
-
-                                const vBase = Number(w?.balanceBase ?? w?.balance) || 0;
-                                const vWallet = Number(w?.balanceWallet || 0);
-                                const cur = String(w?.currency || '').trim();
-                                const base = String(baseCurrency || '').trim();
-
-                                const curUpper = cur ? cur.toUpperCase() : '';
-                                const baseUpper = base ? base.toUpperCase() : '';
-
-                                const a = base
-                                    ? `${vBase.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${base}`
-                                    : `${vBase.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-                                const b = cur
-                                    ? `${vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${cur}`
-                                    : `${vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-
-                                if (curUpper && baseUpper && curUpper === baseUpper) return a;
-                                if (baseUpper && !curUpper) return a;
-                                if (!baseUpper && curUpper) return b;
-                                return `${a} - ${b}`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        // Build the scrollable legend list
-        const legendEl = document.getElementById('walletLegend');
-        if (legendEl) {
-            legendEl.innerHTML = walletFiltered.map((w, i) => {
-                const color = bgColors[i];
-                const name = String(w?.name || '').trim();
-                const cur = String(w?.currency || '').trim();
-                const vBase = Number(w?.balanceBase ?? w?.balance) || 0;
-                const vWallet = Number(w?.balanceWallet || 0);
-                const label = cur ? `${name} (${cur})` : name;
-                const val = cur
-                    ? `${vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${cur}`
-                    : `${vBase.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
-                return `<div style="display:flex; align-items:center; justify-content:space-between; padding:3px 0; font-size:12px; gap:8px;">
-                    <span style="display:flex; align-items:center; gap:6px; min-width:0;">
-                        <span style="width:10px; height:10px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
-                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${label}</span>
-                    </span>
-                    <span style="white-space:nowrap; font-weight:500; color:#00b09a;">${val}</span>
-                </div>`;
-            }).join('');
-        }
-    }
-
-    new Chart(document.getElementById('myChart'), {
-        type: 'pie',
-        data: {
-            labels,
-            datasets: [
-                {
-                    label: `Crypto Portfolio (${baseCurrency})`,
-                    data: [sumPaid, sumNow],
-                    backgroundColor: [colorPaid, colorNow],
-                    borderColor: [borderPaid, borderNow],
-                    borderWidth: 1
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            radius: '95%',
-            rotation: pieTopRotation,
-            plugins: {
-                legend: {
-                    labels: { color: cssVar('--muted') || '#9ca3af' }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const v = Number(context.parsed || 0);
-                            return `${context.label}: ${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    // Stock pie (same style as crypto)
-    const stockSumNow = (Array.isArray(stockNowData) ? stockNowData : []).reduce((acc, v) => acc + (Number(v) || 0), 0);
-    const stockSumPaid = (Array.isArray(stockPaidData) ? stockPaidData : []).reduce((acc, v) => acc + (Number(v) || 0), 0);
-
-    const stockSumNowEl = document.getElementById('stockSumNowText');
-    const stockSumPaidEl = document.getElementById('stockSumPaidText');
-    if (stockSumNowEl) stockSumNowEl.textContent = formatMoney(stockSumNow);
-    if (stockSumPaidEl) stockSumPaidEl.textContent = formatMoney(stockSumPaid);
-
-    const stockCanvas = document.getElementById('stockChart');
-    if (stockCanvas) {
-        new Chart(stockCanvas, {
-            type: 'pie',
-            data: {
-                labels,
-                datasets: [
-                    {
-                        label: `Stock Portfolio (${baseCurrency})`,
-                        data: [stockSumPaid, stockSumNow],
-                        backgroundColor: [colorPaid, colorNow],
-                        borderColor: [borderPaid, borderNow],
-                        borderWidth: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                radius: '95%',
-                rotation: pieTopRotation,
-                plugins: {
-                    legend: {
-                        labels: { color: cssVar('--muted') || '#9ca3af' }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const v = Number(context.parsed || 0);
-                                return `${context.label}: ${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
+}
 </script>
 
 {% else %}
@@ -662,21 +643,15 @@
         <div class="small-muted" style="text-align: center; margin-bottom: 12px;">
             Sign in to access your wallets, track crypto & stock holdings, and manage daily transactions.
         </div>
-        <!-- <div class="small-muted" style="text-align: center; margin-bottom: 10px;">
-             Please sign in to see your wallets. 
-        </div> --->
 
         <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
             <a class="btn-cancel" href="/login" style="text-decoration: none;">Sign in / Create account</a>
-            <!-- <a class="btn-insert" href="/login" style="text-decoration: none;">Create account / sign up</a> -->
         </div>
 
         <div class="small-muted" style="text-align: center; margin-top: 12px;">
-            <!-- New here? You can create an account during sign-in.
-            <span style="opacity: 0.7;">·</span> -->
-            You’ll be redirected to our secure sign-in provider.
+            You'll be redirected to our secure sign-in provider.
         </div>
     </div>
-</div> 
+</div>
 {% endif %}
 {% endblock %}
