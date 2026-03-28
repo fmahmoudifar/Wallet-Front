@@ -47,12 +47,19 @@ def _is_codespaces() -> bool:
         return True
     if os.getenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN"):
         return True
+    if _truthy(os.getenv("LOCAL_DEV") or ""):
+        return True
 
     try:
-        host = (request.host or "").lower()
-        return host.endswith(".app.github.dev") or host.endswith(".github.dev")
+        host = (request.host or "").lower().split(":")[0]
+        if host.endswith(".app.github.dev") or host.endswith(".github.dev"):
+            return True
+        if host in ("localhost", "127.0.0.1", "::1"):
+            return True
     except Exception:
-        return False
+        pass
+
+    return False
 
 
 def _dev_login_enabled() -> bool:

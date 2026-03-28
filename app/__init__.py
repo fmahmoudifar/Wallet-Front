@@ -36,6 +36,9 @@ def create_app():
             return True
         if os.getenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN"):
             return True
+        # Also treat local development as a dev environment
+        if _truthy_env(os.getenv("LOCAL_DEV") or ""):
+            return True
         return False
 
     def _dev_login_creds_present_env() -> bool:
@@ -61,11 +64,15 @@ def create_app():
             return True
         if os.getenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN"):
             return True
+        if _truthy_env(os.getenv("LOCAL_DEV") or ""):
+            return True
 
-        # Fallback: detect Codespaces by hostname.
         try:
-            host = (request.host or "").lower()
+            host = (request.host or "").lower().split(":")[0]
+            # Codespaces hostname or local development
             if host.endswith(".app.github.dev") or host.endswith(".github.dev"):
+                return True
+            if host in ("localhost", "127.0.0.1", "::1"):
                 return True
         except Exception:
             pass
