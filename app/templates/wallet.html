@@ -110,6 +110,14 @@ document.addEventListener("DOMContentLoaded", function() {
 <div id="newWallet" class="block-new" style="display: none;">
     <!-- <h2 class="center-text">New Wallet</h2> -->
     <div class="form-container">
+        <div class="totals-card" style="padding: 12px 16px; margin-bottom: 14px; font-size: 12px; line-height: 1.6; text-align: left;">
+            <div class="small-muted">
+                <strong>Fiat:</strong> Bank accounts, cash, or payment services (e.g. Swedbank, Revolut, Wise).<br>
+                <strong>Crypto:</strong> Cryptocurrency wallets or exchanges (e.g. Coinomi, Binance, KuCoin).<br>
+                <strong>Stock:</strong> Brokerage or investment accounts (e.g. Trading 212, eToro).<br>
+                <strong>Currency:</strong> Sets the wallet's base currency. Used for balance display and FX Transfer calculations.
+            </div>
+        </div>
         <form action="/wallet" method="POST">
     <div>
         <label for="walletName">Wallet Name:</label>
