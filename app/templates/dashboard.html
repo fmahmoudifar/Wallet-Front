@@ -360,15 +360,24 @@ function renderDashboard(data) {
                 var vBase = Number(w.balanceBase || w.balance) || 0;
                 var vWallet = Number(w.balanceWallet || 0);
                 var label = cur ? name + ' (' + cur + ')' : name;
-                var val = cur
+                var curUpper = cur ? cur.toUpperCase() : '';
+                var baseUpper = baseCurrency ? baseCurrency.toUpperCase() : '';
+                var sameCurrency = curUpper && baseUpper && curUpper === baseUpper;
+                var walletVal = cur
                     ? vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + cur
                     : vBase.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + baseCurrency;
-                return '<div style="display:flex; align-items:center; justify-content:space-between; padding:3px 0; font-size:12px; gap:8px;">'
-                    + '<span style="display:flex; align-items:center; gap:6px; min-width:0;">'
+                var baseVal = vBase.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + baseCurrency;
+                var convertedLine = sameCurrency ? ''
+                    : '<div style="text-align:right; font-size:11px; color:#6a7d94; margin-top:1px;">≈ ' + baseVal + '</div>';
+                return '<div style="display:flex; align-items:flex-start; justify-content:space-between; padding:4px 0; font-size:12px; gap:8px;">'
+                    + '<span style="display:flex; align-items:center; gap:6px; min-width:0; margin-top:2px;">'
                     + '<span style="width:10px; height:10px; border-radius:50%; background:' + color + '; flex-shrink:0;"></span>'
                     + '<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + label + '</span>'
                     + '</span>'
-                    + '<span style="white-space:nowrap; font-weight:500; color:#00b09a;">' + val + '</span>'
+                    + '<span style="white-space:nowrap; font-weight:500; text-align:right;">'
+                    + '<div style="color:#00b09a;">' + walletVal + '</div>'
+                    + convertedLine
+                    + '</span>'
                     + '</div>';
             }).join('');
         }
