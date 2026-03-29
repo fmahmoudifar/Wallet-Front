@@ -299,7 +299,7 @@ def dashboard_data():
             crypto_transactions[name].sort(key=lambda x: x.get("tdate", ""))
 
         # Process each crypto's transactions chronologically (exact same logic as crypto.py)
-        for name, transactions in crypto_transactions.items():
+        for name, crypto_txs in crypto_transactions.items():
             entry = {
                 "cryptoName": name,
                 "total_qty": Decimal(0),  # Current holding quantity
@@ -310,7 +310,7 @@ def dashboard_data():
                 "currency": base_currency,
             }
 
-            for tx in transactions:
+            for tx in crypto_txs:
                 try:
                     qty = to_decimal(tx.get("quantity", 0))
                     price = to_decimal(tx.get("price", 0))
@@ -471,17 +471,18 @@ def dashboard_data():
             from_wallet = transaction.get("fromWallet")
             ttype = str(transaction.get("transType") or "").strip().lower()
 
-            # Fiat wallet logic (as requested):
-            # - Income: add amount to toWallet (ignore fee)
-            # - Expense: deduct amount from fromWallet (ignore fee)
+            # Fiat wallet logic:
+            # - Income: add amount to toWallet
+            # - Expense: deduct (amount + fee) from fromWallet
             # - Transfer: deduct (amount + fee) from fromWallet and add amount to toWallet
             if ttype == "income":
                 if to_wallet:
                     wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet(amt, tx_currency, to_wallet)
             elif ttype == "expense":
                 if from_wallet:
+                    total_expense = amt + fee
                     wallet_fiat_balances[from_wallet] -= _fx_amount_to_wallet(
-                        amt, tx_currency, from_wallet
+                        total_expense, tx_currency, from_wallet
                     )
             elif ttype == "transfer":
                 total_move = amt + fee
@@ -588,6 +589,7 @@ def dashboard_data():
             print(f"Error processing loan {loan}: {e}")
             continue
 
+
     # Track per-wallet stock quantities (for live valuation in Wallet Balances)
     wallet_stock_qty = defaultdict(lambda: defaultdict(lambda: Decimal(0)))
 
@@ -602,7 +604,7 @@ def dashboard_data():
         for sym in stock_transactions:
             stock_transactions[sym].sort(key=lambda x: x.get("tdate", ""))
 
-        for sym, transactions in stock_transactions.items():
+        for sym, stock_txs in stock_transactions.items():
             entry = {
                 "stockName": sym,
                 "total_qty": Decimal(0),
@@ -613,7 +615,7 @@ def dashboard_data():
                 "currency": base_currency,
             }
 
-            for tx in transactions:
+            for tx in stock_txs:
                 try:
                     qty = _to_decimal_stock(tx.get("quantity", 0))
                     price_raw = _to_decimal_stock(tx.get("price", 0))

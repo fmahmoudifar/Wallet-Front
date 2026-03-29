@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(docker volume:*)",
-      "Bash(xargs -r docker rm -f)"
+      "Bash(xargs -r docker rm -f)",
+      "Bash(curl -s http://localhost:5000/api/dashboard-data)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -sv http://localhost:5000/)",
+      "Bash(sleep 3 curl -s -c /tmp/cookies4.txt \"http://localhost:5000/dev-login\" -o /dev/null curl -s -c /tmp/cookies4.txt -b /tmp/cookies4.txt -X POST \"http://localhost:5000/dev-login\" -d \"username=fmahmoudifar&password=F%40rshad4998\" -o /dev/null curl -s -b /tmp/cookies4.txt \"http://localhost:5000/api/dashboard-data\")",
+      "Bash(sleep 3 curl -s -c /tmp/cookies5.txt \"http://localhost:5000/dev-login\" -o /dev/null curl -s -c /tmp/cookies5.txt -b /tmp/cookies5.txt -X POST \"http://localhost:5000/dev-login\" -d \"username=fmahmoudifar&password=F%40rshad4998\" -o /dev/null curl -s -b /tmp/cookies5.txt \"http://localhost:5000/api/dashboard-data\")",
+      "Bash(sleep 3 curl -s -c /tmp/cookies6.txt \"http://localhost:5000/dev-login\" -o /dev/null curl -s -c /tmp/cookies6.txt -b /tmp/cookies6.txt -X POST \"http://localhost:5000/dev-login\" -d \"username=fmahmoudifar&password=F%40rshad4998\" -o /dev/null curl -s -b /tmp/cookies6.txt \"http://localhost:5000/api/dashboard-data\")"
     ]
   }
 }
