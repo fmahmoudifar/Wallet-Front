@@ -24,3 +24,6 @@ __pycache__/
 # Others you may want
 instance/
 .DS_Store
+
+# VS Code local workspace settings (use Settings Sync instead)
+.vscode/settings.json
