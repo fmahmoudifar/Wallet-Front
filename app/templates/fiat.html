@@ -219,6 +219,8 @@
         document.getElementById("transListDiv").style.display = "none";
         const dashDiv = document.getElementById("fiatDashboardDiv");
         if (dashDiv) dashDiv.style.display = "none";
+        const catDashDiv = document.getElementById("fiatCategoryDashboardDiv");
+        if (catDashDiv) catDashDiv.style.display = "none";
         const newDiv = document.getElementById("newTrans");
         if (newDiv) newDiv.style.display = "none";
 
@@ -316,12 +318,38 @@
         if (dm) dm.addEventListener('change', applyDashMonthYearSelection);
         if (dy) dy.addEventListener('change', applyDashMonthYearSelection);
 
+        // Category monthly trend filters
+        const cts = document.getElementById('catDashStart');
+        const cte = document.getElementById('catDashEnd');
+        const cty = document.getElementById('catTrendYear');
+        const ctt = document.getElementById('catTrendType');
+        const ctc = document.getElementById('catTrendCategory');
+        ['input','change'].forEach(evt => {
+            if (cts) cts.addEventListener(evt, function(){ renderFiatCategoryDashboard(); });
+            if (cte) cte.addEventListener(evt, function(){ renderFiatCategoryDashboard(); });
+        });
+        if (cty) cty.addEventListener('change', applyFiatCategoryTrendYearSelection);
+        if (ctt) ctt.addEventListener('change', function() {
+            populateFiatCategoryTrendOptions();
+            renderFiatCategoryDashboard();
+        });
+        if (ctc) ctc.addEventListener('change', function(){ renderFiatCategoryDashboard(); });
+
         // Initialize dashboard default range and render
         if (typeof initFiatDashboardDefaults === 'function') {
             initFiatDashboardDefaults();
         }
         if (typeof syncDashMonthYearDropdownsFromDates === 'function') {
             syncDashMonthYearDropdownsFromDates();
+        }
+        if (typeof initFiatCategoryTrendDefaults === 'function') {
+            initFiatCategoryTrendDefaults();
+        }
+        if (typeof syncFiatCategoryTrendYearFromDates === 'function') {
+            syncFiatCategoryTrendYearFromDates();
+        }
+        if (typeof populateFiatCategoryTrendOptions === 'function') {
+            populateFiatCategoryTrendOptions();
         }
         if (typeof renderFiatDashboard === 'function') {
             renderFiatDashboard();
@@ -345,6 +373,7 @@
         const list = document.getElementById("transListDiv");
         const update = document.getElementById("updateTransDiv");
         const dash = document.getElementById("fiatDashboardDiv");
+        const catDash = document.getElementById("fiatCategoryDashboardDiv");
         const title = document.getElementById('transPageTitle');
 
         const isVisible = !!(div && window.getComputedStyle(div).display !== 'none');
@@ -356,6 +385,7 @@
         div.style.display = "block";
         if (list) list.style.display = "none";
         if (dash) dash.style.display = "none";
+        if (catDash) catDash.style.display = "none";
         if (update) update.style.display = "none";
         if (title) title.innerText = 'New Transaction';
         setFiatNavVisibility('new');
@@ -367,6 +397,7 @@
         const newDiv = document.getElementById("newTrans");
         const updateDiv = document.getElementById("updateTransDiv");
         const dash = document.getElementById("fiatDashboardDiv");
+        const catDash = document.getElementById("fiatCategoryDashboardDiv");
         const title = document.getElementById('transPageTitle');
 
         const isVisible = !!(div && window.getComputedStyle(div).display !== 'none');
@@ -378,6 +409,7 @@
         if (newDiv) newDiv.style.display = "none";
         if (updateDiv) updateDiv.style.display = "none";
         if (dash) dash.style.display = "none";
+        if (catDash) catDash.style.display = "none";
         if (div) div.style.display = "block";
         if (title) title.innerText = 'Transactions History';
         setFiatNavVisibility('history');
@@ -386,12 +418,14 @@
 
     function showFiatDashboard() {
         const dash = document.getElementById("fiatDashboardDiv");
+        const catDash = document.getElementById("fiatCategoryDashboardDiv");
         const list = document.getElementById("transListDiv");
         const newDiv = document.getElementById("newTrans");
         const updateDiv = document.getElementById("updateTransDiv");
         const title = document.getElementById('transPageTitle');
 
         if (dash) dash.style.display = "block";
+        if (catDash) catDash.style.display = "none";
         if (list) list.style.display = "none";
         if (newDiv) newDiv.style.display = "none";
         if (updateDiv) updateDiv.style.display = "none";
@@ -406,6 +440,32 @@
         }
     }
     window.showFiatDashboard = showFiatDashboard;
+
+
+    function showFiatCategoryTrends() {
+        const dash = document.getElementById("fiatDashboardDiv");
+        const catDash = document.getElementById("fiatCategoryDashboardDiv");
+        const list = document.getElementById("transListDiv");
+        const newDiv = document.getElementById("newTrans");
+        const updateDiv = document.getElementById("updateTransDiv");
+        const title = document.getElementById('transPageTitle');
+
+        if (dash) dash.style.display = "none";
+        if (catDash) catDash.style.display = "block";
+        if (list) list.style.display = "none";
+        if (newDiv) newDiv.style.display = "none";
+        if (updateDiv) updateDiv.style.display = "none";
+        if (title) title.innerText = 'Category Trends';
+        setFiatNavVisibility('category');
+
+        if (typeof initFiatCategoryTrendDefaults === 'function') {
+            initFiatCategoryTrendDefaults();
+        }
+        if (typeof renderFiatCategoryDashboard === 'function') {
+            renderFiatCategoryDashboard();
+        }
+    }
+    window.showFiatCategoryTrends = showFiatCategoryTrends;
 
     function setFiatNavVisibility(activeView) {
         const btns = Array.from(document.querySelectorAll('[data-fiat-nav]'));
@@ -626,6 +686,413 @@
         renderFiatDashboard();
     }
     window.resetFiatDashboardDates = resetFiatDashboardDates;
+
+
+    function initFiatCategoryTrendDefaults() {
+        const startEl = document.getElementById('catDashStart');
+        const endEl = document.getElementById('catDashEnd');
+        if (!startEl || !endEl) return;
+
+        const hasStart = !!String(startEl.value || '').trim();
+        const hasEnd = !!String(endEl.value || '').trim();
+        if (!hasStart || !hasEnd) {
+            const now = new Date();
+            const y = now.getFullYear();
+            startEl.value = formatLocalDateTime(new Date(y, 0, 1, 0, 0, 0));
+            endEl.value = formatLocalDateTime(new Date(y, 11, 31, 23, 59, 59));
+        }
+
+        ensureFiatCategoryTrendYearDropdownPopulated();
+    }
+    window.initFiatCategoryTrendDefaults = initFiatCategoryTrendDefaults;
+
+    function setFiatCategoryTrendRangeForYear(year) {
+        const startEl = document.getElementById('catDashStart');
+        const endEl = document.getElementById('catDashEnd');
+        if (!startEl || !endEl) return;
+        const y = Number(year);
+        if (!Number.isFinite(y) || y < 1900 || y > 3000) return;
+        startEl.value = formatLocalDateTime(new Date(y, 0, 1, 0, 0, 0));
+        endEl.value = formatLocalDateTime(new Date(y, 11, 31, 23, 59, 59));
+    }
+
+    function ensureFiatCategoryTrendYearDropdownPopulated() {
+        const yearEl = document.getElementById('catTrendYear');
+        if (!yearEl) return;
+
+        const selected = String(yearEl.value || '');
+        const years = new Set();
+
+        const list = document.getElementById('transList');
+        if (list) {
+            const txItems = Array.from(list.querySelectorAll('li[data-tdate]'));
+            txItems.forEach(li => {
+                const d = parseTxDate(li.getAttribute('data-tdate'));
+                if (!d || isNaN(d)) return;
+                years.add(d.getFullYear());
+            });
+        }
+
+        if (!years.size) {
+            years.add(new Date().getFullYear());
+        }
+
+        const arr = Array.from(years).sort((a, b) => b - a);
+        yearEl.innerHTML = '';
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Select --';
+        yearEl.appendChild(placeholder);
+
+        arr.forEach(y => {
+            const opt = document.createElement('option');
+            opt.value = String(y);
+            opt.textContent = String(y);
+            yearEl.appendChild(opt);
+        });
+
+        if (selected && Array.from(yearEl.options).some(o => o.value === selected)) {
+            yearEl.value = selected;
+        }
+    }
+
+    function syncFiatCategoryTrendYearFromDates() {
+        const yearEl = document.getElementById('catTrendYear');
+        const startVal = document.getElementById('catDashStart')?.value || '';
+        const endVal = document.getElementById('catDashEnd')?.value || '';
+        if (!yearEl) return;
+
+        ensureFiatCategoryTrendYearDropdownPopulated();
+        const s = parseLocalDateTime(startVal);
+        const e = parseLocalDateTime(endVal);
+        if (!s || !e) {
+            yearEl.value = '';
+            return;
+        }
+        if (s.getFullYear() === e.getFullYear() && s.getMonth() === 0 && e.getMonth() === 11) {
+            yearEl.value = String(s.getFullYear());
+        } else {
+            yearEl.value = '';
+        }
+    }
+    window.syncFiatCategoryTrendYearFromDates = syncFiatCategoryTrendYearFromDates;
+
+    function applyFiatCategoryTrendYearSelection() {
+        const yearEl = document.getElementById('catTrendYear');
+        if (!yearEl) return;
+        const y = Number(yearEl.value || '');
+        if (!Number.isFinite(y) || y < 1900 || y > 3000) return;
+        setFiatCategoryTrendRangeForYear(y);
+        renderFiatCategoryDashboard();
+    }
+    window.applyFiatCategoryTrendYearSelection = applyFiatCategoryTrendYearSelection;
+
+    function shiftFiatCategoryTrendYear(delta) {
+        const startVal = document.getElementById('catDashStart')?.value || '';
+        const anchor = parseLocalDateTime(startVal) || new Date();
+        const nextYear = anchor.getFullYear() + Number(delta || 0);
+        setFiatCategoryTrendRangeForYear(nextYear);
+        ensureFiatCategoryTrendYearDropdownPopulated();
+        syncFiatCategoryTrendYearFromDates();
+        renderFiatCategoryDashboard();
+    }
+    window.shiftFiatCategoryTrendYear = shiftFiatCategoryTrendYear;
+
+    function resetFiatCategoryTrendDates() {
+        const startEl = document.getElementById('catDashStart');
+        const endEl = document.getElementById('catDashEnd');
+        if (!startEl || !endEl) return;
+        startEl.value = '';
+        endEl.value = '';
+        initFiatCategoryTrendDefaults();
+        ensureFiatCategoryTrendYearDropdownPopulated();
+        syncFiatCategoryTrendYearFromDates();
+        populateFiatCategoryTrendOptions();
+        renderFiatCategoryDashboard();
+    }
+    window.resetFiatCategoryTrendDates = resetFiatCategoryTrendDates;
+
+    function populateFiatCategoryTrendOptions() {
+        const typeEl = document.getElementById('catTrendType');
+        const catEl = document.getElementById('catTrendCategory');
+        const list = document.getElementById('transList');
+        if (!typeEl || !catEl) return;
+
+        const prev = String(catEl.value || '');
+        const typeVal = String(typeEl.value || 'expense').trim().toLowerCase();
+        const startDt = parseLocalDateTime(document.getElementById('catDashStart')?.value || '');
+        const endDt = parseLocalDateTime(document.getElementById('catDashEnd')?.value || '');
+
+        const categories = new Set();
+        if (list) {
+            const items = Array.from(list.querySelectorAll('li[data-tdate]'));
+            items.forEach(li => {
+                const tdate = parseTxDate(li.getAttribute('data-tdate'));
+                if ((startDt || endDt) && !tdate) return;
+                if (startDt && tdate && tdate < startDt) return;
+                if (endDt && tdate && tdate > endDt) return;
+
+                const t = String(li.getAttribute('data-type') || '').trim().toLowerCase();
+                if (t !== typeVal) return;
+
+                const cat = String(li.getAttribute('data-cat') || '').trim() || 'Other';
+                categories.add(cat);
+            });
+        }
+
+        const sorted = Array.from(categories).sort((a, b) => a.localeCompare(b));
+        catEl.innerHTML = '';
+
+        const ph = document.createElement('option');
+        ph.value = '';
+        ph.textContent = sorted.length ? '-- Select --' : '-- No categories --';
+        catEl.appendChild(ph);
+
+        sorted.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            catEl.appendChild(opt);
+        });
+
+        if (prev && sorted.includes(prev)) catEl.value = prev;
+        else if (sorted.length) catEl.value = sorted[0];
+        else catEl.value = '';
+    }
+    window.populateFiatCategoryTrendOptions = populateFiatCategoryTrendOptions;
+
+    function renderFiatCategoryMonthlyChart(baseCurrency) {
+        const list = document.getElementById('transList');
+        const typeEl = document.getElementById('catTrendType');
+        const catEl = document.getElementById('catTrendCategory');
+        const emptyEl = document.getElementById('catTrendChartEmpty');
+        const chartWrap = document.getElementById('catTrendChartWrap');
+        const titleEl = document.getElementById('catTrendTitle');
+        const metaEl = document.getElementById('catTrendMeta');
+        const totalEl = document.getElementById('catTrendTotal');
+        const avgEl = document.getElementById('catTrendAvg');
+
+        if (!typeEl || !catEl || !chartWrap) return;
+
+        ensureFiatCategoryTrendYearDropdownPopulated();
+        syncFiatCategoryTrendYearFromDates();
+        populateFiatCategoryTrendOptions();
+
+        const typeVal = String(typeEl.value || 'expense').trim().toLowerCase();
+        const selectedCat = String(catEl.value || '').trim();
+        const startDtRaw = parseLocalDateTime(document.getElementById('catDashStart')?.value || '');
+        const endDtRaw = parseLocalDateTime(document.getElementById('catDashEnd')?.value || '');
+
+        const now = new Date();
+        const fallbackStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+        const fallbackEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+        let startDt = startDtRaw || fallbackStart;
+        let endDt = endDtRaw || fallbackEnd;
+        if (startDt > endDt) {
+            const tmp = startDt;
+            startDt = endDt;
+            endDt = tmp;
+        }
+
+        if (!list || !selectedCat) {
+            if (emptyEl) emptyEl.style.display = '';
+            if (chartWrap) chartWrap.style.display = 'none';
+            if (metaEl) metaEl.style.display = 'none';
+            if (titleEl) titleEl.textContent = 'Select a category to see monthly totals.';
+            if (window.__fiatCategoryMonthlyBarChart) {
+                try { window.__fiatCategoryMonthlyBarChart.destroy(); } catch (e) {}
+                window.__fiatCategoryMonthlyBarChart = null;
+            }
+            return;
+        }
+
+        const monthKeys = [];
+        const monthLabels = [];
+        const cursor = new Date(startDt.getFullYear(), startDt.getMonth(), 1, 0, 0, 0);
+        const endMonth = new Date(endDt.getFullYear(), endDt.getMonth(), 1, 0, 0, 0);
+        while (cursor <= endMonth) {
+            const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+            monthKeys.push(key);
+            monthLabels.push(cursor.toLocaleString(undefined, { month: 'short', year: '2-digit' }));
+            cursor.setMonth(cursor.getMonth() + 1);
+        }
+
+        const valuesByMonth = {};
+        monthKeys.forEach(k => { valuesByMonth[k] = 0; });
+
+        const catCmp = selectedCat.toLowerCase();
+        const items = Array.from(list.querySelectorAll('li[data-tdate]'));
+        items.forEach(li => {
+            const tdate = parseTxDate(li.getAttribute('data-tdate'));
+            if (!tdate) return;
+            if (tdate < startDt || tdate > endDt) return;
+
+            const t = String(li.getAttribute('data-type') || '').trim().toLowerCase();
+            if (t !== typeVal) return;
+
+            const cat = String(li.getAttribute('data-cat') || '').trim() || 'Other';
+            if (cat.toLowerCase() !== catCmp) return;
+
+            const amount = parseFloat(String(li.getAttribute('data-amount-setting') || li.getAttribute('data-amount') || '0')) || 0;
+            if (!amount) return;
+
+            const mk = `${tdate.getFullYear()}-${String(tdate.getMonth() + 1).padStart(2, '0')}`;
+            if (Object.prototype.hasOwnProperty.call(valuesByMonth, mk)) {
+                valuesByMonth[mk] += amount;
+            }
+        });
+
+        const values = monthKeys.map(k => Number(valuesByMonth[k] || 0));
+        const hasData = values.some(v => v > 0);
+        const total = values.reduce((acc, v) => acc + (Number(v) || 0), 0);
+        const activeMonths = values.filter(v => Number(v || 0) > 0).length || 0;
+        const avgPerActiveMonth = activeMonths ? (total / activeMonths) : 0;
+
+        if (titleEl) {
+            const prettyType = typeVal === 'income' ? 'Income' : 'Expense';
+            titleEl.textContent = `${prettyType} - ${selectedCat}`;
+        }
+        if (totalEl) totalEl.textContent = `Total: ${total.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+        if (avgEl) avgEl.textContent = `Avg/Active Month: ${avgPerActiveMonth.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+        if (metaEl) metaEl.style.display = hasData ? 'flex' : 'none';
+        if (emptyEl) emptyEl.style.display = hasData ? 'none' : '';
+        if (chartWrap) chartWrap.style.display = hasData ? '' : 'none';
+
+        if (!hasData) {
+            if (window.__fiatCategoryMonthlyBarChart) {
+                try { window.__fiatCategoryMonthlyBarChart.destroy(); } catch (e) {}
+                window.__fiatCategoryMonthlyBarChart = null;
+            }
+            return;
+        }
+
+        if (!window.Chart) return;
+        const canvas = document.getElementById('catTrendChart');
+        if (!canvas) return;
+
+        const cssVar = (name) => {
+            try { return (getComputedStyle(document.documentElement).getPropertyValue(name) || '').trim(); } catch (_) { return ''; }
+        };
+        const isMobile = (window.matchMedia && window.matchMedia('(max-width: 480px)').matches);
+
+        if (chartWrap) {
+            if (isMobile) {
+                const rows = Math.max(1, monthLabels.length || 12);
+                chartWrap.style.height = `${Math.max(300, rows * 28 + 72)}px`;
+            } else {
+                chartWrap.style.height = '320px';
+            }
+        }
+
+        if (window.__fiatCategoryMonthlyBarChart) {
+            try { window.__fiatCategoryMonthlyBarChart.destroy(); } catch (e) {}
+        }
+
+        window.__fiatCategoryMonthlyBarChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: monthLabels,
+                datasets: [{
+                    label: `${typeVal === 'income' ? 'Income' : 'Expense'}: ${selectedCat}`,
+                    data: values,
+                    backgroundColor: 'rgba(0, 176, 154, 0.78)',
+                    borderColor: 'rgba(0, 176, 154, 1)',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    barThickness: isMobile ? 14 : 26,
+                    maxBarThickness: isMobile ? 18 : 30,
+                    categoryPercentage: isMobile ? 0.8 : 0.72,
+                    barPercentage: 0.9,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: isMobile ? 'y' : 'x',
+                interaction: { mode: 'index', intersect: false },
+                animation: { duration: 260 },
+                layout: { padding: { top: 6, right: 8, bottom: 2, left: 2 } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                        titleColor: '#e5e7eb',
+                        bodyColor: '#e5e7eb',
+                        displayColors: false,
+                        callbacks: {
+                            title: function(context) {
+                                return context && context[0] ? context[0].label : '';
+                            },
+                            label: function(context) {
+                                const parsed = context.parsed || {};
+                                const v = Number(isMobile ? parsed.x : parsed.y || 0);
+                                return `${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: isMobile ? {
+                        beginAtZero: true,
+                        ticks: {
+                            color: cssVar('--muted') || '#9ca3af',
+                            callback: function(value) {
+                                const n = Number(value || 0);
+                                if (Math.abs(n) >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+                                if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}k`;
+                                return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                            }
+                        },
+                        grid: {
+                            color: cssVar('--border') || 'rgba(255,255,255,0.12)',
+                            borderDash: [4, 4],
+                        }
+                    } : {
+                        offset: true,
+                        ticks: {
+                            autoSkip: false,
+                            maxRotation: 0,
+                            minRotation: 0,
+                            color: cssVar('--muted') || '#9ca3af',
+                            font: { size: 11 }
+                        },
+                        grid: { display: false }
+                    },
+                    y: isMobile ? {
+                        ticks: {
+                            color: cssVar('--muted') || '#9ca3af',
+                            font: { size: 11 }
+                        },
+                        grid: { display: false }
+                    } : {
+                        beginAtZero: true,
+                        ticks: {
+                            color: cssVar('--muted') || '#9ca3af',
+                            callback: function(value) {
+                                const n = Number(value || 0);
+                                if (Math.abs(n) >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+                                if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}k`;
+                                return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                            }
+                        },
+                        grid: {
+                            color: cssVar('--border') || 'rgba(255,255,255,0.12)',
+                            borderDash: [4, 4],
+                        }
+                    }
+                }
+            }
+        });
+    }
+    window.renderFiatCategoryMonthlyChart = renderFiatCategoryMonthlyChart;
+
+    function renderFiatCategoryDashboard() {
+        const baseCurrency = document.getElementById('fiatBaseCurrency')?.value || 'EUR';
+        renderFiatCategoryMonthlyChart(baseCurrency);
+    }
+    window.renderFiatCategoryDashboard = renderFiatCategoryDashboard;
 
     function renderFiatDashboard() {
         const baseCurrency = document.getElementById('fiatBaseCurrency')?.value || 'EUR';
@@ -1222,6 +1689,10 @@
         <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
         <span>Overview</span>
     </button>
+    <button type="button" class="app-subnav-link" data-fiat-nav="category" onclick="showFiatCategoryTrends()">
+        <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19h16" stroke-linecap="round"/><rect x="6" y="11" width="3" height="6" rx="0.6"/><rect x="11" y="8" width="3" height="9" rx="0.6"/><rect x="16" y="5" width="3" height="12" rx="0.6"/></svg>
+        <span>Trends</span>
+    </button>
     <button type="button" class="app-subnav-link" data-fiat-nav="new" onclick="newTransDiv()">
         <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8" stroke-linecap="round"/></svg>
         <span>New</span>
@@ -1298,6 +1769,67 @@
                 <canvas id="expenseChart" height="280"></canvas>
                 <div style="height:10px;"></div>
                 <canvas id="expenseBarChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div id="fiatCategoryDashboardDiv" class="form-container" style="display:none;">
+    <div id="dashCategoryFilters" class="history-filters" style="margin-top:12px;">
+        <form class="filters-grid" onsubmit="renderFiatCategoryDashboard(); return false;">
+            <div>
+                <button type="button" class="btn-insert" style="padding:6px 10px;height:34px;min-width:46px;font-size:0.95rem;" onclick="shiftFiatCategoryTrendYear(-1)">&lt;&lt;</button>
+            </div>
+            <div>
+                <label for="catDashStart">From Date:</label>
+                <input type="date" id="catDashStart" name="catDashStart">
+            </div>
+            <div>
+                <label for="catDashEnd">To Date:</label>
+                <input type="date" id="catDashEnd" name="catDashEnd">
+            </div>
+            <div>
+                <button type="button" class="btn-insert" style="padding:6px 10px;height:34px;min-width:46px;font-size:0.95rem;" onclick="shiftFiatCategoryTrendYear(1)">&gt;&gt;</button>
+            </div>
+            <div>
+                <label for="catTrendYear">Year:</label>
+                <select id="catTrendYear" name="catTrendYear">
+                    <option value="" selected>-- Select --</option>
+                </select>
+            </div>
+            <div>
+                <label for="catTrendType">Type:</label>
+                <select id="catTrendType" name="catTrendType">
+                    <option value="expense" selected>Expense</option>
+                    <option value="income">Income</option>
+                </select>
+            </div>
+            <div>
+                <label for="catTrendCategory">Category:</label>
+                <select id="catTrendCategory" name="catTrendCategory">
+                    <option value="">-- Select --</option>
+                </select>
+            </div>
+            <div class="filters-actions">
+                <button type="button" class="btn-clear" onclick="resetFiatCategoryTrendDates()">Reset</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="totals-grid fiat-category-trend-grid" style="margin-top:12px;">
+        <div class="totals-card fiat-dashboard-card fiat-category-trend-card">
+            <div class="fiat-trend-header">
+                <div style="font-weight:700;" id="catTrendTitle">Category Trends</div>
+                <div class="small-muted">Monthly totals</div>
+            </div>
+            <div id="catTrendMeta" class="small-muted fiat-trend-meta" style="display:none;">
+                <span id="catTrendTotal">Total: 0</span>
+                <span id="catTrendAvg">Avg/Month: 0</span>
+            </div>
+            <div id="catTrendChartEmpty" class="small-muted" style="display:none;margin:6px 0;">No data for this category in this date range.</div>
+            <div id="catTrendChartWrap" class="fiat-trend-chart-wrap">
+                <canvas id="catTrendChart"></canvas>
             </div>
         </div>
     </div>
