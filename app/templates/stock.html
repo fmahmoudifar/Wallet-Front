@@ -1257,6 +1257,13 @@ function stockWalletsDiv() { showStockWallets(); }
 <div id="newStock" class="block-new" style="display: none;">
     <!-- <h2 class="center-text">Add New Stock Transaction</h2> -->
     <div class="form-container">
+        <div class="totals-card" style="padding: 12px 16px; margin-bottom: 14px; font-size: 12px; line-height: 1.6; text-align: left;">
+            <div class="small-muted">
+                <strong>Buy:</strong> Cash leaves From Wallet, stock quantity added to To Wallet. Cost = qty &times; price + fee.<br>
+                <strong>Sell:</strong> Stock quantity removed from From Wallet, cash received in To Wallet. Proceeds = qty &times; price &minus; fee.<br>
+                <strong>Wallets:</strong> For Buy/Sell, only the stock wallet is required. The cash wallet (From in Buy, To in Sell) is optional. Fill it to track cash flow per wallet.
+            </div>
+        </div>
 
     <form action="/stock" method="POST">
         <div>
