@@ -3,5 +3,29 @@
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
   "forwardPorts": [5000],
   "postCreateCommand": "pip install -r requirements.txt || true",
-  "remoteUser": "vscode"
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "OVERVIEW_CACHE_TTL_SECONDS": "0"
+  },
+  "mounts": [
+    "source=wallet-claude-config,target=/home/vscode/.claude,type=volume"
+  ],
+  "initializeCommand": "docker volume create wallet-claude-config || true",
+  "postStartCommand": "sudo chown -R vscode:vscode /home/vscode/.claude || true && ([ -f /home/vscode/.claude/.claude.json ] && ln -sf /home/vscode/.claude/.claude.json /home/vscode/.claude.json || ([ -f /home/vscode/.claude.json ] && mv /home/vscode/.claude.json /home/vscode/.claude/.claude.json && ln -sf /home/vscode/.claude/.claude.json /home/vscode/.claude.json)) || true",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "andrepimenta.claude-code-chat",
+        "anthropic.claude-code",
+        "dbaeumer.vscode-eslint",
+        "github.copilot-chat",
+        "ms-python.autopep8",
+        "ms-python.debugpy",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.vscode-python-envs",
+        "openai.chatgpt"
+      ]
+    }
+  }
 }
