@@ -16,14 +16,22 @@
         const toSel = document.getElementById(prefix ? `${prefix}ToWallet` : 'toWallet');
         const feeRow = document.getElementById(prefix ? `${prefix}FeeRow` : 'createFeeRow');
         const feeEl = document.getElementById(prefix ? `${prefix}Fee` : 'fee');
+        const recvRow = document.getElementById(prefix ? `${prefix}ReceivedAmountRow` : 'createReceivedAmountRow');
+        const recvEl = document.getElementById(prefix ? `${prefix}ReceivedAmount` : 'receivedAmount');
+        const currencyRow = document.getElementById(prefix ? `${prefix}CurrencyRow` : 'createCurrencyRow');
+        const currencySel = document.getElementById(prefix ? `${prefix}Currency` : 'currency');
+        const amountLabel = document.getElementById(prefix ? `${prefix}AmountLabel` : 'createAmountLabel');
 
         if (!typeSel) return;
         const t = (typeSel.value || '').toLowerCase();
+        const isFx = (t === 'fx transfer');
 
-        const showFrom = (t === 'expense' || t === 'transfer');
-        const showTo = (t === 'income' || t === 'transfer');
-        const showFee = (t === 'expense' || t === 'transfer');
+        const showFrom = (t === 'expense' || t === 'transfer' || isFx);
+        const showTo = (t === 'income' || t === 'transfer' || isFx);
+        const showFee = (t === 'expense' || t === 'transfer' || isFx);
         const showCat = (t === 'income' || t === 'expense');
+        const showRecv = isFx;
+        const showCurrency = !isFx;
 
         const incomeCats = [
             'Salary, Wage',
@@ -86,9 +94,16 @@
         if (toRow) toRow.style.display = showTo ? '' : 'none';
         if (feeRow) feeRow.style.display = showFee ? '' : 'none';
         if (catRow) catRow.style.display = showCat ? '' : 'none';
+        if (recvRow) recvRow.style.display = showRecv ? '' : 'none';
+        if (currencyRow) currencyRow.style.display = showCurrency ? '' : 'none';
 
-        if (fromSel) fromSel.required = (t === 'expense' || t === 'transfer');
-        if (toSel) toSel.required = (t === 'income' || t === 'transfer');
+        // Update amount label for FX Transfer to clarify it's the source amount
+        if (amountLabel) amountLabel.textContent = isFx ? 'Amount (from wallet):' : 'Amount:';
+
+        if (fromSel) fromSel.required = (t === 'expense' || t === 'transfer' || isFx);
+        if (toSel) toSel.required = (t === 'income' || t === 'transfer' || isFx);
+        if (recvEl) recvEl.required = isFx;
+        if (currencySel) currencySel.required = !isFx;
 
         if (catSel) {
             if (t === 'income') rebuildCategoryOptions(incomeCats);
@@ -101,6 +116,7 @@
         if (!showFrom && fromSel) fromSel.value = '';
         if (!showTo && toSel) toSel.value = '';
         if (!showFee && feeEl) feeEl.value = '';
+        if (!showRecv && recvEl) recvEl.value = '';
         if (!showCat && catSel) catSel.value = '';
 
         // Clear any prior custom validity.
@@ -108,7 +124,7 @@
         if (toSel) toSel.setCustomValidity('');
 
         // For transfers, require different wallets.
-        if (t === 'transfer' && fromSel && toSel) {
+        if ((t === 'transfer' || isFx) && fromSel && toSel) {
             const fromVal = String(fromSel.value || '');
             const toVal = String(toSel.value || '');
             if (fromVal && toVal && fromVal === toVal) {
@@ -117,7 +133,7 @@
         }
     }
 
-    function editTransaction(transId, userId, transType, mainCat, tdate, fromWallet, toWallet, amount, currency, fee, note) {
+    function editTransaction(transId, userId, transType, mainCat, tdate, fromWallet, toWallet, amount, currency, fee, note, receivedAmount) {
         document.getElementById("updateTransId").value = transId;
         document.getElementById("updateUserId").value = userId;
         {
@@ -197,6 +213,7 @@
             }
         }
         document.getElementById("updateFee").value = fee;
+        document.getElementById("updateReceivedAmount").value = receivedAmount || '';
         document.getElementById("updateNote").value = note;
         document.getElementById("updateTransDiv").style.display = "block";
         document.getElementById("transListDiv").style.display = "none";
@@ -215,6 +232,31 @@
         document.getElementById("deleteForm").action = `/deleteFiat/${transId}/${userId}`;
     }  
 
+    // Wallet ID -> currency map (from server-side wallet data)
+    const walletCurrencyMap = {
+        {% for wallet in wallets %}
+        '{{ wallet.walletId }}': '{{ wallet.currency|default("") }}'{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    function updateFxLabels(prefix) {
+        const typeSel = document.getElementById(prefix ? `${prefix}TransType` : 'transType');
+        if (!typeSel) return;
+        const t = (typeSel.value || '').toLowerCase();
+        if (t !== 'fx transfer') return;
+
+        const fromSel = document.getElementById(prefix ? `${prefix}FromWallet` : 'fromWallet');
+        const toSel = document.getElementById(prefix ? `${prefix}ToWallet` : 'toWallet');
+        const amountLabel = document.getElementById(prefix ? `${prefix}AmountLabel` : 'createAmountLabel');
+        const recvLabel = document.getElementById(prefix ? `${prefix}ReceivedAmountLabel` : 'createReceivedAmountLabel');
+
+        const fromCcy = fromSel ? walletCurrencyMap[fromSel.value] || '' : '';
+        const toCcy = toSel ? walletCurrencyMap[toSel.value] || '' : '';
+
+        if (amountLabel) amountLabel.textContent = fromCcy ? `Amount (${fromCcy}):` : 'Amount (from wallet):';
+        if (recvLabel) recvLabel.textContent = toCcy ? `Received Amount (${toCcy}):` : 'Received Amount:';
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         // Show dashboard by default
         if (typeof showFiatDashboard === 'function') {
@@ -224,23 +266,23 @@
         // Type -> wallet field behavior
         const createType = document.getElementById('transType');
         if (createType) {
-            createType.addEventListener('change', function () { syncTransTypeUI(''); });
+            createType.addEventListener('change', function () { syncTransTypeUI(''); updateFxLabels(''); });
             syncTransTypeUI('');
         }
         const updateType = document.getElementById('updateTransType');
         if (updateType) {
-            updateType.addEventListener('change', function () { syncTransTypeUI('update'); });
+            updateType.addEventListener('change', function () { syncTransTypeUI('update'); updateFxLabels('update'); });
         }
 
         const createFrom = document.getElementById('fromWallet');
         const createTo = document.getElementById('toWallet');
-        if (createFrom) createFrom.addEventListener('change', function () { syncTransTypeUI(''); });
-        if (createTo) createTo.addEventListener('change', function () { syncTransTypeUI(''); });
+        if (createFrom) createFrom.addEventListener('change', function () { syncTransTypeUI(''); updateFxLabels(''); });
+        if (createTo) createTo.addEventListener('change', function () { syncTransTypeUI(''); updateFxLabels(''); });
 
         const updateFrom = document.getElementById('updateFromWallet');
         const updateTo = document.getElementById('updateToWallet');
-        if (updateFrom) updateFrom.addEventListener('change', function () { syncTransTypeUI('update'); });
-        if (updateTo) updateTo.addEventListener('change', function () { syncTransTypeUI('update'); });
+        if (updateFrom) updateFrom.addEventListener('change', function () { syncTransTypeUI('update'); updateFxLabels('update'); });
+        if (updateTo) updateTo.addEventListener('change', function () { syncTransTypeUI('update'); updateFxLabels('update'); });
 
         const list = document.getElementById("transList");
         if (list) {
@@ -1272,6 +1314,7 @@
         <option value="Income">Income</option>
         <option value="Expense">Expense</option>
         <option value="Transfer">Transfer</option>
+        <option value="FX Transfer">FX Transfer</option>
     </select>
     </div>
     <div id="createMainCatRow">
@@ -1280,15 +1323,9 @@
         <option value="">-- Select --</option>
     </select>
     </div>
-    <!-- <input type="text" name="subCat" placeholder="subCat"> -->
-    <!-- <input type="datetime-local" name="tdate" placeholder="date"> -->
     <div>
     <label for="tdate">Date:</label>
     <input type="date" id="tdate" name="tdate" required>
-    </div>
-    <div>
-    <label for="amount">Amount:</label>
-    <input type="text" name="amount" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" required>
     </div>
     <div id="createFromWalletRow">
     <label for="fromWallet">From Wallet:</label>
@@ -1309,6 +1346,18 @@
     </select>
     </div>
     <div>
+    <label for="amount" id="createAmountLabel">Amount:</label>
+    <input type="text" name="amount" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" required>
+    </div>
+    <div id="createReceivedAmountRow" style="display: none;">
+    <label for="receivedAmount" id="createReceivedAmountLabel">Received Amount:</label>
+    <input type="text" id="receivedAmount" name="receivedAmount" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
+    </div>
+    <div id="createFeeRow">
+    <label for="fee">Fee:</label>
+    <input type="text" id="fee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
+    </div>
+    <div id="createCurrencyRow">
     <label for="currency">Currency:</label>
     <select id="currency" name="currency" required>
         <option value="EUR">EUR</option>
@@ -1322,10 +1371,6 @@
         <option value="NOK">NOK</option>
         <option value="DKK">DKK</option>
     </select>
-    </div>
-    <div id="createFeeRow">
-    <label for="fee">Fee:</label>
-    <input type="text" id="fee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
     </div>
     <div>
     <label for="note">Note:</label>
@@ -1363,6 +1408,7 @@
                     <option value="Income">Income</option>
                     <option value="Expense">Expense</option>
                     <option value="Transfer">Transfer</option>
+                    <option value="FX Transfer">FX Transfer</option>
                 </select>
             </div>
             <div>
@@ -1438,7 +1484,7 @@
                 </div>
 
                 <div class="crypto-history-actions">
-                    <button class="btn-insert" onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.transType }}','{{ transaction.mainCat }}','{{ transaction.tdate }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}','{{ transaction.amount }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}')">Edit</button>
+                    <button class="btn-insert" onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.transType }}','{{ transaction.mainCat }}','{{ transaction.tdate }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}','{{ transaction.amount }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}','{{ transaction.receivedAmount|default('', true) }}')">Edit</button>
                 </div>
             </div>
         </li>
@@ -1464,6 +1510,7 @@
                     <option value="Income">Income</option>
                     <option value="Expense">Expense</option>
                     <option value="Transfer">Transfer</option>
+                    <option value="FX Transfer">FX Transfer</option>
                 </select>
             </div>
             <div id="updateMainCatRow">
@@ -1475,10 +1522,6 @@
             <div>
                 <label>Date:</label>
                 <input type="date" id="updateTdate" name="tdate" required>
-            </div>
-            <div>
-                <label>Amount:</label>
-                <input type="text" id="updateAmount" name="amount" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" required>
             </div>
             <div id="updateFromWalletRow">
                 <label>From Wallet:</label>
@@ -1499,6 +1542,18 @@
                 </select>
             </div>
             <div>
+                <label id="updateAmountLabel">Amount:</label>
+                <input type="text" id="updateAmount" name="amount" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" required>
+            </div>
+            <div id="updateReceivedAmountRow" style="display: none;">
+                <label id="updateReceivedAmountLabel">Received Amount:</label>
+                <input type="text" id="updateReceivedAmount" name="receivedAmount" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
+            </div>
+            <div id="updateFeeRow">
+                <label>Fee:</label>
+                <input type="text" id="updateFee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
+            </div>
+            <div id="updateCurrencyRow">
                 <label>Currency:</label>
                 <select id="updateCurrency" name="currency" required>
                     <option value="EUR">EUR</option>
@@ -1512,10 +1567,6 @@
                     <option value="NOK">NOK</option>
                     <option value="DKK">DKK</option>
                 </select>
-            </div>
-            <div id="updateFeeRow">
-                <label>Fee:</label>
-                <input type="text" id="updateFee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
             </div>
             <div>
                 <label>Note:</label>

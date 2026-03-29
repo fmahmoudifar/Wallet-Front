@@ -474,7 +474,8 @@ def dashboard_data():
             # Fiat wallet logic:
             # - Income: add amount to toWallet
             # - Expense: deduct (amount + fee) from fromWallet
-            # - Transfer: deduct (amount + fee) from fromWallet and add amount to toWallet
+            # - Transfer: deduct (amount + fee) from fromWallet and add amount to toWallet (same currency)
+            # - FX Transfer: deduct (amount + fee) in fromWallet's currency, credit receivedAmount in toWallet's currency
             if ttype == "income":
                 if to_wallet:
                     wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet(amt, tx_currency, to_wallet)
@@ -492,6 +493,20 @@ def dashboard_data():
                     )
                 if to_wallet:
                     wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet(amt, tx_currency, to_wallet)
+            elif ttype == "fx transfer":
+                received_amount = to_decimal_fiat(transaction.get("receivedAmount", 0))
+                if from_wallet:
+                    # Amount + fee are in the fromWallet's currency
+                    from_ccy = _wallet_ccy(from_wallet)
+                    wallet_fiat_balances[from_wallet] -= _fx_amount_to_wallet(
+                        amt + fee, from_ccy, from_wallet
+                    )
+                if to_wallet and received_amount:
+                    # Received amount is in the toWallet's currency
+                    to_ccy = _wallet_ccy(to_wallet)
+                    wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet(
+                        received_amount, to_ccy, to_wallet
+                    )
             else:
                 # Backward-compatible fallback based on which wallets are provided
                 if from_wallet and to_wallet:
