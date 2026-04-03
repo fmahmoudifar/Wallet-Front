@@ -2,7 +2,21 @@
 {% block head_extra %}
     <link rel="stylesheet" href="/static/css/site_styles.css">
     <style>
-        .set-section { max-width: 760px; margin: 0 auto 16px; }
+        .set-section { max-width: 692px; margin: 0 auto 16px; }
+
+        /* Save buttons: compact, centered, consistent size */
+        .set-section .form-container form > div:last-child {
+            justify-content: center;
+        }
+        .set-section .form-container form > div:last-child button,
+        .set-section .set-actions button {
+            flex: 0 0 auto;
+            width: auto;
+            min-width: 120px;
+        }
+        .set-section .set-actions {
+            justify-content: center;
+        }
 
         /* Collapsible header */
         .set-collapse-header {
@@ -54,8 +68,10 @@
             align-items: center;
             gap: 8px;
             margin-bottom: 6px;
+            width: 100%;
+            box-sizing: border-box;
         }
-        .cat-row input[type="text"] { flex: 1; min-width: 0; }
+        .cat-row input[type="text"] { flex: 1; min-width: 0; width: 100%; }
         .cat-row input[type="color"] {
             width: 34px; height: 34px;
             padding: 2px;
@@ -64,6 +80,29 @@
             cursor: pointer;
             flex-shrink: 0;
             background: transparent;
+        }
+
+        /* Collapse body and category list must always fill the container */
+        .set-collapse-body,
+        #incomeCatList,
+        #expenseCatList { width: 100%; box-sizing: border-box; }
+
+        /* Mobile: prevent form-container from center-collapsing the content */
+        /* Loan chart row always stays 4 columns */
+        .set-color-row-4col { grid-template-columns: repeat(4, 1fr) !important; }
+        @media (max-width: 480px) {
+            .set-color-row-4col .set-color-field label { font-size: 10px; }
+            .set-color-row-4col .set-color-field input[type="color"] { width: 100%; height: 28px; }
+        }
+
+        @media (max-width: 768px) {
+            .set-section .form-container { align-items: stretch !important; }
+            .set-section .form-container > *,
+            .set-section .form-container form { width: 100% !important; max-width: 100% !important; }
+            .set-color-row:not(.set-color-row-4col) { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 400px) {
+            .set-color-row:not(.set-color-row-4col) { grid-template-columns: 1fr; }
         }
         .btn-cat-remove {
             flex-shrink: 0;
@@ -254,20 +293,19 @@
         </div>
 
         <div class="set-color-group-label">Portfolio Charts (Crypto &amp; Stock)</div>
-        <div class="set-color-row" style="margin-bottom:16px;">
-            <div class="set-color-field">
+        <div style="display:flex;justify-content:center;gap:32px;margin-bottom:16px;">
+            <div class="set-color-field" style="align-items:center;">
                 <label>Now / Current value</label>
                 <input type="color" id="colorNowPicker" value="{{ dashboard_colors.colorNow | default('#00b09a') }}">
             </div>
-            <div class="set-color-field">
+            <div class="set-color-field" style="align-items:center;">
                 <label>Paid / Cost basis</label>
                 <input type="color" id="colorPaidPicker" value="{{ dashboard_colors.colorPaid | default('#6a7d94') }}">
             </div>
-            <div></div><div></div>
         </div>
 
         <div class="set-color-group-label">Loan &amp; Lend Chart</div>
-        <div class="set-color-row">
+        <div class="set-color-row set-color-row-4col">
             <div class="set-color-field">
                 <label>Repaid</label>
                 <input type="color" id="colorRepaidPicker" value="{{ dashboard_colors.colorRepaid | default('#00b09a') }}">
