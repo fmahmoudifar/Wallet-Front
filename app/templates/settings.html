@@ -27,11 +27,12 @@
         /* Color picker rows */
         .set-color-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(4, 1fr);
             gap: 10px;
             margin-bottom: 12px;
         }
-        @media (max-width: 540px) { .set-color-row { grid-template-columns: 1fr; } }
+        @media (max-width: 600px) { .set-color-row { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 360px) { .set-color-row { grid-template-columns: 1fr; } }
         .set-color-field {
             display: flex;
             flex-direction: column;
@@ -81,6 +82,14 @@
         .btn-cat-remove:hover { background: #c0392b; }
         .set-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
         .set-note { font-size: 12px; color: var(--muted, #6b7280); margin-bottom: 12px; line-height: 1.6; }
+        .set-color-group-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted, #6b7280);
+            margin-bottom: 8px;
+        }
     </style>
 {% endblock %}
 
@@ -125,15 +134,20 @@
     }
 
     function saveDashboardColors() {
-        const nowEl  = document.getElementById('colorNowPicker');
-        const paidEl = document.getElementById('colorPaidPicker');
-        const btn    = document.getElementById('dashColorSaveBtn');
-        if (!nowEl || !paidEl) return;
+        const get = id => { const el = document.getElementById(id); return el ? el.value : null; };
+        const btn = document.getElementById('dashColorSaveBtn');
         if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
         fetch('/updateCategorySettings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dashboardColors: { colorNow: nowEl.value, colorPaid: paidEl.value } }),
+            body: JSON.stringify({ dashboardColors: {
+                colorNow:    get('colorNowPicker')    || '#00b09a',
+                colorPaid:   get('colorPaidPicker')   || '#6a7d94',
+                colorRepaid: get('colorRepaidPicker') || '#00b09a',
+                colorBorrow: get('colorBorrowPicker') || '#6a7d94',
+                colorLend:   get('colorLendPicker')   || '#6c757d',
+                colorLoan:   get('colorLoanPicker')   || '#e8a838',
+            }}),
         })
         .then(r => r.json())
         .then(d => {
@@ -235,10 +249,12 @@
     <div class="form-container">
         <h2>Dashboard Chart Colors</h2>
         <div class="set-note">
-            <strong>Now / Current value</strong> — color for bars and slices showing current portfolio value.<br>
-            <strong>Paid / Cost basis</strong> — color for bars and slices showing the amount invested.
+            <strong>Portfolio charts</strong> (Crypto &amp; Stock): current value and amount paid.<br>
+            <strong>Loan chart</strong>: repaid portion, outstanding borrow, lend, and loan balances.
         </div>
-        <div class="set-color-row">
+
+        <div class="set-color-group-label">Portfolio Charts (Crypto &amp; Stock)</div>
+        <div class="set-color-row" style="margin-bottom:16px;">
             <div class="set-color-field">
                 <label>Now / Current value</label>
                 <input type="color" id="colorNowPicker" value="{{ dashboard_colors.colorNow | default('#00b09a') }}">
@@ -246,6 +262,27 @@
             <div class="set-color-field">
                 <label>Paid / Cost basis</label>
                 <input type="color" id="colorPaidPicker" value="{{ dashboard_colors.colorPaid | default('#6a7d94') }}">
+            </div>
+            <div></div><div></div>
+        </div>
+
+        <div class="set-color-group-label">Loan &amp; Lend Chart</div>
+        <div class="set-color-row">
+            <div class="set-color-field">
+                <label>Repaid</label>
+                <input type="color" id="colorRepaidPicker" value="{{ dashboard_colors.colorRepaid | default('#00b09a') }}">
+            </div>
+            <div class="set-color-field">
+                <label>Borrow</label>
+                <input type="color" id="colorBorrowPicker" value="{{ dashboard_colors.colorBorrow | default('#6a7d94') }}">
+            </div>
+            <div class="set-color-field">
+                <label>Lend</label>
+                <input type="color" id="colorLendPicker" value="{{ dashboard_colors.colorLend | default('#6c757d') }}">
+            </div>
+            <div class="set-color-field">
+                <label>Loan</label>
+                <input type="color" id="colorLoanPicker" value="{{ dashboard_colors.colorLoan | default('#e8a838') }}">
             </div>
         </div>
         <div class="set-actions">

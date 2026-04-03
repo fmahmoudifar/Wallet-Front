@@ -247,10 +247,14 @@ function renderDashboard(data) {
     };
 
     var _dbColors = {{ dashboardColors | tojson | safe }};
-    var borderNow  = (_dbColors && _dbColors.colorNow)  || '#00b09a';
-    var borderPaid = (_dbColors && _dbColors.colorPaid) || '#6a7d94';
-    var colorNow  = hexToRgba(borderNow,  0.55) || 'rgba(0, 176, 154, 0.55)';
-    var colorPaid = hexToRgba(borderPaid, 0.55) || 'rgba(106, 125, 148, 0.55)';
+    var borderNow    = (_dbColors && _dbColors.colorNow)     || '#00b09a';
+    var borderPaid   = (_dbColors && _dbColors.colorPaid)    || '#6a7d94';
+    var borderRepaid = (_dbColors && _dbColors.colorRepaid)  || borderNow;
+    var borderBorrow = (_dbColors && _dbColors.colorBorrow)  || borderPaid;
+    var colorNow     = hexToRgba(borderNow,    0.55) || 'rgba(0, 176, 154, 0.55)';
+    var colorPaid    = hexToRgba(borderPaid,   0.55) || 'rgba(106, 125, 148, 0.55)';
+    var colorRepaid  = hexToRgba(borderRepaid, 0.55) || colorNow;
+    var colorBorrow  = hexToRgba(borderBorrow, 0.55) || colorPaid;
 
     var cssVar = function(name) {
         try {
@@ -265,13 +269,12 @@ function renderDashboard(data) {
         return n.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + baseCurrency;
     };
 
-    var bsPrimary = cssVar('--bs-primary');
-    var titleAccentHex = cssVar('--title-accent') || '#6c757d';
-    var lendHex = bsPrimary || titleAccentHex;
-    var lendOutstandingColor = hexToRgba(lendHex, 0.35) || colorPaid;
-    var lendOutstandingBorder = hexToRgba(lendHex, 0.9) || borderPaid;
-    var loanOutstandingColor  = 'rgba(232, 168, 56, 0.55)';
-    var loanOutstandingBorder = '#e8a838';
+    var borderLend = (_dbColors && _dbColors.colorLend) || '#6c757d';
+    var borderLoan = (_dbColors && _dbColors.colorLoan) || '#e8a838';
+    var lendOutstandingColor  = hexToRgba(borderLend, 0.35) || 'rgba(108, 117, 125, 0.35)';
+    var lendOutstandingBorder = hexToRgba(borderLend, 0.9)  || borderLend;
+    var loanOutstandingColor  = hexToRgba(borderLoan, 0.55) || 'rgba(232, 168, 56, 0.55)';
+    var loanOutstandingBorder = borderLoan;
     var pieTopRotation = -0.5 * Math.PI;
 
     // ── Wallet Balances ──
@@ -581,8 +584,8 @@ function renderDashboard(data) {
                 data: {
                     labels: loanLabels,
                     datasets: [
-                        { label: 'Repaid', data: repaidPctData, backgroundColor: colorNow, borderColor: borderNow, borderWidth: 0, borderRadius: segmentRadius, borderSkipped: false, barThickness: 14 },
-                        { label: 'Borrow', data: remainingBorrowPctData, backgroundColor: colorPaid, borderColor: borderPaid, borderWidth: 0, borderRadius: segmentRadius, borderSkipped: false, barThickness: 14 },
+                        { label: 'Repaid', data: repaidPctData, backgroundColor: colorRepaid, borderColor: borderRepaid, borderWidth: 0, borderRadius: segmentRadius, borderSkipped: false, barThickness: 14 },
+                        { label: 'Borrow', data: remainingBorrowPctData, backgroundColor: colorBorrow, borderColor: borderBorrow, borderWidth: 0, borderRadius: segmentRadius, borderSkipped: false, barThickness: 14 },
                         { label: 'Lend', data: remainingLendPctData, backgroundColor: lendOutstandingColor, borderColor: lendOutstandingBorder, borderWidth: 0, borderRadius: segmentRadius, borderSkipped: false, barThickness: 14 },
                         { label: 'Loan', data: remainingLoanPctData, backgroundColor: loanOutstandingColor, borderColor: loanOutstandingBorder, borderWidth: 0, borderRadius: segmentRadius, borderSkipped: false, barThickness: 14 }
                     ]

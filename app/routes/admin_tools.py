@@ -10,8 +10,12 @@ from config import API_URL, aws_auth
 
 _DEFAULT_SETTINGS_SEED = {
     "dashboardColors": {
-        "colorNow":  "#00b09a",
-        "colorPaid": "#6a7d94",
+        "colorNow":    "#00b09a",
+        "colorPaid":   "#6a7d94",
+        "colorRepaid": "#00b09a",
+        "colorBorrow": "#6a7d94",
+        "colorLend":   "#6c757d",
+        "colorLoan":   "#e8a838",
     },
     "incomeCategories": [
         {"name": "Salary, Wage",        "color": "#00b09a"},

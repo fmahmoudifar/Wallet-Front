@@ -131,8 +131,12 @@ def _ensure_user_settings_row(user_id: str) -> None:
         "currency": "EUR",
         "theme": "Light",
         "dashboardColors": {
-            "colorNow":  "#00b09a",
-            "colorPaid": "#6a7d94",
+            "colorNow":    "#00b09a",
+            "colorPaid":   "#6a7d94",
+            "colorRepaid": "#00b09a",
+            "colorBorrow": "#6a7d94",
+            "colorLend":   "#6c757d",
+            "colorLoan":   "#e8a838",
         },
         "incomeCategories": [
             {"name": "Salary, Wage",        "color": "#00b09a"},
