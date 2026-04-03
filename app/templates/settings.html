@@ -88,11 +88,13 @@
         #expenseCatList { width: 100%; box-sizing: border-box; }
 
         /* Mobile: prevent form-container from center-collapsing the content */
-        /* Loan chart row always stays 4 columns */
-        .set-color-row-4col { grid-template-columns: repeat(4, 1fr) !important; }
-        @media (max-width: 480px) {
-            .set-color-row-4col .set-color-field label { font-size: 10px; }
-            .set-color-row-4col .set-color-field input[type="color"] { width: 100%; height: 28px; }
+        /* Centered fixed-size color picker row (used by both portfolio and loan rows) */
+        .set-color-flex-row {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: nowrap;
+            margin-bottom: 12px;
         }
 
         @media (max-width: 768px) {
@@ -293,7 +295,7 @@
         </div>
 
         <div class="set-color-group-label">Portfolio Charts (Crypto &amp; Stock)</div>
-        <div style="display:flex;justify-content:center;gap:32px;margin-bottom:16px;">
+        <div class="set-color-flex-row" style="gap:32px;margin-bottom:16px;">
             <div class="set-color-field" style="align-items:center;">
                 <label>Now / Current value</label>
                 <input type="color" id="colorNowPicker" value="{{ dashboard_colors.colorNow | default('#00b09a') }}">
@@ -305,20 +307,20 @@
         </div>
 
         <div class="set-color-group-label">Loan &amp; Lend Chart</div>
-        <div class="set-color-row set-color-row-4col">
-            <div class="set-color-field">
+        <div class="set-color-flex-row">
+            <div class="set-color-field" style="align-items:center;">
                 <label>Repaid</label>
                 <input type="color" id="colorRepaidPicker" value="{{ dashboard_colors.colorRepaid | default('#00b09a') }}">
             </div>
-            <div class="set-color-field">
+            <div class="set-color-field" style="align-items:center;">
                 <label>Borrow</label>
                 <input type="color" id="colorBorrowPicker" value="{{ dashboard_colors.colorBorrow | default('#6a7d94') }}">
             </div>
-            <div class="set-color-field">
+            <div class="set-color-field" style="align-items:center;">
                 <label>Lend</label>
                 <input type="color" id="colorLendPicker" value="{{ dashboard_colors.colorLend | default('#6c757d') }}">
             </div>
-            <div class="set-color-field">
+            <div class="set-color-field" style="align-items:center;">
                 <label>Loan</label>
                 <input type="color" id="colorLoanPicker" value="{{ dashboard_colors.colorLoan | default('#e8a838') }}">
             </div>
