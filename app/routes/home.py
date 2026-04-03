@@ -116,6 +116,12 @@ def _ensure_user_settings_row(user_id: str) -> None:
                 session["theme"] = first.get("theme")
             if first.get("currency"):
                 session["currency"] = first.get("currency")
+            if first.get("dashboardColors"):
+                session["dashboardColors"] = first.get("dashboardColors")
+            if first.get("incomeCategories"):
+                session["incomeCategories"] = first.get("incomeCategories")
+            if first.get("expenseCategories"):
+                session["expenseCategories"] = first.get("expenseCategories")
         except Exception:
             pass
         return
@@ -124,6 +130,35 @@ def _ensure_user_settings_row(user_id: str) -> None:
         "userId": user_id,
         "currency": "EUR",
         "theme": "Light",
+        "dashboardColors": {
+            "colorNow":  "#00b09a",
+            "colorPaid": "#6a7d94",
+        },
+        "incomeCategories": [
+            {"name": "Salary, Wage",        "color": "#00b09a"},
+            {"name": "Savings",             "color": "#5b8dd9"},
+            {"name": "Debt",                "color": "#f0922b"},
+            {"name": "Gift",                "color": "#3dbdb5"},
+            {"name": "Interest, Dividends", "color": "#7b5ea7"},
+            {"name": "Lend, Rent",          "color": "#a58fd8"},
+            {"name": "Lottery, Gambling",   "color": "#d4842a"},
+            {"name": "Refund",              "color": "#6ab4d4"},
+            {"name": "Sales",               "color": "#f0922b"},
+            {"name": "Other",               "color": "#5b8dd9"},
+        ],
+        "expenseCategories": [
+            {"name": "Food and Beverage",  "color": "#e06c75"},
+            {"name": "Purchases",          "color": "#f0922b"},
+            {"name": "Housing",            "color": "#5b8dd9"},
+            {"name": "Transportation",     "color": "#00b09a"},
+            {"name": "Vehicle",            "color": "#d4842a"},
+            {"name": "Entertainment",      "color": "#7b5ea7"},
+            {"name": "Communications",     "color": "#6ab4d4"},
+            {"name": "Financial Expenses", "color": "#a58fd8"},
+            {"name": "Investments",        "color": "#3dbdb5"},
+            {"name": "Loans",              "color": "#d4842a"},
+            {"name": "Other",              "color": "#5b8dd9"},
+        ],
     }
 
     try:
@@ -131,6 +166,9 @@ def _ensure_user_settings_row(user_id: str) -> None:
         if upsert.status_code in (200, 201):
             session["currency"] = default_data["currency"]
             session["theme"] = default_data["theme"]
+            session["dashboardColors"] = default_data["dashboardColors"]
+            session["incomeCategories"] = default_data["incomeCategories"]
+            session["expenseCategories"] = default_data["expenseCategories"]
         else:
             try:
                 print(f"Settings default upsert failed: {upsert.status_code} {upsert.text}")
@@ -147,7 +185,12 @@ def dashboard():
         userId = user.get("username")
         _ensure_user_settings_row(userId)
         base_currency = _get_user_base_currency(userId)
-        return render_template("dashboard.html", baseCurrency=base_currency, userId=userId)
+        return render_template(
+            "dashboard.html",
+            baseCurrency=base_currency,
+            userId=userId,
+            dashboardColors=session.get("dashboardColors", {}),
+        )
     else:
         return render_template("dashboard.html")
 

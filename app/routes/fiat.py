@@ -82,6 +82,8 @@ def fiat_page():
             wallets=wallets,
             base_currency=base_currency,
             fx_warning=fx_warning,
+            income_categories=session.get("incomeCategories", []),
+            expense_categories=session.get("expenseCategories", []),
         )
     else:
         return render_template("home.html")

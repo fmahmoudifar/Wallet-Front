@@ -75,4 +75,7 @@ def admin_group_name() -> str:
 
 
 def is_admin_user() -> bool:
+    # Dev login sets "dev_login" in the session user — grant admin automatically.
+    if session_user().get("dev_login"):
+        return True
     return is_user_in_group(admin_group_name())

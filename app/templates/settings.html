@@ -1,157 +1,303 @@
 {% extends "layout.html" %}
 {% block head_extra %}
     <link rel="stylesheet" href="/static/css/site_styles.css">
+    <style>
+        .set-section { max-width: 760px; margin: 0 auto 16px; }
+
+        /* Collapsible header */
+        .set-collapse-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            padding-bottom: 4px;
+        }
+        .set-collapse-header:hover { opacity: 0.8; }
+        .set-collapse-chevron {
+            width: 18px; height: 18px;
+            color: var(--muted, #6b7280);
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+        .set-collapse-chevron.open { transform: rotate(180deg); }
+        .set-collapse-body { display: none; margin-top: 10px; }
+        .set-collapse-body.open { display: block; }
+
+        /* Color picker rows */
+        .set-color-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        @media (max-width: 540px) { .set-color-row { grid-template-columns: 1fr; } }
+        .set-color-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .set-color-field label { font-weight: 600; font-size: 13px; }
+        .set-color-field input[type="color"] {
+            width: 52px; height: 34px;
+            padding: 2px;
+            border: 1px solid var(--border, #e6e6e6);
+            border-radius: 6px;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        /* Category rows */
+        .cat-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .cat-row input[type="text"] { flex: 1; min-width: 0; }
+        .cat-row input[type="color"] {
+            width: 34px; height: 34px;
+            padding: 2px;
+            border: 1px solid var(--border, #e6e6e6);
+            border-radius: 5px;
+            cursor: pointer;
+            flex-shrink: 0;
+            background: transparent;
+        }
+        .btn-cat-remove {
+            flex-shrink: 0;
+            width: 26px; height: 26px;
+            padding: 0;
+            border: none;
+            border-radius: 5px;
+            background: #e06c75;
+            color: #fff;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-cat-remove:hover { background: #c0392b; }
+        .set-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        .set-note { font-size: 12px; color: var(--muted, #6b7280); margin-bottom: 12px; line-height: 1.6; }
+    </style>
 {% endblock %}
 
 {% block content %}
+{% set setting = settings | first %}
 
 <script>
-    // Persist theme choice client-side so it applies across pages immediately.
-    function persistTheme(themeValue) {
+    const INCOME_CAT_DATA  = {{ income_categories  | tojson | safe }};
+    const EXPENSE_CAT_DATA = {{ expense_categories | tojson | safe }};
+    const DASHBOARD_COLORS = {{ dashboard_colors   | tojson | safe }};
+
+    function persistTheme(val) {
         try {
-            const t = String(themeValue || '').toLowerCase();
-            const theme = t.startsWith('d') ? 'dark' : 'light';
-            localStorage.setItem('theme', theme);
-            document.documentElement.setAttribute('data-theme', theme);
+            const t = String(val || '').toLowerCase().startsWith('d') ? 'dark' : 'light';
+            localStorage.setItem('theme', t);
+            document.documentElement.setAttribute('data-theme', t);
         } catch (e) {}
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        const newTheme = document.getElementById('newTheme');
-        const updateTheme = document.getElementById('updateTheme');
-        if (newTheme) newTheme.addEventListener('change', () => persistTheme(newTheme.value));
-        if (updateTheme) updateTheme.addEventListener('change', () => persistTheme(updateTheme.value));
+    function showSettingsFlash(msg, isError) {
+        let el = document.getElementById('settingsFlash');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'settingsFlash';
+            el.style.cssText = 'position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9999;padding:8px 22px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.18);pointer-events:none;';
+            document.body.appendChild(el);
+        }
+        el.textContent = msg;
+        el.style.background = isError ? '#e06c75' : '#00b09a';
+        el.style.color = '#fff';
+        el.style.display = 'block';
+        clearTimeout(el._t);
+        el._t = setTimeout(() => { el.style.display = 'none'; }, 2500);
+    }
 
-        // If server already has a theme, mirror it to localStorage
-        const serverTheme = "{{ (settings|first).theme if (settings|first) else '' }}";
-        if (serverTheme) persistTheme(serverTheme);
+    function toggleSection(id) {
+        const body    = document.getElementById(id + 'Body');
+        const chevron = document.getElementById(id + 'Chevron');
+        if (!body) return;
+        const open = body.classList.toggle('open');
+        if (chevron) chevron.classList.toggle('open', open);
+    }
+
+    function saveDashboardColors() {
+        const nowEl  = document.getElementById('colorNowPicker');
+        const paidEl = document.getElementById('colorPaidPicker');
+        const btn    = document.getElementById('dashColorSaveBtn');
+        if (!nowEl || !paidEl) return;
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+        fetch('/updateCategorySettings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dashboardColors: { colorNow: nowEl.value, colorPaid: paidEl.value } }),
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+            showSettingsFlash(d.ok ? 'Dashboard colors saved.' : 'Save failed.', !d.ok);
+        })
+        .catch(() => { if (btn) { btn.disabled = false; btn.textContent = 'Save'; } showSettingsFlash('Save failed.', true); });
+    }
+
+    function renderCategoryList(type, data) {
+        const c = document.getElementById(`${type}CatList`);
+        if (!c) return;
+        c.innerHTML = '';
+        (data || []).forEach(cat => c.appendChild(makeCatRow(cat.name, cat.color)));
+    }
+
+    function makeCatRow(name, color) {
+        const row = document.createElement('div');
+        row.className = 'cat-row';
+        row.innerHTML = `
+            <input type="text" value="${(name || '').replace(/"/g,'&quot;')}" placeholder="Category name" class="cat-name-input">
+            <input type="color" value="${color || '#00b09a'}" title="Pick color" class="cat-color-input">
+            <button type="button" class="btn-cat-remove" title="Remove" onclick="this.closest('.cat-row').remove()">✕</button>`;
+        return row;
+    }
+
+    function addCatRow(type) {
+        const c = document.getElementById(`${type}CatList`);
+        if (c) c.appendChild(makeCatRow('', '#00b09a'));
+    }
+
+    function collectCategories(type) {
+        const result = [];
+        document.querySelectorAll(`#${type}CatList .cat-row`).forEach(row => {
+            const name  = (row.querySelector('.cat-name-input')?.value || '').trim();
+            const color = row.querySelector('.cat-color-input')?.value || '#00b09a';
+            if (name) result.push({ name, color });
+        });
+        return result;
+    }
+
+    function saveCategorySettings(type) {
+        const key = type === 'income' ? 'incomeCategories' : 'expenseCategories';
+        const btn = document.getElementById(`${type}CatSaveBtn`);
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+        fetch('/updateCategorySettings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [key]: collectCategories(type) }),
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+            showSettingsFlash(d.ok ? `${type === 'income' ? 'Income' : 'Expense'} categories saved.` : 'Save failed.', !d.ok);
+        })
+        .catch(() => { if (btn) { btn.disabled = false; btn.textContent = 'Save'; } showSettingsFlash('Save failed.', true); });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const themeEl = document.getElementById('themeSel');
+        if (themeEl) themeEl.addEventListener('change', () => persistTheme(themeEl.value));
+        persistTheme("{{ setting.theme if setting else 'Light' }}");
+        renderCategoryList('income',  INCOME_CAT_DATA);
+        renderCategoryList('expense', EXPENSE_CAT_DATA);
     });
 </script>
 
-<script>
-    function editSettings(userId, currency, theme) {
-        document.getElementById("updateUserId").value = userId;
-        document.getElementById("updateCurrency").value = currency;
-        document.getElementById("updateTheme").value = theme;
-        persistTheme(theme);
-        document.getElementById("updateSetDiv").style.display = "block";
-        document.getElementById("setListDiv").style.display = "none";
-        document.getElementById("newSetB").style.display = "none";
-    }  
-
-function newSetDiv() {
-    let div = document.getElementById("newSet");
-    let button = document.getElementById("newSetB");
-
-    if (div.style.display === "none" || div.style.display === "") {
-        div.style.display = "block";
-        document.getElementById("setListDiv").style.display = "none";
-        button.style.display = "none" ;
-        // button.innerText = "Cancel" ;
-    } else {
-        div.style.display = "none"; 
-        document.getElementById("setListDiv").style.display = "block";
-        button.innerText = "Add New Settings" ;
-    }
-}
-</script>
-
-<!-- <h1 class="page-title">Settings</h1> -->
-<h1 class="page-title"></h1>
-
-<div id="setListDiv" class="form-container">
-{% set setting = settings | first %}
-{% if setting %}
-    <ul id="transList">
-        <li>
-            <div class="record-grid">
-                <div class="settings-field-box">
-                    <strong>Currency:</strong> {{ setting.currency }}<br>
-                </div>
-                <div class="settings-field-box">
-                    <strong>Theme:</strong> {{ setting.theme }}<br>
-                </div>
-                <div class="settings-edit-row" style="margin-top:8px;">
-                    <button class="btn-insert" onclick="editSettings('{{ setting.userId }}','{{ setting.currency }}','{{ setting.theme }}')">Edit</button>
-                </div>
-            </div>
-        </li>
-    </ul>
-</div>
-
-{% else %}
-<div id="newSet" class="block-new">
-    <h2 class="center-text">New Settings</h2>
+<!-- ── General ─────────────────────────────────────────────────────────────── -->
+<div class="set-section block-new" style="margin-top:0;">
     <div class="form-container">
         <form action="/updateSettings" method="POST">
+            <input type="hidden" name="userId" value="{{ setting.userId if setting else '' }}">
             <div>
                 <label>Currency:</label>
-                <select id="newCurrency" name="currency" required>
-                    <option value="EUR">EUR</option>
-                    <option value="USD">USD</option>
-                    <option value="GBP">GBP</option>
-                    <option value="CHF">CHF</option>
-                    <option value="CAD">CAD</option>
-                    <option value="AUD">AUD</option>
-                    <option value="JPY">JPY</option>
-                    <option value="SEK">SEK</option>
-                    <option value="NOK">NOK</option>
-                    <option value="DKK">DKK</option>
-                </select>
-            </div>
-            <div>
-                <label for="theme">Theme:</label>
-                <select id="newTheme" name="theme" required>
-                    <option value="Light">Light</option>
-                    <option value="Dark">Dark</option>
-                </select>
-            </div>
-            <div>
-                <button type="submit" class="btn-insert pct-positive">Save</button>
-                <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
-            </div>
-        </form>
-    </div>
-</div>
-{% endif %}
-
-
-<div id="updateSetDiv" class="block-update" style="display: none;">
-    <!-- <h2 class="center-text">Update Settings</h2> -->
-    <div class="form-container">
-        <form id="updateForm" action="/updateSettings" method="POST">
-            <input type="hidden" id="updateSettingId" name="settingId">
-            <input type="hidden" id="updateUserId" name="userId">
-            <div>
-                <label>Currency:</label>
-                <select id="updateCurrency" name="currency" required>
-                    <option value="EUR">EUR</option>
-                    <option value="USD">USD</option>
-                    <option value="GBP">GBP</option>
-                    <option value="CHF">CHF</option>
-                    <option value="CAD">CAD</option>
-                    <option value="AUD">AUD</option>
-                    <option value="JPY">JPY</option>
-                    <option value="SEK">SEK</option>
-                    <option value="NOK">NOK</option>
-                    <option value="DKK">DKK</option>
+                <select name="currency" required>
+                    {% for cur in ['EUR','USD','GBP','CHF','CAD','AUD','JPY','SEK','NOK','DKK'] %}
+                    <option value="{{ cur }}" {% if setting and setting.currency == cur %}selected{% endif %}>{{ cur }}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div>
                 <label>Theme:</label>
-                <select id="updateTheme" name="theme" required>
-                    <option value="Light">Light</option>
-                    <option value="Dark">Dark</option>
+                <select id="themeSel" name="theme" required>
+                    <option value="Light" {% if not setting or setting.theme == 'Light' %}selected{% endif %}>Light</option>
+                    <option value="Dark"  {% if setting and setting.theme == 'Dark'  %}selected{% endif %}>Dark</option>
                 </select>
             </div>
             <div>
                 <button type="submit" class="btn-insert pct-positive">Save</button>
-                <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
             </div>
         </form>
     </div>
-
-    <form id="deleteForm" method="POST"></form>
 </div>
+
+{% if setting %}
+
+<!-- ── Dashboard Chart Colors ─────────────────────────────────────────────── -->
+<div class="set-section block-new">
+    <div class="form-container">
+        <h2>Dashboard Chart Colors</h2>
+        <div class="set-note">
+            <strong>Now / Current value</strong> — color for bars and slices showing current portfolio value.<br>
+            <strong>Paid / Cost basis</strong> — color for bars and slices showing the amount invested.
+        </div>
+        <div class="set-color-row">
+            <div class="set-color-field">
+                <label>Now / Current value</label>
+                <input type="color" id="colorNowPicker" value="{{ dashboard_colors.colorNow | default('#00b09a') }}">
+            </div>
+            <div class="set-color-field">
+                <label>Paid / Cost basis</label>
+                <input type="color" id="colorPaidPicker" value="{{ dashboard_colors.colorPaid | default('#6a7d94') }}">
+            </div>
+        </div>
+        <div class="set-actions">
+            <button id="dashColorSaveBtn" type="button" class="btn-insert pct-positive" onclick="saveDashboardColors()">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Income Categories ──────────────────────────────────────────────────── -->
+<div class="set-section block-new">
+    <div class="form-container">
+        <div class="set-collapse-header" onclick="toggleSection('income')">
+            <h2 style="margin:0;">Income Categories</h2>
+            <svg id="incomeChevron" class="set-collapse-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+            </svg>
+        </div>
+        <div id="incomeBody" class="set-collapse-body">
+            <div class="set-note" style="margin-top:10px;">
+                Add, rename, or recolor income categories. Each color appears in the Fiat <strong>income pie chart</strong>.
+            </div>
+            <div id="incomeCatList"></div>
+            <div class="set-actions">
+                <button type="button" class="btn-clear" onclick="addCatRow('income')">+ Add</button>
+                <button id="incomeCatSaveBtn" type="button" class="btn-insert pct-positive" onclick="saveCategorySettings('income')">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Expense Categories ─────────────────────────────────────────────────── -->
+<div class="set-section block-new">
+    <div class="form-container">
+        <div class="set-collapse-header" onclick="toggleSection('expense')">
+            <h2 style="margin:0;">Expense Categories</h2>
+            <svg id="expenseChevron" class="set-collapse-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+            </svg>
+        </div>
+        <div id="expenseBody" class="set-collapse-body">
+            <div class="set-note" style="margin-top:10px;">
+                Add, rename, or recolor expense categories. Colors appear in the Fiat <strong>expense pie chart</strong> and <strong>category trend chart</strong>.
+            </div>
+            <div id="expenseCatList"></div>
+            <div class="set-actions">
+                <button type="button" class="btn-clear" onclick="addCatRow('expense')">+ Add</button>
+                <button id="expenseCatSaveBtn" type="button" class="btn-insert pct-positive" onclick="saveCategorySettings('expense')">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endif %}
 
 {% endblock %}

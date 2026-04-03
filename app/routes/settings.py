@@ -4,6 +4,14 @@ from flask import Blueprint, jsonify, redirect, render_template, request, sessio
 from app.services.user_scope import filter_records_by_user
 from config import API_URL, aws_auth
 
+_SETTING_DEFAULTS = {
+    "currency": "EUR",
+    "theme": "Light",
+    "dashboardColors": {"colorNow": "#00b09a", "colorPaid": "#6a7d94"},
+    "incomeCategories": [],
+    "expenseCategories": [],
+}
+
 settings_bp = Blueprint("settings", __name__)
 
 
@@ -23,26 +31,26 @@ def settings_page():
             print(f"Error fetching settings: {e}")
             settings = []
 
-        # Store theme in session (used by base layout for light/dark mode)
-        try:
-            if settings and isinstance(settings, list):
-                theme = (settings[0] or {}).get("theme")
-                if theme:
-                    session["theme"] = theme
-        except Exception:
-            pass
+        first = (settings[0] if settings and isinstance(settings, list) else None) or {}
 
-        # Store website currency in session so portfolio pages can calculate/display in base currency
-        try:
-            if settings and isinstance(settings, list):
-                currency = (settings[0] or {}).get("currency")
-                if currency:
-                    session["currency"] = currency
-        except Exception:
-            pass
+        # Sync all settings fields to session
+        for key in ("theme", "currency", "dashboardColors", "incomeCategories", "expenseCategories"):
+            val = first.get(key)
+            if val:
+                session[key] = val
 
-        # Send both to template (include coin list)
-        return render_template("settings.html", settings=settings, userId=userId)
+        income_categories = first.get("incomeCategories") or _SETTING_DEFAULTS["incomeCategories"]
+        expense_categories = first.get("expenseCategories") or _SETTING_DEFAULTS["expenseCategories"]
+        dashboard_colors = first.get("dashboardColors") or _SETTING_DEFAULTS["dashboardColors"]
+
+        return render_template(
+            "settings.html",
+            settings=settings,
+            userId=userId,
+            income_categories=income_categories,
+            expense_categories=expense_categories,
+            dashboard_colors=dashboard_colors,
+        )
     else:
         return render_template("home.html")
 
@@ -54,23 +62,42 @@ def update_settings():
     data = {"userId": user_id, "currency": request.form["currency"], "theme": request.form["theme"]}
     print(f"🔄 [DEBUG] Updating settings: {data}")
 
-    # Update theme in session immediately
-    try:
-        session["theme"] = data.get("theme")
-    except Exception:
-        pass
-
-    # Update currency in session immediately
-    try:
-        session["currency"] = data.get("currency")
-    except Exception:
-        pass
+    session["theme"] = data.get("theme")
+    session["currency"] = data.get("currency")
 
     try:
         response = requests.patch(f"{API_URL}/settings", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {response.json()}")
-
         return redirect(url_for("settings.settings_page"))
     except Exception as e:
         print(f"❌ [ERROR] Failed to update settings: {str(e)}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+
+@settings_bp.route("/updateCategorySettings", methods=["POST"])
+def update_category_settings():
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    user_id = user.get("username")
+
+    body = request.get_json(silent=True) or {}
+    payload = {"userId": user_id}
+
+    if "dashboardColors" in body:
+        payload["dashboardColors"] = body["dashboardColors"]
+        session["dashboardColors"] = body["dashboardColors"]
+    if "incomeCategories" in body:
+        payload["incomeCategories"] = body["incomeCategories"]
+        session["incomeCategories"] = body["incomeCategories"]
+    if "expenseCategories" in body:
+        payload["expenseCategories"] = body["expenseCategories"]
+        session["expenseCategories"] = body["expenseCategories"]
+
+    try:
+        response = requests.patch(f"{API_URL}/settings", json=payload, auth=aws_auth)
+        print(f"✅ [DEBUG] Category settings update: {response.status_code}")
+        return jsonify({"ok": True})
+    except Exception as e:
+        print(f"❌ [ERROR] Failed to update category settings: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500

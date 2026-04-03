@@ -2,9 +2,43 @@ import os
 import re
 from typing import Any
 
-from flask import Blueprint, abort, flash, render_template, request, session
+import requests as http_requests
+from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
 
 from app.services.authz import is_admin_user
+from config import API_URL, aws_auth
+
+_DEFAULT_SETTINGS_SEED = {
+    "dashboardColors": {
+        "colorNow":  "#00b09a",
+        "colorPaid": "#6a7d94",
+    },
+    "incomeCategories": [
+        {"name": "Salary, Wage",        "color": "#00b09a"},
+        {"name": "Savings",             "color": "#5b8dd9"},
+        {"name": "Debt",                "color": "#f0922b"},
+        {"name": "Gift",                "color": "#3dbdb5"},
+        {"name": "Interest, Dividends", "color": "#7b5ea7"},
+        {"name": "Lend, Rent",          "color": "#a58fd8"},
+        {"name": "Lottery, Gambling",   "color": "#d4842a"},
+        {"name": "Refund",              "color": "#6ab4d4"},
+        {"name": "Sales",               "color": "#f0922b"},
+        {"name": "Other",               "color": "#5b8dd9"},
+    ],
+    "expenseCategories": [
+        {"name": "Food and Beverage",  "color": "#e06c75"},
+        {"name": "Purchases",          "color": "#f0922b"},
+        {"name": "Housing",            "color": "#5b8dd9"},
+        {"name": "Transportation",     "color": "#00b09a"},
+        {"name": "Vehicle",            "color": "#d4842a"},
+        {"name": "Entertainment",      "color": "#7b5ea7"},
+        {"name": "Communications",     "color": "#6ab4d4"},
+        {"name": "Financial Expenses", "color": "#a58fd8"},
+        {"name": "Investments",        "color": "#3dbdb5"},
+        {"name": "Loans",              "color": "#d4842a"},
+        {"name": "Other",              "color": "#5b8dd9"},
+    ],
+}
 
 admin_tools_bp = Blueprint("admin_tools", __name__, url_prefix="/admin")
 
@@ -326,4 +360,75 @@ def userid_migrate():
         max_items=max_items,
         sample_keys=sample_keys,
         changed=changed,
+        seed_user_ids=[],
+        seed_selected_user="",
+    )
+
+
+def _scan_all_user_ids_from_table(client, table_name: str) -> list[str]:
+    user_ids: set[str] = set()
+    start_key = None
+    while True:
+        kwargs: dict[str, Any] = {
+            "TableName": table_name,
+            "ProjectionExpression": "#u",
+            "ExpressionAttributeNames": {"#u": "userId"},
+        }
+        if start_key:
+            kwargs["ExclusiveStartKey"] = start_key
+        resp = client.scan(**kwargs)
+        for item in resp.get("Items", []):
+            uid = (item.get("userId") or {}).get("S", "").strip()
+            if uid:
+                user_ids.add(uid)
+        start_key = resp.get("LastEvaluatedKey")
+        if not start_key:
+            break
+    return sorted(user_ids)
+
+
+@admin_tools_bp.route("/seed-settings", methods=["GET", "POST"])
+def seed_settings():
+    _require_allowed_admin_user()
+
+    client = _ddb_client()
+    seed_user_ids: list[str] = []
+    try:
+        seed_user_ids = _scan_all_user_ids_from_table(client, "Settings")
+    except Exception as e:
+        flash(f"Error scanning Settings table: {e}", "danger")
+
+    seed_selected_user = (request.form.get("user_id") or "").strip()
+
+    if request.method == "POST":
+        if not seed_selected_user:
+            flash("Please select a user.", "danger")
+        else:
+            payload = {"userId": seed_selected_user, **_DEFAULT_SETTINGS_SEED}
+            try:
+                resp = http_requests.patch(f"{API_URL}/settings", json=payload, auth=aws_auth)
+                if resp.status_code in (200, 201):
+                    flash(f"Default categories & colors seeded for {seed_selected_user}.", "success")
+                else:
+                    flash(f"API returned {resp.status_code}: {resp.text[:200]}", "danger")
+            except Exception as e:
+                flash(f"Error calling settings API: {e}", "danger")
+
+    return render_template(
+        "admin_tools.html",
+        # userid_migrate section gets empty defaults
+        tables=[],
+        selected_table="",
+        candidate_fields=[],
+        selected_field="userId",
+        key_fields=[],
+        field_is_key=False,
+        old_user_id="",
+        new_user_id="",
+        max_items=2000,
+        sample_keys=[],
+        changed=0,
+        # seed section
+        seed_user_ids=seed_user_ids,
+        seed_selected_user=seed_selected_user,
     )

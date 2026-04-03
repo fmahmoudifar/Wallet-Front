@@ -234,19 +234,6 @@ function showErrorStates() {
 function renderDashboard(data) {
     var baseCurrency = data.baseCurrency || 'EUR';
 
-    var colorNow  = 'rgba(0, 176, 154, 0.55)';
-    var colorPaid = 'rgba(106, 125, 148, 0.55)';
-    var borderNow  = '#00b09a';
-    var borderPaid = '#6a7d94';
-
-    var cssVar = function(name) {
-        try {
-            return (getComputedStyle(document.documentElement).getPropertyValue(name) || '').trim();
-        } catch (_e) {
-            return '';
-        }
-    };
-
     var hexToRgba = function(hex, alpha) {
         var raw = String(hex || '').trim().replace('#', '');
         var isShort = raw.length === 3;
@@ -257,6 +244,20 @@ function renderDashboard(data) {
         var b = parseInt(isShort ? raw[2] + raw[2] : raw.slice(4, 6), 16);
         if ([r, g, b].some(function(n) { return Number.isNaN(n); })) return null;
         return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+    };
+
+    var _dbColors = {{ dashboardColors | tojson | safe }};
+    var borderNow  = (_dbColors && _dbColors.colorNow)  || '#00b09a';
+    var borderPaid = (_dbColors && _dbColors.colorPaid) || '#6a7d94';
+    var colorNow  = hexToRgba(borderNow,  0.55) || 'rgba(0, 176, 154, 0.55)';
+    var colorPaid = hexToRgba(borderPaid, 0.55) || 'rgba(106, 125, 148, 0.55)';
+
+    var cssVar = function(name) {
+        try {
+            return (getComputedStyle(document.documentElement).getPropertyValue(name) || '').trim();
+        } catch (_e) {
+            return '';
+        }
     };
 
     var formatMoney = function(v) {

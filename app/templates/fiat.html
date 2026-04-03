@@ -6,6 +6,10 @@
 {% block content %}
 
 <script>
+    // Category data injected from user settings (global, used by forms and charts)
+    const INCOME_CAT_DATA = {{ income_categories | tojson | safe }};
+    const EXPENSE_CAT_DATA = {{ expense_categories | tojson | safe }};
+
     function syncTransTypeUI(prefix) {
         const typeSel = document.getElementById(prefix ? `${prefix}TransType` : 'transType');
         const catRow = document.getElementById(prefix ? `${prefix}MainCatRow` : 'createMainCatRow');
@@ -33,31 +37,13 @@
         const showRecv = isFx;
         const showCurrency = !isFx;
 
-        const incomeCats = [
-            'Salary, Wage',
-            'Savings',
-            'Debt',
-            'Gift',
-            'Interest, Dividends',
-            'Lend, Rent',
-            'Lottery, Gambling',
-            'Refund',
-            'Sales',
-            'Other',
+        const incomeCats = INCOME_CAT_DATA.length ? INCOME_CAT_DATA.map(c => c.name) : [
+            'Salary, Wage','Savings','Debt','Gift','Interest, Dividends',
+            'Lend, Rent','Lottery, Gambling','Refund','Sales','Other',
         ];
-
-        const expenseCats = [
-            'Food and Beverage',
-            'Purchases',
-            'Housing',
-            'Transportation',
-            'Vehicle',
-            'Entertainment',
-            'Communications',
-            'Financial Expenses',
-            'Investments',
-            'Loans',
-            'Other',
+        const expenseCats = EXPENSE_CAT_DATA.length ? EXPENSE_CAT_DATA.map(c => c.name) : [
+            'Food and Beverage','Purchases','Housing','Transportation','Vehicle',
+            'Entertainment','Communications','Financial Expenses','Investments','Loans','Other',
         ];
 
         function rebuildCategoryOptions(options) {
@@ -989,6 +975,12 @@
             try { window.__fiatCategoryMonthlyBarChart.destroy(); } catch (e) {}
         }
 
+        const _allCatData = [...INCOME_CAT_DATA, ...EXPENSE_CAT_DATA];
+        const _catEntry = _allCatData.find(c => c.name === selectedCat);
+        const _catHex = (_catEntry && _catEntry.color) || '#00b09a';
+        const _catBg  = hexToRgbaFiat(_catHex, 0.78) || 'rgba(0, 176, 154, 0.78)';
+        const _catBorder = hexToRgbaFiat(_catHex, 1)  || 'rgba(0, 176, 154, 1)';
+
         window.__fiatCategoryMonthlyBarChart = new Chart(canvas, {
             type: 'bar',
             data: {
@@ -996,8 +988,8 @@
                 datasets: [{
                     label: `${typeVal === 'income' ? 'Income' : 'Expense'}: ${selectedCat}`,
                     data: values,
-                    backgroundColor: 'rgba(0, 176, 154, 0.78)',
-                    borderColor: 'rgba(0, 176, 154, 1)',
+                    backgroundColor: _catBg,
+                    borderColor: _catBorder,
                     borderWidth: 1,
                     borderRadius: 6,
                     borderSkipped: false,
@@ -1191,23 +1183,31 @@
             return h;
         }
 
-        function colorsForLabels(labels) {
-            // Teal Base + Warm Accents — teal theme with warm pops for key slice distinction.
-            const PALETTE = [
-                'rgba(  0, 176, 154, 0.75)',  // #00b09a  teal (brand primary)
-                'rgba( 91, 141, 217, 0.75)',  // #5b8dd9  blue
-                'rgba(240, 146,  43, 0.75)',  // #f0922b  orange
-                'rgba( 61, 189, 181, 0.75)',  // #3dbdb5  light teal
-                'rgba(123,  94, 167, 0.75)',  // #7b5ea7  purple
-                'rgba(165, 143, 216, 0.75)',  // #a58fd8  lavender
-                'rgba(212, 132,  42, 0.75)',  // #d4842a  amber
-                'rgba(106, 180, 212, 0.75)',  // #6ab4d4  sky blue
-            ];
-            return (labels || []).map((_, i) => PALETTE[i % PALETTE.length]);
+        function hexToRgbaFiat(hex, alpha) {
+            const raw = String(hex || '').replace('#', '');
+            if (raw.length !== 6) return null;
+            const r = parseInt(raw.slice(0,2), 16), g = parseInt(raw.slice(2,4), 16), b = parseInt(raw.slice(4,6), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         }
 
-        const incomeColors = colorsForLabels(income.labels);
-        const expenseColors = colorsForLabels(expense.labels);
+        function colorsForLabels(labels, catData) {
+            const PALETTE = [
+                'rgba(  0, 176, 154, 0.75)',
+                'rgba( 91, 141, 217, 0.75)',
+                'rgba(240, 146,  43, 0.75)',
+                'rgba( 61, 189, 181, 0.75)',
+                'rgba(123,  94, 167, 0.75)',
+                'rgba(165, 143, 216, 0.75)',
+                'rgba(212, 132,  42, 0.75)',
+                'rgba(106, 180, 212, 0.75)',
+            ];
+            const colorMap = {};
+            (catData || []).forEach(c => { if (c.name && c.color) colorMap[c.name] = hexToRgbaFiat(c.color, 0.75); });
+            return (labels || []).map((name, i) => colorMap[name] || PALETTE[i % PALETTE.length]);
+        }
+
+        const incomeColors = colorsForLabels(income.labels, INCOME_CAT_DATA);
+        const expenseColors = colorsForLabels(expense.labels, EXPENSE_CAT_DATA);
         const incomeBorderColors = incomeColors.map(c => c.replace(/,\s*[\d.]+\)$/, ', 1)'));
         const expenseBorderColors = expenseColors.map(c => c.replace(/,\s*[\d.]+\)$/, ', 1)'));
 

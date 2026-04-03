@@ -105,5 +105,43 @@
             </div>
         </div>
     </div>
+
+    <!-- ── Seed Default Settings ──────────────────────────────────────── -->
+    <div class="card shadow-sm mt-4" style="border-radius: 14px;">
+        <div class="card-body">
+            <h4 class="mb-2">Seed Default Categories &amp; Colors</h4>
+            <p class="text-muted mb-3" style="max-width: 72ch;">
+                Select an existing user from the Settings table and write the default
+                <strong>income/expense categories</strong> and <strong>dashboard chart colors</strong>
+                to their settings row. This overwrites any existing values for those fields only
+                (<code>currency</code> and <code>theme</code> are left untouched).
+            </p>
+
+            {% if seed_user_ids is defined and seed_user_ids | length > 0 %}
+            <form method="post" action="/admin/seed-settings" class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label">Select User:</label>
+                    <select class="form-select" name="user_id">
+                        <option value="">-- Select a user --</option>
+                        {% for uid in seed_user_ids %}
+                            <option value="{{ uid }}" {% if uid == seed_selected_user %}selected{% endif %}>{{ uid }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <p class="small text-muted mb-2">
+                        Will seed: <strong>dashboardColors</strong>, <strong>incomeCategories</strong> (10 items),
+                        <strong>expenseCategories</strong> (11 items).
+                    </p>
+                    <button class="btn btn-outline-secondary" type="submit">Apply to selected user</button>
+                </div>
+            </form>
+            {% else %}
+            <p class="text-muted">
+                <a href="/admin/seed-settings" class="btn btn-outline-secondary btn-sm">Load user list from Settings table</a>
+            </p>
+            {% endif %}
+        </div>
+    </div>
 </div>
 {% endblock %}
