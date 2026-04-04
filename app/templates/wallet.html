@@ -47,7 +47,7 @@
     function newWalletDiv() { showWalletNew(); }
     function walletListDiv() { showWalletList(); }
 
-    function editWallet(userId, walletName, walletType, currency, accountNumber, note, walletId) {
+    function editWallet(userId, walletName, walletType, currency, accountNumber, note, walletId, color) {
         document.getElementById("updateUserId").value = userId;
         document.getElementById("updateWalletName").value = walletName;
         document.getElementById("updateWalletType").value = walletType;
@@ -55,6 +55,7 @@
         document.getElementById("UpdateAccountNumber").value = accountNumber;
         document.getElementById("updateNote").value = note;
         document.getElementById("updateWalletId").value = walletId;
+        document.getElementById("updateColor").value = color || '#00b09a';
         document.getElementById("updateWalletDiv").style.display = "block";
         document.getElementById("walletListDiv").style.display = "none";
         document.getElementById("deleteForm").action = `/deleteWallet/${walletId}/${userId}`;
@@ -115,7 +116,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 <strong>Fiat:</strong> Bank accounts, cash, or payment services (e.g. Swedbank, Revolut, Wise).<br>
                 <strong>Crypto:</strong> Cryptocurrency wallets or exchanges (e.g. Coinomi, Binance, KuCoin).<br>
                 <strong>Stock:</strong> Brokerage or investment accounts (e.g. Trading 212, eToro).<br>
-                <strong>Currency:</strong> Sets the wallet's base currency. Used for balance display and FX Transfer calculations.
+                <strong>Currency:</strong> Sets the wallet's base currency. Used for balance display and FX Transfer calculations.<br>
+                <strong>Color:</strong> The color used to represent this wallet in the Wallet Balances chart on the Dashboard.
             </div>
         </div>
         <form action="/wallet" method="POST">
@@ -152,8 +154,12 @@ document.addEventListener("DOMContentLoaded", function() {
         <input type="text" name="accountNumber">
     </div>
     <div>
-        <label for="note">Note:</label>        
+        <label for="note">Note:</label>
         <input type="text" name="note">
+    </div>
+    <div>
+        <label for="color">Color:</label>
+        <input type="color" name="color" value="#00b09a" style="width:48px;height:36px;padding:2px;border:1px solid var(--border,#ccc);border-radius:6px;cursor:pointer;">
     </div>
     <div>
         <button type="submit" class="btn-insert pct-positive">Create</button>
@@ -187,7 +193,7 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>
 
             <div class="crypto-history-actions">
-                <button class="btn-insert" onclick="editWallet('{{ wallet.userId }}','{{ wallet.walletName }}','{{ wallet.walletType }}','{{ wallet.currency }}','{{ wallet.accountNumber }}','{{ wallet.note }}','{{ wallet.walletId }}')">Edit</button>
+                <button class="btn-insert" onclick="editWallet('{{ wallet.userId }}','{{ wallet.walletName }}','{{ wallet.walletType }}','{{ wallet.currency }}','{{ wallet.accountNumber }}','{{ wallet.note }}','{{ wallet.walletId }}','{{ wallet.color | default('#00b09a') }}')">Edit</button>
             </div>
         </div>
     </li>
@@ -240,6 +246,10 @@ document.addEventListener("DOMContentLoaded", function() {
             <div>
                 <label>Note:</label>
                 <input type="text" id="updateNote" name="note">
+            </div>
+            <div>
+                <label>Color:</label>
+                <input type="color" id="updateColor" name="color" value="#00b09a" style="width:48px;height:36px;padding:2px;border:1px solid var(--border,#ccc);border-radius:6px;cursor:pointer;">
             </div>
             <div>
                 <button type="submit" class="btn-insert pct-positive">Save</button>

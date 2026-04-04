@@ -300,8 +300,14 @@ function renderDashboard(data) {
             'rgba(212, 132,  42, 0.75)', 'rgba(106, 180, 212, 0.75)',
         ];
         var walletBorderPalette = walletPalette.map(function(c) { return c.replace(/,\s*[\d.]+\)$/, ', 1)'); });
-        var bgColors = walletLabels.map(function(_, i) { return walletPalette[i % walletPalette.length]; });
-        var bdColors = walletLabels.map(function(_, i) { return walletBorderPalette[i % walletBorderPalette.length]; });
+        var bgColors = walletFiltered.map(function(w, i) {
+            var c = hexToRgba(w.color || '', 0.75);
+            return c || walletPalette[i % walletPalette.length];
+        });
+        var bdColors = walletFiltered.map(function(w, i) {
+            var c = hexToRgba(w.color || '', 1);
+            return c || walletBorderPalette[i % walletBorderPalette.length];
+        });
 
         var walletTotal = walletFiltered.reduce(function(s, w) { return s + (Number(w.balanceBase || w.balance) || 0); }, 0);
         var walletTotalEl = document.getElementById('walletTotalText');

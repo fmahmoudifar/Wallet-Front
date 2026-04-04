@@ -1015,6 +1015,7 @@ def dashboard_data():
                 "walletName": wallet_name,
                 "walletType": wallet_type,
                 "currency": wallet_currency,
+                "color": wallet.get("color") or "#00b09a",
                 # Chart bars use base/setting currency.
                 "balance": float(round(balance_base, 2)),
                 "balanceBase": float(round(balance_base, 2)),

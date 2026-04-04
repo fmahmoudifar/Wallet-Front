@@ -43,6 +43,7 @@ def create_wallet():
         "currency": request.form["currency"],
         # Wallet balances are derived from transactions; keep a safe default for any legacy backend schema.
         "balance": request.form.get("balance", "0"),
+        "color": request.form.get("color", "#00b09a"),
     }
     print(data)
 
@@ -73,6 +74,7 @@ def update_wallet():
         "accountNumber": request.form["accountNumber"],
         "balance": request.form.get("balance", "0"),
         "note": request.form["note"],
+        "color": request.form.get("color", "#00b09a"),
     }
     print(f"🔄 [DEBUG] Updating wallet: {data}")
 
