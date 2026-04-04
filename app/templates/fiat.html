@@ -978,7 +978,7 @@
         const _allCatData = [...INCOME_CAT_DATA, ...EXPENSE_CAT_DATA];
         const _catEntry = _allCatData.find(c => c.name === selectedCat);
         const _catHex = (_catEntry && _catEntry.color) || '#00b09a';
-        const _catBg  = hexToRgbaFiat(_catHex, 0.78) || 'rgba(0, 176, 154, 0.78)';
+        const _catBg  = hexToRgbaFiat(_catHex, 0.85) || 'rgba(0, 176, 154, 0.85)';
         const _catBorder = hexToRgbaFiat(_catHex, 1)  || 'rgba(0, 176, 154, 1)';
 
         window.__fiatCategoryMonthlyBarChart = new Chart(canvas, {
@@ -1192,17 +1192,17 @@
 
         function colorsForLabels(labels, catData) {
             const PALETTE = [
-                'rgba(  0, 176, 154, 0.75)',
-                'rgba( 91, 141, 217, 0.75)',
-                'rgba(240, 146,  43, 0.75)',
-                'rgba( 61, 189, 181, 0.75)',
-                'rgba(123,  94, 167, 0.75)',
-                'rgba(165, 143, 216, 0.75)',
-                'rgba(212, 132,  42, 0.75)',
-                'rgba(106, 180, 212, 0.75)',
+                'rgba(  0, 176, 154, 0.85)',
+                'rgba( 91, 141, 217, 0.85)',
+                'rgba(240, 146,  43, 0.85)',
+                'rgba( 61, 189, 181, 0.85)',
+                'rgba(123,  94, 167, 0.85)',
+                'rgba(165, 143, 216, 0.85)',
+                'rgba(212, 132,  42, 0.85)',
+                'rgba(106, 180, 212, 0.85)',
             ];
             const colorMap = {};
-            (catData || []).forEach(c => { if (c.name && c.color) colorMap[c.name] = hexToRgbaFiat(c.color, 0.75); });
+            (catData || []).forEach(c => { if (c.name && c.color) colorMap[c.name] = hexToRgbaFiat(c.color, 0.85); });
             return (labels || []).map((name, i) => colorMap[name] || PALETTE[i % PALETTE.length]);
         }
 

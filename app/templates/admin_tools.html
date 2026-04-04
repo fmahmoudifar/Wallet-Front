@@ -129,10 +129,24 @@
                     </select>
                 </div>
                 <div class="col-12">
-                    <p class="small text-muted mb-2">
-                        Will seed: <strong>dashboardColors</strong>, <strong>incomeCategories</strong> (10 items),
-                        <strong>expenseCategories</strong> (11 items).
-                    </p>
+                    <label class="form-label">Fields to update:</label>
+                    <div class="d-flex flex-wrap gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="fields" value="dashboardColors" id="chkColors" checked>
+                            <label class="form-check-label" for="chkColors">Dashboard Colors</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="fields" value="incomeCategories" id="chkIncome" checked>
+                            <label class="form-check-label" for="chkIncome">Income Categories</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="fields" value="expenseCategories" id="chkExpense" checked>
+                            <label class="form-check-label" for="chkExpense">Expense Categories</label>
+                        </div>
+                    </div>
+                    <div class="small text-muted mt-2">Only the checked fields will be overwritten. Other settings (currency, theme) are never touched.</div>
+                </div>
+                <div class="col-12">
                     <button class="btn btn-outline-secondary" type="submit">Apply to selected user</button>
                 </div>
             </form>

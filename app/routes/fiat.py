@@ -7,6 +7,8 @@ from flask import Blueprint, jsonify, redirect, render_template, request, sessio
 from app.services.user_scope import filter_records_by_user
 from config import API_URL, aws_auth
 
+from .home import _ensure_user_settings_row
+
 # Reuse the same Settings currency + FX conversion helpers
 from .crypto import (
     _get_fx_rate,
@@ -34,6 +36,7 @@ def fiat_page():
     user = session.get("user")
     if user:
         userId = user.get("username")
+        _ensure_user_settings_row(userId)
 
         base_currency = _get_user_base_currency(userId)
         fx_warning = False

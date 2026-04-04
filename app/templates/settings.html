@@ -61,6 +61,17 @@
             cursor: pointer;
             background: transparent;
         }
+        .set-color-field .hex-input {
+            width: 52px;
+            font-size: 11px;
+            text-align: center;
+            padding: 2px 3px;
+            border: 1px solid var(--border, #e6e6e6);
+            border-radius: 5px;
+            background: transparent;
+            color: inherit;
+            font-family: monospace;
+        }
 
         /* Category rows */
         .cat-row {
@@ -71,7 +82,7 @@
             width: 100%;
             box-sizing: border-box;
         }
-        .cat-row input[type="text"] { flex: 1; min-width: 0; width: 100%; }
+        .cat-row .cat-name-input { flex: 1; min-width: 0; width: 100%; }
         .cat-row input[type="color"] {
             width: 34px; height: 34px;
             padding: 2px;
@@ -80,6 +91,18 @@
             cursor: pointer;
             flex-shrink: 0;
             background: transparent;
+        }
+        .cat-row .hex-input {
+            width: 52px;
+            font-size: 11px;
+            text-align: center;
+            padding: 2px 4px;
+            border: 1px solid var(--border, #e6e6e6);
+            border-radius: 5px;
+            background: transparent;
+            color: inherit;
+            font-family: monospace;
+            flex-shrink: 0;
         }
 
         /* Collapse body and category list must always fill the container */
@@ -174,20 +197,41 @@
         if (chevron) chevron.classList.toggle('open', open);
     }
 
+    function bindColorHex(pickerId, hexId) {
+        const picker = document.getElementById(pickerId);
+        const hex    = document.getElementById(hexId);
+        if (!picker || !hex) return;
+        picker.addEventListener('input', () => { hex.value = picker.value.toUpperCase(); });
+        hex.addEventListener('input', () => {
+            const v = hex.value.trim();
+            if (/^#[0-9a-fA-F]{6}$/.test(v)) picker.value = v;
+        });
+        hex.addEventListener('change', () => {
+            const v = hex.value.trim().replace(/^#?/, '#');
+            if (/^#[0-9a-fA-F]{6}$/.test(v)) { picker.value = v; hex.value = v.toUpperCase(); }
+        });
+    }
+
     function saveDashboardColors() {
-        const get = id => { const el = document.getElementById(id); return el ? el.value : null; };
+        const getColor = (hexId, pickerId, fallback) => {
+            const hexEl    = document.getElementById(hexId);
+            const pickerEl = document.getElementById(pickerId);
+            const hexVal   = (hexEl?.value || '').trim();
+            if (/^#[0-9a-fA-F]{6}$/.test(hexVal)) return hexVal;
+            return (pickerEl?.value) || fallback;
+        };
         const btn = document.getElementById('dashColorSaveBtn');
         if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
         fetch('/updateCategorySettings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dashboardColors: {
-                colorNow:    get('colorNowPicker')    || '#00b09a',
-                colorPaid:   get('colorPaidPicker')   || '#6a7d94',
-                colorRepaid: get('colorRepaidPicker') || '#00b09a',
-                colorBorrow: get('colorBorrowPicker') || '#6a7d94',
-                colorLend:   get('colorLendPicker')   || '#6c757d',
-                colorLoan:   get('colorLoanPicker')   || '#e8a838',
+                colorNow:    getColor('colorNowHex',    'colorNowPicker',    '#00b09a'),
+                colorPaid:   getColor('colorPaidHex',   'colorPaidPicker',   '#6a7d94'),
+                colorRepaid: getColor('colorRepaidHex', 'colorRepaidPicker', '#00b09a'),
+                colorBorrow: getColor('colorBorrowHex', 'colorBorrowPicker', '#6a7d94'),
+                colorLend:   getColor('colorLendHex',   'colorLendPicker',   '#6c757d'),
+                colorLoan:   getColor('colorLoanHex',   'colorLoanPicker',   '#e8a838'),
             }}),
         })
         .then(r => r.json())
@@ -206,12 +250,25 @@
     }
 
     function makeCatRow(name, color) {
+        const c = (color || '#00b09a').toUpperCase();
         const row = document.createElement('div');
         row.className = 'cat-row';
         row.innerHTML = `
             <input type="text" value="${(name || '').replace(/"/g,'&quot;')}" placeholder="Category name" class="cat-name-input">
-            <input type="color" value="${color || '#00b09a'}" title="Pick color" class="cat-color-input">
+            <input type="color" value="${c}" title="Pick color" class="cat-color-input">
+            <input type="text" value="${c}" maxlength="7" class="hex-input cat-hex-input" placeholder="#000000">
             <button type="button" class="btn-cat-remove" title="Remove" onclick="this.closest('.cat-row').remove()">✕</button>`;
+        const picker = row.querySelector('.cat-color-input');
+        const hex    = row.querySelector('.cat-hex-input');
+        picker.addEventListener('input', () => { hex.value = picker.value.toUpperCase(); });
+        hex.addEventListener('input', () => {
+            const v = hex.value.trim();
+            if (/^#[0-9a-fA-F]{6}$/.test(v)) picker.value = v;
+        });
+        hex.addEventListener('change', () => {
+            const v = hex.value.trim().replace(/^#?/, '#');
+            if (/^#[0-9a-fA-F]{6}$/.test(v)) { picker.value = v; hex.value = v.toUpperCase(); }
+        });
         return row;
     }
 
@@ -223,8 +280,9 @@
     function collectCategories(type) {
         const result = [];
         document.querySelectorAll(`#${type}CatList .cat-row`).forEach(row => {
-            const name  = (row.querySelector('.cat-name-input')?.value || '').trim();
-            const color = row.querySelector('.cat-color-input')?.value || '#00b09a';
+            const name   = (row.querySelector('.cat-name-input')?.value || '').trim();
+            const hexVal = (row.querySelector('.cat-hex-input')?.value || '').trim();
+            const color  = /^#[0-9a-fA-F]{6}$/.test(hexVal) ? hexVal : (row.querySelector('.cat-color-input')?.value || '#00b09a');
             if (name) result.push({ name, color });
         });
         return result;
@@ -253,6 +311,9 @@
         persistTheme("{{ setting.theme if setting else 'Light' }}");
         renderCategoryList('income',  INCOME_CAT_DATA);
         renderCategoryList('expense', EXPENSE_CAT_DATA);
+        ['Now','Paid','Repaid','Borrow','Lend','Loan'].forEach(k => {
+            bindColorHex('color' + k + 'Picker', 'color' + k + 'Hex');
+        });
     });
 </script>
 
@@ -299,10 +360,12 @@
             <div class="set-color-field" style="align-items:center;">
                 <label>Total Value Now</label>
                 <input type="color" id="colorNowPicker" value="{{ dashboard_colors.colorNow | default('#00b09a') }}">
+                <input type="text" id="colorNowHex" class="hex-input" maxlength="7" value="{{ (dashboard_colors.colorNow | default('#00b09a')) | upper }}" placeholder="#000000">
             </div>
             <div class="set-color-field" style="align-items:center;">
                 <label>Total Value Paid</label>
                 <input type="color" id="colorPaidPicker" value="{{ dashboard_colors.colorPaid | default('#6a7d94') }}">
+                <input type="text" id="colorPaidHex" class="hex-input" maxlength="7" value="{{ (dashboard_colors.colorPaid | default('#6a7d94')) | upper }}" placeholder="#000000">
             </div>
         </div>
 
@@ -311,18 +374,22 @@
             <div class="set-color-field" style="align-items:center;">
                 <label>Repaid</label>
                 <input type="color" id="colorRepaidPicker" value="{{ dashboard_colors.colorRepaid | default('#00b09a') }}">
+                <input type="text" id="colorRepaidHex" class="hex-input" maxlength="7" value="{{ (dashboard_colors.colorRepaid | default('#00b09a')) | upper }}" placeholder="#000000">
             </div>
             <div class="set-color-field" style="align-items:center;">
                 <label>Borrow</label>
                 <input type="color" id="colorBorrowPicker" value="{{ dashboard_colors.colorBorrow | default('#6a7d94') }}">
+                <input type="text" id="colorBorrowHex" class="hex-input" maxlength="7" value="{{ (dashboard_colors.colorBorrow | default('#6a7d94')) | upper }}" placeholder="#000000">
             </div>
             <div class="set-color-field" style="align-items:center;">
                 <label>Lend</label>
                 <input type="color" id="colorLendPicker" value="{{ dashboard_colors.colorLend | default('#6c757d') }}">
+                <input type="text" id="colorLendHex" class="hex-input" maxlength="7" value="{{ (dashboard_colors.colorLend | default('#6c757d')) | upper }}" placeholder="#000000">
             </div>
             <div class="set-color-field" style="align-items:center;">
                 <label>Loan</label>
                 <input type="color" id="colorLoanPicker" value="{{ dashboard_colors.colorLoan | default('#e8a838') }}">
+                <input type="text" id="colorLoanHex" class="hex-input" maxlength="7" value="{{ (dashboard_colors.colorLoan | default('#e8a838')) | upper }}" placeholder="#000000">
             </div>
         </div>
         <div class="set-actions">

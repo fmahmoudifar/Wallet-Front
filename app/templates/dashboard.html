@@ -251,10 +251,10 @@ function renderDashboard(data) {
     var borderPaid   = (_dbColors && _dbColors.colorPaid)    || '#6a7d94';
     var borderRepaid = (_dbColors && _dbColors.colorRepaid)  || borderNow;
     var borderBorrow = (_dbColors && _dbColors.colorBorrow)  || borderPaid;
-    var colorNow     = hexToRgba(borderNow,    0.55) || 'rgba(0, 176, 154, 0.55)';
-    var colorPaid    = hexToRgba(borderPaid,   0.55) || 'rgba(106, 125, 148, 0.55)';
-    var colorRepaid  = hexToRgba(borderRepaid, 0.55) || colorNow;
-    var colorBorrow  = hexToRgba(borderBorrow, 0.55) || colorPaid;
+    var colorNow     = hexToRgba(borderNow,    0.85) || 'rgba(0, 176, 154, 0.85)';
+    var colorPaid    = hexToRgba(borderPaid,   0.85) || 'rgba(106, 125, 148, 0.85)';
+    var colorRepaid  = hexToRgba(borderRepaid, 0.85) || colorNow;
+    var colorBorrow  = hexToRgba(borderBorrow, 0.85) || colorPaid;
 
     var cssVar = function(name) {
         try {
@@ -271,9 +271,9 @@ function renderDashboard(data) {
 
     var borderLend = (_dbColors && _dbColors.colorLend) || '#6c757d';
     var borderLoan = (_dbColors && _dbColors.colorLoan) || '#e8a838';
-    var lendOutstandingColor  = hexToRgba(borderLend, 0.35) || 'rgba(108, 117, 125, 0.35)';
-    var lendOutstandingBorder = hexToRgba(borderLend, 0.9)  || borderLend;
-    var loanOutstandingColor  = hexToRgba(borderLoan, 0.55) || 'rgba(232, 168, 56, 0.55)';
+    var lendOutstandingColor  = hexToRgba(borderLend, 0.85) || 'rgba(108, 117, 125, 0.85)';
+    var lendOutstandingBorder = hexToRgba(borderLend, 1.0)  || borderLend;
+    var loanOutstandingColor  = hexToRgba(borderLoan, 0.85) || 'rgba(232, 168, 56, 0.85)';
     var loanOutstandingBorder = borderLoan;
     var pieTopRotation = -0.5 * Math.PI;
 
@@ -294,14 +294,14 @@ function renderDashboard(data) {
         var walletBalances = walletFiltered.map(function(w) { return Math.abs(Number(w.balanceBase || w.balance) || 0); });
 
         var walletPalette = [
-            'rgba(  0, 176, 154, 0.75)', 'rgba( 91, 141, 217, 0.75)',
-            'rgba(240, 146,  43, 0.75)', 'rgba( 61, 189, 181, 0.75)',
-            'rgba(123,  94, 167, 0.75)', 'rgba(165, 143, 216, 0.75)',
-            'rgba(212, 132,  42, 0.75)', 'rgba(106, 180, 212, 0.75)',
+            'rgba(  0, 176, 154, 0.85)', 'rgba( 91, 141, 217, 0.85)',
+            'rgba(240, 146,  43, 0.85)', 'rgba( 61, 189, 181, 0.85)',
+            'rgba(123,  94, 167, 0.85)', 'rgba(165, 143, 216, 0.85)',
+            'rgba(212, 132,  42, 0.85)', 'rgba(106, 180, 212, 0.85)',
         ];
         var walletBorderPalette = walletPalette.map(function(c) { return c.replace(/,\s*[\d.]+\)$/, ', 1)'); });
         var bgColors = walletFiltered.map(function(w, i) {
-            var c = hexToRgba(w.color || '', 0.75);
+            var c = hexToRgba(w.color || '', 0.85);
             return c || walletPalette[i % walletPalette.length];
         });
         var bdColors = walletFiltered.map(function(w, i) {

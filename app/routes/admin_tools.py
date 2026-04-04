@@ -377,15 +377,30 @@ def seed_settings():
         if not seed_selected_user:
             flash("Please select a user.", "danger")
         else:
-            payload = {"userId": seed_selected_user, **_DEFAULT_SETTINGS_SEED}
-            try:
-                resp = http_requests.patch(f"{API_URL}/settings", json=payload, auth=aws_auth)
-                if resp.status_code in (200, 201):
-                    flash(f"Default categories & colors seeded for {seed_selected_user}.", "success")
-                else:
-                    flash(f"API returned {resp.status_code}: {resp.text[:200]}", "danger")
-            except Exception as e:
-                flash(f"Error calling settings API: {e}", "danger")
+            selected_fields = request.form.getlist("fields")
+            if not selected_fields:
+                flash("Select at least one field to update.", "warning")
+            else:
+                try:
+                    with open(_SETTINGS_DEFAULTS_PATH, "r") as _fh:
+                        current_defaults = json.load(_fh)
+                except Exception as e:
+                    flash(f"Could not read defaults file: {e}", "danger")
+                    current_defaults = _DEFAULT_SETTINGS_SEED
+
+                payload = {"userId": seed_selected_user}
+                for field in selected_fields:
+                    if field in current_defaults:
+                        payload[field] = current_defaults[field]
+                try:
+                    resp = http_requests.patch(f"{API_URL}/settings", json=payload, auth=aws_auth)
+                    if resp.status_code in (200, 201):
+                        labels = ", ".join(selected_fields)
+                        flash(f"Updated {labels} for {seed_selected_user}.", "success")
+                    else:
+                        flash(f"API returned {resp.status_code}: {resp.text[:200]}", "danger")
+                except Exception as e:
+                    flash(f"Error calling settings API: {e}", "danger")
 
     return render_template(
         "admin_tools.html",

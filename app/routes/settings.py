@@ -1,16 +1,14 @@
+import json
+import os
 import requests
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 
 from app.services.user_scope import filter_records_by_user
 from config import API_URL, aws_auth
 
-_SETTING_DEFAULTS = {
-    "currency": "EUR",
-    "theme": "Light",
-    "dashboardColors": {"colorNow": "#00b09a", "colorPaid": "#6a7d94"},
-    "incomeCategories": [],
-    "expenseCategories": [],
-}
+_SETTINGS_DEFAULTS_PATH = os.path.join(os.path.dirname(__file__), "..", "static", "settings_defaults.json")
+with open(_SETTINGS_DEFAULTS_PATH, "r") as _f:
+    _SETTING_DEFAULTS = json.load(_f)
 
 settings_bp = Blueprint("settings", __name__)
 
