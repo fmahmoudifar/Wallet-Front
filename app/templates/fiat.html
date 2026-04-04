@@ -1241,7 +1241,7 @@
 
         if (window.Chart) {
             // Higher aspect ratio => shorter chart height (reduces empty vertical space).
-            const pieAspect = isMobile ? 1.19 : 1.35;
+            const pieAspect = isMobile ? 1.0 : 1.13;
             const barAspect = 2.4;
             const legendFontSize = isMobile ? 11 : 12;
             const legendBoxWidth = isMobile ? 10 : 12;
@@ -1276,7 +1276,7 @@
                         responsive: true,
                         maintainAspectRatio: true,
                         aspectRatio: pieAspect,
-                        layout: { padding: { top: 4, bottom: 4, left: 6, right: 6 } },
+                        layout: { padding: 0 },
                         plugins: {
                             legend: {
                                 display: false, // hidden — bar chart below shows the same labels
@@ -1319,7 +1319,7 @@
                         responsive: true,
                         maintainAspectRatio: true,
                         aspectRatio: pieAspect,
-                        layout: { padding: { top: 4, bottom: 4, left: 6, right: 6 } },
+                        layout: { padding: 0 },
                         plugins: {
                             legend: {
                                 display: false, // hidden — bar chart below shows the same labels
@@ -1737,9 +1737,8 @@
             </div>
             <div id="incomeChartEmpty" class="small-muted" style="display:none;margin:6px 0;">No income in this date range.</div>
             <div id="incomeChartsBlock">
-                <canvas id="incomeChart" height="280"></canvas>
-                <div style="height:10px;"></div>
-                <div id="incomeBarWrap"><canvas id="incomeBarChart"></canvas></div>
+                <canvas id="incomeChart"></canvas>
+                <div id="incomeBarWrap" style="margin-top:8px;"><canvas id="incomeBarChart"></canvas></div>
             </div>
         </div>
         <div class="totals-card fiat-dashboard-card">
@@ -1752,9 +1751,8 @@
             </div>
             <div id="expenseChartEmpty" class="small-muted" style="display:none;margin:6px 0;">No expenses in this date range.</div>
             <div id="expenseChartsBlock">
-                <canvas id="expenseChart" height="280"></canvas>
-                <div style="height:10px;"></div>
-                <div id="expenseBarWrap"><canvas id="expenseBarChart"></canvas></div>
+                <canvas id="expenseChart"></canvas>
+                <div id="expenseBarWrap" style="margin-top:8px;"><canvas id="expenseBarChart"></canvas></div>
             </div>
         </div>
     </div>

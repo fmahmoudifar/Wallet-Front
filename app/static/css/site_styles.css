@@ -1892,6 +1892,7 @@ button.pct-positive:hover {
 
 .fiat-dashboard-card canvas {
     width: 100% !important;
+    display: block;
 }
 
 .fiat-dashboard-bar-card {
