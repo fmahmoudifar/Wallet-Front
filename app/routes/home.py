@@ -1,5 +1,6 @@
 from collections import defaultdict
 from decimal import Decimal
+import json
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -30,6 +31,10 @@ from .stock import (
 )
 
 home_bp = Blueprint("home", __name__, url_prefix="/")
+
+_SETTINGS_DEFAULTS_PATH = os.path.join(os.path.dirname(__file__), "..", "static", "settings_defaults.json")
+with open(_SETTINGS_DEFAULTS_PATH, "r") as _f:
+    _SETTINGS_DEFAULTS = json.load(_f)
 
 # In-process cache for the Overview page to avoid recomputing heavy totals on every refresh.
 # NOTE: This is per-process (per gunicorn worker) and resets on restart.
@@ -126,44 +131,7 @@ def _ensure_user_settings_row(user_id: str) -> None:
             pass
         return
 
-    default_data = {
-        "userId": user_id,
-        "currency": "EUR",
-        "theme": "Light",
-        "dashboardColors": {
-            "colorNow":    "#00b09a",
-            "colorPaid":   "#6a7d94",
-            "colorRepaid": "#00b09a",
-            "colorBorrow": "#6a7d94",
-            "colorLend":   "#6c757d",
-            "colorLoan":   "#e8a838",
-        },
-        "incomeCategories": [
-            {"name": "Salary, Wage",        "color": "#00b09a"},
-            {"name": "Savings",             "color": "#5b8dd9"},
-            {"name": "Debt",                "color": "#f0922b"},
-            {"name": "Gift",                "color": "#3dbdb5"},
-            {"name": "Interest, Dividends", "color": "#7b5ea7"},
-            {"name": "Lend, Rent",          "color": "#a58fd8"},
-            {"name": "Lottery, Gambling",   "color": "#d4842a"},
-            {"name": "Refund",              "color": "#6ab4d4"},
-            {"name": "Sales",               "color": "#f0922b"},
-            {"name": "Other",               "color": "#5b8dd9"},
-        ],
-        "expenseCategories": [
-            {"name": "Food and Beverage",  "color": "#e06c75"},
-            {"name": "Purchases",          "color": "#f0922b"},
-            {"name": "Housing",            "color": "#5b8dd9"},
-            {"name": "Transportation",     "color": "#00b09a"},
-            {"name": "Vehicle",            "color": "#d4842a"},
-            {"name": "Entertainment",      "color": "#7b5ea7"},
-            {"name": "Communications",     "color": "#6ab4d4"},
-            {"name": "Financial Expenses", "color": "#a58fd8"},
-            {"name": "Investments",        "color": "#3dbdb5"},
-            {"name": "Loans",              "color": "#d4842a"},
-            {"name": "Other",              "color": "#5b8dd9"},
-        ],
-    }
+    default_data = {"userId": user_id, **_SETTINGS_DEFAULTS}
 
     try:
         upsert = requests.patch(f"{API_URL}/settings", json=default_data, auth=aws_auth, timeout=10)

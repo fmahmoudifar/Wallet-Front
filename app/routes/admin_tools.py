@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from typing import Any
@@ -8,41 +9,9 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, s
 from app.services.authz import is_admin_user
 from config import API_URL, aws_auth
 
-_DEFAULT_SETTINGS_SEED = {
-    "dashboardColors": {
-        "colorNow":    "#00b09a",
-        "colorPaid":   "#6a7d94",
-        "colorRepaid": "#00b09a",
-        "colorBorrow": "#6a7d94",
-        "colorLend":   "#6c757d",
-        "colorLoan":   "#e8a838",
-    },
-    "incomeCategories": [
-        {"name": "Salary, Wage",        "color": "#00b09a"},
-        {"name": "Savings",             "color": "#5b8dd9"},
-        {"name": "Debt",                "color": "#f0922b"},
-        {"name": "Gift",                "color": "#3dbdb5"},
-        {"name": "Interest, Dividends", "color": "#7b5ea7"},
-        {"name": "Lend, Rent",          "color": "#a58fd8"},
-        {"name": "Lottery, Gambling",   "color": "#d4842a"},
-        {"name": "Refund",              "color": "#6ab4d4"},
-        {"name": "Sales",               "color": "#f0922b"},
-        {"name": "Other",               "color": "#5b8dd9"},
-    ],
-    "expenseCategories": [
-        {"name": "Food and Beverage",  "color": "#e06c75"},
-        {"name": "Purchases",          "color": "#f0922b"},
-        {"name": "Housing",            "color": "#5b8dd9"},
-        {"name": "Transportation",     "color": "#00b09a"},
-        {"name": "Vehicle",            "color": "#d4842a"},
-        {"name": "Entertainment",      "color": "#7b5ea7"},
-        {"name": "Communications",     "color": "#6ab4d4"},
-        {"name": "Financial Expenses", "color": "#a58fd8"},
-        {"name": "Investments",        "color": "#3dbdb5"},
-        {"name": "Loans",              "color": "#d4842a"},
-        {"name": "Other",              "color": "#5b8dd9"},
-    ],
-}
+_SETTINGS_DEFAULTS_PATH = os.path.join(os.path.dirname(__file__), "..", "static", "settings_defaults.json")
+with open(_SETTINGS_DEFAULTS_PATH, "r") as _f:
+    _DEFAULT_SETTINGS_SEED = json.load(_f)
 
 admin_tools_bp = Blueprint("admin_tools", __name__, url_prefix="/admin")
 
