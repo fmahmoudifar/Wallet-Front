@@ -848,6 +848,13 @@
     }
     window.populateFiatCategoryTrendOptions = populateFiatCategoryTrendOptions;
 
+    function hexToRgbaFiat(hex, alpha) {
+        const raw = String(hex || '').replace('#', '');
+        if (raw.length !== 6) return null;
+        const r = parseInt(raw.slice(0,2), 16), g = parseInt(raw.slice(2,4), 16), b = parseInt(raw.slice(4,6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
     function renderFiatCategoryMonthlyChart(baseCurrency) {
         const list = document.getElementById('transList');
         const typeEl = document.getElementById('catTrendType');
@@ -1181,13 +1188,6 @@
                 h |= 0;
             }
             return h;
-        }
-
-        function hexToRgbaFiat(hex, alpha) {
-            const raw = String(hex || '').replace('#', '');
-            if (raw.length !== 6) return null;
-            const r = parseInt(raw.slice(0,2), 16), g = parseInt(raw.slice(2,4), 16), b = parseInt(raw.slice(4,6), 16);
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         }
 
         function colorsForLabels(labels, catData) {
