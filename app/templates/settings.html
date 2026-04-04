@@ -161,9 +161,10 @@
 {% set setting = settings | first %}
 
 <script>
-    const INCOME_CAT_DATA  = {{ income_categories  | tojson | safe }};
-    const EXPENSE_CAT_DATA = {{ expense_categories | tojson | safe }};
-    const DASHBOARD_COLORS = {{ dashboard_colors   | tojson | safe }};
+    const INCOME_CAT_DATA          = {{ income_categories          | tojson | safe }};
+    const EXPENSE_CAT_DATA         = {{ expense_categories         | tojson | safe }};
+    const DASHBOARD_COLORS         = {{ dashboard_colors           | tojson | safe }};
+    const DEFAULT_DASHBOARD_COLORS = {{ default_dashboard_colors   | tojson | safe }};
 
     function persistTheme(val) {
         try {
@@ -209,6 +210,18 @@
         hex.addEventListener('change', () => {
             const v = hex.value.trim().replace(/^#?/, '#');
             if (/^#[0-9a-fA-F]{6}$/.test(v)) { picker.value = v; hex.value = v.toUpperCase(); }
+        });
+    }
+
+    function resetDashboardColors() {
+        const keys = ['Now','Paid','Repaid','Borrow','Lend','Loan'];
+        const map  = { Now: 'colorNow', Paid: 'colorPaid', Repaid: 'colorRepaid', Borrow: 'colorBorrow', Lend: 'colorLend', Loan: 'colorLoan' };
+        keys.forEach(k => {
+            const def     = (DEFAULT_DASHBOARD_COLORS[map[k]] || '').toUpperCase();
+            const picker  = document.getElementById('color' + k + 'Picker');
+            const hexEl   = document.getElementById('color' + k + 'Hex');
+            if (def && picker) picker.value = def;
+            if (def && hexEl)  hexEl.value  = def;
         });
     }
 
@@ -393,6 +406,7 @@
             </div>
         </div>
         <div class="set-actions">
+            <button type="button" class="btn-cancel" onclick="resetDashboardColors()">Reset to Default</button>
             <button id="dashColorSaveBtn" type="button" class="btn-insert pct-positive" onclick="saveDashboardColors()">Save</button>
         </div>
     </div>

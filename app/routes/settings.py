@@ -48,6 +48,7 @@ def settings_page():
             income_categories=income_categories,
             expense_categories=expense_categories,
             dashboard_colors=dashboard_colors,
+            default_dashboard_colors=_SETTING_DEFAULTS.get("dashboardColors", {}),
         )
     else:
         return render_template("home.html")
