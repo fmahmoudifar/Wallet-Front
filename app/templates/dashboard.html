@@ -31,19 +31,11 @@
     .dash-chart-wrap { height: 200px; }
     .dash-chart-wrap-lg { height: 260px; }
     @media (min-width: 769px) {
-        .grid-container {
-            height: calc(100vh - 44px);
-            grid-template-rows: repeat(2, 1fr);
-        }
-        .grid-item { min-height: 0 !important; height: 100%; }
-        .home-card { min-height: 0 !important; height: 100%; }
-        .dash-content { flex: 1 1 0 !important; min-height: 0; overflow: hidden; }
-        .dash-content > div:first-child { flex: 1 1 0; min-height: 0; }
-        .dash-content .totals-meta { flex-shrink: 0; }
-        .dash-chart-wrap { height: 100% !important; }
-        .dash-chart-wrap-lg { height: 100% !important; }
-        #loanContent > div:first-child { flex: 1 1 0; min-height: 0; max-height: none !important; overflow-y: auto; }
-        .loan-pies { min-height: 0 !important; }
+        .grid-item { min-height: 231px !important; }
+        .home-card { min-height: 305px !important; }
+        .dash-chart-wrap { height: 181px !important; }
+        .dash-chart-wrap-lg { height: 234px !important; }
+        .loan-pies { min-height: 331px !important; }
     }
     #myChart {
         width: 100% !important;
