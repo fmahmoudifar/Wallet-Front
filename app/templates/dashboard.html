@@ -27,6 +27,16 @@
         height: 100%;
         min-height: 320px;
     }
+
+    .dash-chart-wrap { height: 200px; }
+    .dash-chart-wrap-lg { height: 260px; }
+    @media (min-width: 769px) {
+        .grid-item { min-height: 231px !important; }
+        .home-card { min-height: 305px !important; }
+        .dash-chart-wrap { height: 181px !important; }
+        .dash-chart-wrap-lg { height: 234px !important; }
+        .loan-pies { min-height: 331px !important; }
+    }
     #myChart {
         width: 100% !important;
         height: 100% !important;
@@ -77,8 +87,8 @@
                 </div>
             </div>
             <div id="walletContent" class="dash-content">
-                <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center;">
-                    <div style="width: 100%; max-width: 320px; height: 200px;">
+                <div style="display: flex; align-items: center; justify-content: center;">
+                    <div class="dash-chart-wrap" style="width: 100%; max-width: 320px;">
                         <canvas id="walletChart"></canvas>
                     </div>
                 </div>
@@ -104,8 +114,8 @@
                 </div>
             </div>
             <div id="cryptoContent" class="dash-content">
-                <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center;">
-                    <div style="width: 100%; max-width: 440px; height: 260px;">
+                <div style="display: flex; align-items: center; justify-content: center;">
+                    <div class="dash-chart-wrap-lg" style="width: 100%; max-width: 440px;">
                         <canvas id="myChart"></canvas>
                     </div>
                 </div>
@@ -141,8 +151,8 @@
                 </div>
             </div>
             <div id="stockContent" class="dash-content">
-                <div style="flex: 1 1 auto; display: flex; align-items: center; justify-content: center;">
-                    <div style="width: 100%; max-width: 440px; height: 260px;">
+                <div style="display: flex; align-items: center; justify-content: center;">
+                    <div class="dash-chart-wrap-lg" style="width: 100%; max-width: 440px;">
                         <canvas id="stockChart"></canvas>
                     </div>
                 </div>
@@ -515,7 +525,8 @@ function renderDashboard(data) {
     if (!loanHomePositions.length) {
         showEmpty('loan', 'No open loan positions');
     } else {
-        var loanH = loanHomePositions.length * 40 + 60;
+        var isDesktop = window.innerWidth > 768;
+        var loanH = loanHomePositions.length * (isDesktop ? 38 : 40) + (isDesktop ? 55 : 60);
         var container = document.getElementById('loanPiesContainer');
         if (container) container.style.height = loanH + 'px';
 
