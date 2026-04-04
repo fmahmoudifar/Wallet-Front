@@ -1227,11 +1227,22 @@
         };
 
         // Charts
+        const isMobile = (window.matchMedia && window.matchMedia('(max-width: 480px)').matches);
+
+        // On mobile, set bar wrap height based on number of categories so labels fit
+        if (isMobile) {
+            const setBarWrapHeight = (id, count) => {
+                const el = document.getElementById(id);
+                if (el) el.style.height = Math.max(180, count * 28 + 40) + 'px';
+            };
+            setBarWrapHeight('incomeBarWrap',  income.labels.length);
+            setBarWrapHeight('expenseBarWrap', expense.labels.length);
+        }
+
         if (window.Chart) {
-            const isMobile = (window.matchMedia && window.matchMedia('(max-width: 480px)').matches);
             // Higher aspect ratio => shorter chart height (reduces empty vertical space).
             const pieAspect = isMobile ? 1.55 : 1.35;
-            const barAspect = isMobile ? 2.05 : 2.4;
+            const barAspect = 2.4;
             const legendFontSize = isMobile ? 11 : 12;
             const legendBoxWidth = isMobile ? 10 : 12;
             const legendPadding = isMobile ? 8 : 10;
@@ -1334,51 +1345,63 @@
                 });
             }
 
+            const barChartOptions = (labels, parsed_axis) => ({
+                responsive: true,
+                maintainAspectRatio: !isMobile,
+                aspectRatio: barAspect,
+                indexAxis: isMobile ? 'y' : 'x',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const v = Number(isMobile ? context.parsed.x : context.parsed.y || 0);
+                                return `${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+                            }
+                        }
+                    }
+                },
+                scales: isMobile ? {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: cssVar('--muted') || '#9ca3af',
+                            callback: function(v) {
+                                const n = Number(v || 0);
+                                if (Math.abs(n) >= 1000) return (n/1000).toFixed(1) + 'k';
+                                return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                            }
+                        },
+                        grid: { color: cssVar('--border') || 'rgba(255,255,255,0.12)' }
+                    },
+                    y: {
+                        ticks: { color: cssVar('--muted') || '#9ca3af', font: { size: 11 } },
+                        grid: { display: false }
+                    }
+                } : {
+                    x: {
+                        ticks: {
+                            autoSkip: true, maxRotation: 35, minRotation: 0,
+                            color: cssVar('--muted') || '#9ca3af',
+                        },
+                        grid: { color: cssVar('--border') || 'rgba(255,255,255,0.12)' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: cssVar('--muted') || '#9ca3af' },
+                        grid: { color: cssVar('--border') || 'rgba(255,255,255,0.12)' }
+                    }
+                }
+            });
+
             if (ib && income.labels.length) {
                 window.__fiatIncomeBarChart = new Chart(ib, {
                     type: 'bar',
                     data: {
                         labels: income.labels,
-                        datasets: [{
-                            label: 'Income',
-                            data: income.values,
-                            backgroundColor: incomeColors,
-                            borderColor: incomeBorderColors,
-                            borderWidth: 1,
-                        }]
+                        datasets: [{ label: 'Income', data: income.values, backgroundColor: incomeColors, borderColor: incomeBorderColors, borderWidth: 1 }]
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        aspectRatio: barAspect,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const v = Number(context.parsed.y || 0);
-                                        return `${context.label}: ${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                ticks: {
-                                    autoSkip: true,
-                                    maxRotation: isMobile ? 55 : 35,
-                                    minRotation: isMobile ? 35 : 0,
-                                    color: cssVar('--muted') || '#9ca3af',
-                                },
-                                grid: { color: cssVar('--border') || 'rgba(255,255,255,0.12)' }
-                            },
-                            y: {
-                                beginAtZero: true,
-                                ticks: { color: cssVar('--muted') || '#9ca3af' },
-                                grid: { color: cssVar('--border') || 'rgba(255,255,255,0.12)' }
-                            }
-                        }
-                    }
+                    options: barChartOptions(income.labels)
                 });
             }
 
@@ -1387,46 +1410,9 @@
                     type: 'bar',
                     data: {
                         labels: expense.labels,
-                        datasets: [{
-                            label: 'Expense',
-                            data: expense.values,
-                            backgroundColor: expenseColors,
-                            borderColor: expenseBorderColors,
-                            borderWidth: 1,
-                        }]
+                        datasets: [{ label: 'Expense', data: expense.values, backgroundColor: expenseColors, borderColor: expenseBorderColors, borderWidth: 1 }]
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        aspectRatio: barAspect,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const v = Number(context.parsed.y || 0);
-                                        return `${context.label}: ${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                ticks: {
-                                    autoSkip: true,
-                                    maxRotation: isMobile ? 55 : 35,
-                                    minRotation: isMobile ? 35 : 0,
-                                    color: cssVar('--muted') || '#9ca3af',
-                                },
-                                grid: { color: cssVar('--border') || 'rgba(255,255,255,0.12)' }
-                            },
-                            y: {
-                                beginAtZero: true,
-                                ticks: { color: cssVar('--muted') || '#9ca3af' },
-                                grid: { color: cssVar('--border') || 'rgba(255,255,255,0.12)' }
-                            }
-                        }
-                    }
+                    options: barChartOptions(expense.labels)
                 });
             }
         }
@@ -1753,7 +1739,7 @@
             <div id="incomeChartsBlock">
                 <canvas id="incomeChart" height="280"></canvas>
                 <div style="height:10px;"></div>
-                <canvas id="incomeBarChart" height="200"></canvas>
+                <div id="incomeBarWrap"><canvas id="incomeBarChart"></canvas></div>
             </div>
         </div>
         <div class="totals-card fiat-dashboard-card">
@@ -1768,7 +1754,7 @@
             <div id="expenseChartsBlock">
                 <canvas id="expenseChart" height="280"></canvas>
                 <div style="height:10px;"></div>
-                <canvas id="expenseBarChart" height="200"></canvas>
+                <div id="expenseBarWrap"><canvas id="expenseBarChart"></canvas></div>
             </div>
         </div>
     </div>
