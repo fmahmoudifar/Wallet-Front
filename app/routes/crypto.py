@@ -177,6 +177,8 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
         "DOGE": "0xba2ae424d960c26247dd6c32edc70b295c744c43",
         # Wrapped BTC (Ethereum)
         "WBTC": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+        # Dogelon Mars (Ethereum)
+        "ELON": "0x761d38e5ddf6ccf6cf7c55759d5210750b5d60f3",
     }
 
     def _extract_symbol_and_name(s: str) -> tuple[str, str]:
@@ -199,7 +201,7 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
     # If the query is BTC, we'll still try symbol search first, but may proxy to WBTC below.
     search_query = q_raw
     expected_symbol = q_symbol or q_raw.upper()
-    if q_symbol in CANONICAL_ADDRESS_BY_SYMBOL and q_symbol in ("DOGE", "WBTC"):
+    if q_symbol in CANONICAL_ADDRESS_BY_SYMBOL and q_symbol in ("DOGE", "WBTC", "ELON"):
         search_query = CANONICAL_ADDRESS_BY_SYMBOL[q_symbol]
         expected_symbol = q_symbol
 
