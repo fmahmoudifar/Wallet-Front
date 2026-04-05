@@ -826,12 +826,13 @@
                         if (liveEl) liveEl.textContent = _formatNumber(price, 6) + ' ' + bc;
                         if (glEl) {
                             glEl.textContent = (gl >= 0 ? '+' : '') + _formatNumber(gl, 2) + ' ' + bc;
-                            glEl.style.color = gl >= 0 ? '#198754' : '#dc3545';
+                            glEl.classList.remove('pct-positive', 'pct-negative', 'pct-neutral');
+                            glEl.classList.add(gl >= 0 ? 'pct-positive' : 'pct-negative');
                         }
                         if (pctBadge) {
                             pctBadge.textContent = (pct >= 0 ? '+' : '') + _formatNumber(pct, 2) + '%';
-                            pctBadge.classList.remove('pct-neutral');
-                            pctBadge.classList.add(pct >= 0 ? 'pct-up' : 'pct-down');
+                            pctBadge.classList.remove('pct-neutral', 'pct-positive', 'pct-negative');
+                            pctBadge.classList.add(pct >= 0 ? 'pct-positive' : 'pct-negative');
                         }
                     })
                     .catch(function() {});
