@@ -454,6 +454,44 @@ def crypto_page():
         return render_template("home.html")
 
 
+def _dexscreener_token_name(query: str) -> str:
+    """Return the token name for a query by reading already-cached DexScreener pairs.
+
+    Uses the same scoring logic as _dexscreener_best_price_usd so we pick the same pair.
+    Returns empty string if nothing is cached or no name is found.
+    """
+    q = (query or "").strip()
+    if not q:
+        return ""
+    cached = _DEXSCREENER_SEARCH_CACHE.get(q.lower())
+    if not cached:
+        return ""
+    pairs = cached.get("pairs") or []
+    best = None
+    best_score = None
+    for p in pairs:
+        if not isinstance(p, dict):
+            continue
+        if p.get("priceUsd") is None:
+            continue
+        base = p.get("baseToken") or {}
+        base_sym = str(base.get("symbol") or "").strip().upper()
+        quote = p.get("quoteToken") or {}
+        quote_sym = str(quote.get("symbol") or "").strip().upper()
+        liq = float(((p.get("liquidity") or {}).get("usd") or 0) or 0)
+        vol = float(((p.get("volume") or {}).get("h24") or 0) or 0)
+        expected = q.upper().split(" - ", 1)[0].strip().upper() if " - " in q else q.upper()
+        exact = 1 if base_sym == expected else 0
+        stable = 1 if quote_sym in ("USD", "USDT", "USDC", "DAI", "BUSD", "FDUSD") else 0
+        score = (exact, stable, liq, vol)
+        if best is None or score > best_score:
+            best = p
+            best_score = score
+    if best:
+        return str((best.get("baseToken") or {}).get("name") or "").strip()
+    return ""
+
+
 @crypto_bp.route("/crypto/quote", methods=["GET"])
 def crypto_quote():
     """Per-symbol live price endpoint (called client-side to hydrate portfolio cards)."""
@@ -488,10 +526,15 @@ def crypto_quote():
         usd_to_base = _get_fx_rate("USD", base_currency)
         price_base = float(price_usd * usd_to_base)
 
+        # Try to resolve a human-readable name from DexScreener cache (no extra API call).
+        # If stored as "BTC - Bitcoin", prefer the inline name.
+        name = q2 if q2 else _dexscreener_token_name(q1)
+
         return jsonify({
             "symbol": symbol,
             "price": price_base,
             "currency": base_currency,
+            "name": name,
         })
     except Exception as e:
         print(f"Error in crypto quote for {symbol}: {e}")

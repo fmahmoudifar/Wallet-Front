@@ -243,8 +243,12 @@
         grid.innerHTML = sorted.map(function(t) {
             var cur = t.currency ? ' ' + _escapeHtml(t.currency) : '';
 
+            var displaySymbol = t.cryptoName.indexOf(' - ') >= 0 ? t.cryptoName.split(' - ')[0].trim() : t.cryptoName;
+            var inlineName = t.cryptoName.indexOf(' - ') >= 0 ? t.cryptoName.split(' - ').slice(1).join(' - ').trim() : '';
             return '<div class="totals-card" data-crypto-symbol="' + _escapeHtml(t.cryptoName) + '" data-crypto-qty="' + t.total_qty + '" data-crypto-paid="' + t.total_value_buy + '" data-crypto-sell="' + (t.total_value_sell || 0) + '">'
-                + '<div class="totals-header"><div><div style="font-size:1rem;font-weight:700">' + _escapeHtml(t.cryptoName) + '</div></div>'
+                + '<div class="totals-header"><div>'
+                + '<div style="font-size:1rem;font-weight:700"><span class="crypto-symbol">' + _escapeHtml(displaySymbol) + '</span><span data-crypto-fullname class="small-muted" style="margin-left:8px;font-weight:600;">' + _escapeHtml(inlineName) + '</span></div>'
+                + '</div>'
                 + '<div class="pct-badge pct-neutral" data-crypto-pct>\u2014</div></div>'
                 + '<div class="totals-meta">'
                 + '<div class="totals-row"><span class="totals-label small-muted">Total Quantity:</span><span class="totals-value">' + _escapeHtml(t.total_qty_display || '') + '</span></div>'
@@ -813,6 +817,10 @@
                         var nowEl = card.querySelector('[data-crypto-now]');
                         var liveEl = card.querySelector('[data-crypto-live]');
                         var glEl = card.querySelector('[data-crypto-gl]');
+                        var nameEl = card.querySelector('[data-crypto-fullname]');
+                        if (nameEl && d.name && !nameEl.textContent.trim()) {
+                            nameEl.textContent = d.name;
+                        }
 
                         if (nowEl) nowEl.textContent = _formatNumber(totalNow, 2) + ' ' + bc;
                         if (liveEl) liveEl.textContent = _formatNumber(price, 6) + ' ' + bc;
