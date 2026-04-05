@@ -376,10 +376,14 @@ function renderDashboard(data) {
             legendEl.innerHTML = walletFiltered.map(function(w, i) {
                 var color = bgColors[i];
                 var name = String(w.name || w.walletName || '').trim();
+                var type = String(w.walletType || w.type || '').trim();
                 var cur = String(w.currency || '').trim();
                 var vBase = Number(w.balanceBase || w.balance) || 0;
                 var vWallet = Number(w.balanceWallet || 0);
                 var label = cur ? name + ' (' + cur + ')' : name;
+                var typeBadgeColors = { Fiat: '#1a6b5a', Crypto: '#3a4f7a', Stock: '#7a5a1a' };
+                var typeBadgeBg = typeBadgeColors[type] || '#3a4a5a';
+                var typeBadge = type ? '<span style="font-size:10px; font-weight:600; background:' + typeBadgeBg + '; color:#d4f0eb; border-radius:3px; padding:1px 5px; margin-left:4px; flex-shrink:0; letter-spacing:0.02em;">' + type + '</span>' : '';
                 var curUpper = cur ? cur.toUpperCase() : '';
                 var baseUpper = baseCurrency ? baseCurrency.toUpperCase() : '';
                 var sameCurrency = curUpper && baseUpper && curUpper === baseUpper;
@@ -390,9 +394,10 @@ function renderDashboard(data) {
                 var convertedLine = sameCurrency ? ''
                     : '<div style="text-align:right; font-size:11px; color:#6a7d94; margin-top:1px;">≈ ' + baseVal + '</div>';
                 return '<div style="display:flex; align-items:flex-start; justify-content:space-between; padding:4px 0; font-size:12px; gap:8px;">'
-                    + '<span style="display:flex; align-items:center; gap:6px; min-width:0; margin-top:2px;">'
+                    + '<span style="display:flex; align-items:center; gap:6px; min-width:0; margin-top:2px; flex-wrap:nowrap; overflow:hidden;">'
                     + '<span style="width:10px; height:10px; border-radius:50%; background:' + color + '; flex-shrink:0;"></span>'
                     + '<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + label + '</span>'
+                    + typeBadge
                     + '</span>'
                     + '<span style="white-space:nowrap; font-weight:500; text-align:right;">'
                     + '<div style="color:#00b09a;">' + walletVal + '</div>'
