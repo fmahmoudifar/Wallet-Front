@@ -76,6 +76,13 @@
     }
 </style>
 
+<div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-bottom:10px;">
+    <span id="priceLastRefresh" class="small-muted" style="font-size:12px;"></span>
+    <button type="button" id="refreshPricesBtn" class="btn btn-sm btn-outline-secondary" title="Fetch latest prices">
+        <span id="refreshPricesLabel">Refresh prices</span>
+    </button>
+</div>
+
 <div class="grid-container">
     <!-- Wallet Balances -->
     <div class="grid-item">
@@ -200,20 +207,139 @@
 </div>
 
 <script>
+var _dashboardData = null;
+var _dashboardCharts = { wallet: null, crypto: null, stock: null, loan: null };
+
 document.addEventListener('DOMContentLoaded', function() {
-    fetch('/api/dashboard-data')
+    var refreshBtn = document.getElementById('refreshPricesBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() { refreshPrices(true); });
+    }
+    loadDashboard(false);
+});
+
+function loadDashboard(forceReload) {
+    var pc = window.pageDataCache;
+    var cached = (!forceReload && pc) ? pc.get('dashboard') : null;
+    if (cached) {
+        _dashboardData = cached;
+        try { if (window.priceCache && cached.baseCurrency) priceCache.setBaseCurrency(cached.baseCurrency); } catch (_e) {}
+        return hydratePricesAndRender(false);
+    }
+    return fetch('/api/dashboard-data')
         .then(function(response) {
             if (!response.ok) throw new Error('HTTP ' + response.status);
             return response.json();
         })
         .then(function(data) {
-            renderDashboard(data);
+            _dashboardData = data;
+            try { if (pc) pc.set('dashboard', data); } catch (_e) {}
+            try { if (window.priceCache && data.baseCurrency) priceCache.setBaseCurrency(data.baseCurrency); } catch (_e) {}
+            return hydratePricesAndRender(false);
         })
         .catch(function(err) {
             console.error('Dashboard data fetch failed:', err);
             showErrorStates();
         });
-});
+}
+
+function collectSymbols(data) {
+    var crypto = (data.cryptoHoldings || []).map(function(h) { return h.name; }).filter(Boolean);
+    var stock = (data.stockHoldings || []).map(function(h) { return h.symbol; }).filter(Boolean);
+    return { crypto: crypto, stock: stock };
+}
+
+function hydratePricesAndRender(force) {
+    if (!_dashboardData) return Promise.resolve();
+    var syms = collectSymbols(_dashboardData);
+    var opts = force ? { force: true } : undefined;
+    var pc = window.priceCache;
+    var cryptoPromise = pc ? pc.getMany('crypto', syms.crypto, opts) : Promise.resolve({});
+    var stockPromise = pc ? pc.getMany('stock', syms.stock, opts) : Promise.resolve({});
+    return Promise.all([cryptoPromise, stockPromise]).then(function(res) {
+        renderDashboard(_dashboardData, res[0] || {}, res[1] || {});
+        updateLastRefreshLabel();
+    });
+}
+
+function refreshPrices(force) {
+    var btn = document.getElementById('refreshPricesBtn');
+    var label = document.getElementById('refreshPricesLabel');
+    if (btn) btn.disabled = true;
+    var prevLabel = label ? label.textContent : '';
+    if (label) label.textContent = 'Refreshing…';
+    try { if (window.pageDataCache) pageDataCache.invalidate('dashboard'); } catch (_e) {}
+    return loadDashboard(true).then(function() {
+        return hydratePricesAndRender(!!force);
+    }).finally(function() {
+        if (btn) btn.disabled = false;
+        if (label) label.textContent = prevLabel || 'Refresh prices';
+    });
+}
+
+function updateLastRefreshLabel() {
+    var el = document.getElementById('priceLastRefresh');
+    if (!el || !window.priceCache) return;
+    var ts = priceCache.lastRefresh();
+    if (!ts) { el.textContent = ''; return; }
+    var d = new Date(ts);
+    var yyyy = d.getFullYear();
+    var MM = String(d.getMonth() + 1).padStart(2, '0');
+    var dd = String(d.getDate()).padStart(2, '0');
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mm = String(d.getMinutes()).padStart(2, '0');
+    var ss = String(d.getSeconds()).padStart(2, '0');
+    el.textContent = 'Prices updated ' + yyyy + '-' + MM + '-' + dd + ' ' + hh + ':' + mm + ':' + ss;
+}
+
+function computeDashboardDerived(data, cryptoPrices, stockPrices) {
+    var cryptoNow = 0, cryptoPaid = 0, cryptoRevenue = 0;
+    (data.cryptoHoldings || []).forEach(function(h) {
+        var price = Number(cryptoPrices[h.name] || 0);
+        var qty = Number(h.qty || 0);
+        var now = qty * price;
+        if (now > 0) cryptoNow += now;
+        cryptoPaid += Number(h.paid || 0);
+        cryptoRevenue += Number(h.revenue || 0);
+    });
+    var cryptoGain = (cryptoNow + cryptoRevenue) - cryptoPaid;
+    var cryptoGainPct = cryptoPaid ? (cryptoGain / cryptoPaid) * 100 : null;
+
+    var stockNow = 0, stockPaid = 0, stockRevenue = 0;
+    (data.stockHoldings || []).forEach(function(h) {
+        var price = Number(stockPrices[h.symbol] || 0);
+        var qty = Number(h.qty || 0);
+        var now = qty * price;
+        if (now > 0) stockNow += now;
+        stockPaid += Number(h.paid || 0);
+        stockRevenue += Number(h.revenue || 0);
+    });
+    var stockGain = (stockNow + stockRevenue) - stockPaid;
+    var stockGainPct = stockPaid ? (stockGain / stockPaid) * 100 : null;
+
+    var walletBalances = {};
+    (data.wallets || []).forEach(function(w) {
+        var cryptoQtyMap = (data.walletCryptoQty || {})[w.walletId] || {};
+        var stockQtyMap = (data.walletStockQty || {})[w.walletId] || {};
+        var cryptoBase = 0, stockBase = 0;
+        Object.keys(cryptoQtyMap).forEach(function(name) {
+            cryptoBase += Number(cryptoQtyMap[name] || 0) * Number(cryptoPrices[name] || 0);
+        });
+        Object.keys(stockQtyMap).forEach(function(sym) {
+            stockBase += Number(stockQtyMap[sym] || 0) * Number(stockPrices[sym] || 0);
+        });
+        var balanceBase = Number(w.cashBase || 0) + cryptoBase + stockBase;
+        var fx = Number(w.fxBaseToWallet || 1);
+        var balanceWallet = balanceBase * fx;
+        walletBalances[w.walletId] = { balanceBase: balanceBase, balanceWallet: balanceWallet };
+    });
+
+    return {
+        cryptoNow: cryptoNow, cryptoPaid: cryptoPaid, cryptoGain: cryptoGain, cryptoGainPct: cryptoGainPct,
+        stockNow: stockNow, stockPaid: stockPaid, stockGain: stockGain, stockGainPct: stockGainPct,
+        walletBalances: walletBalances,
+    };
+}
 
 function showCard(id) {
     var loading = document.getElementById(id + 'Loading');
@@ -241,7 +367,10 @@ function showErrorStates() {
     });
 }
 
-function renderDashboard(data) {
+function renderDashboard(data, cryptoPrices, stockPrices) {
+    cryptoPrices = cryptoPrices || {};
+    stockPrices = stockPrices || {};
+    var derived = computeDashboardDerived(data, cryptoPrices, stockPrices);
     var baseCurrency = data.baseCurrency || 'EUR';
 
     var hexToRgba = function(hex, alpha) {
@@ -288,10 +417,17 @@ function renderDashboard(data) {
     var pieTopRotation = -0.5 * Math.PI;
 
     // ── Wallet Balances ──
-    var walletItems = data.wallets || [];
+    var walletItems = (data.wallets || []).map(function(w) {
+        var wb = derived.walletBalances[w.walletId] || { balanceBase: 0, balanceWallet: 0 };
+        return Object.assign({}, w, {
+            balance: wb.balanceBase,
+            balanceBase: wb.balanceBase,
+            balanceWallet: wb.balanceWallet,
+        });
+    });
     var walletFiltered = walletItems
-        .filter(function(w) { return Math.abs(Number(w.balanceBase || w.balance) || 0) >= 0.01; })
-        .sort(function(a, b) { return Math.abs(Number(b.balanceBase || b.balance) || 0) - Math.abs(Number(a.balanceBase || a.balance) || 0); });
+        .filter(function(w) { return Math.abs(Number(w.balanceBase) || 0) >= 0.01; })
+        .sort(function(a, b) { return Math.abs(Number(b.balanceBase) || 0) - Math.abs(Number(a.balanceBase) || 0); });
 
     if (walletFiltered.length === 0) {
         showEmpty('wallet', 'No wallets found');
@@ -327,7 +463,8 @@ function renderDashboard(data) {
             walletTotalEl.className = '';
         }
 
-        new Chart(document.getElementById('walletChart'), {
+        if (_dashboardCharts.wallet) { try { _dashboardCharts.wallet.destroy(); } catch (_e) {} }
+        _dashboardCharts.wallet = new Chart(document.getElementById('walletChart'), {
             type: 'doughnut',
             data: {
                 labels: walletLabels,
@@ -411,33 +548,33 @@ function renderDashboard(data) {
     }
 
     // ── Crypto Portfolio ──
-    var nowData = data.cryptoNowValues || [];
-    var paidData = data.cryptoPaidValues || [];
-    var sumNow = nowData.reduce(function(acc, v) { return acc + (Number(v) || 0); }, 0);
-    var sumPaid = paidData.reduce(function(acc, v) { return acc + (Number(v) || 0); }, 0);
+    var sumNow = derived.cryptoNow;
+    var sumPaid = derived.cryptoPaid;
 
     var sumNowEl = document.getElementById('sumNowText');
     var sumPaidEl = document.getElementById('sumPaidText');
     if (sumNowEl) sumNowEl.textContent = formatMoney(sumNow);
     if (sumPaidEl) sumPaidEl.textContent = formatMoney(sumPaid);
 
-    // Gain/loss
     var cryptoGainEl = document.getElementById('cryptoGainText');
     var cryptoGainPctEl = document.getElementById('cryptoGainPctText');
-    var cryptoIsPositive = data.cryptoPortfolioGainIsPositive;
+    var cryptoIsPositive = derived.cryptoGain >= 0;
     var cryptoGainClass = cryptoIsPositive ? 'pct-positive' : 'pct-negative';
-    var cryptoSign = cryptoIsPositive ? '+' : '-';
     if (cryptoGainEl) {
         cryptoGainEl.className = cryptoGainClass;
-        cryptoGainEl.textContent = cryptoSign + (data.cryptoPortfolioGainAbsDisplay || '0') + ' ' + baseCurrency;
+        cryptoGainEl.textContent = (cryptoIsPositive ? '+' : '-')
+            + Math.abs(derived.cryptoGain).toLocaleString(undefined, { maximumFractionDigits: 2 })
+            + ' ' + baseCurrency;
     }
     if (cryptoGainPctEl) {
         cryptoGainPctEl.className = cryptoGainClass;
-        var pctVal = data.cryptoPortfolioGainPctDisplay;
-        cryptoGainPctEl.textContent = (pctVal && pctVal !== 'N/A') ? '(' + pctVal + ')' : '(N/A)';
+        cryptoGainPctEl.textContent = (derived.cryptoGainPct == null)
+            ? '(N/A)'
+            : '(' + derived.cryptoGainPct.toFixed(2) + '%)';
     }
 
-    new Chart(document.getElementById('myChart'), {
+    if (_dashboardCharts.crypto) { try { _dashboardCharts.crypto.destroy(); } catch (_e) {} }
+    _dashboardCharts.crypto = new Chart(document.getElementById('myChart'), {
         type: 'pie',
         data: {
             labels: ['Total Value Paid', 'Total Value Now'],
@@ -467,35 +604,35 @@ function renderDashboard(data) {
     showCard('crypto');
 
     // ── Stock Portfolio ──
-    var stockNowData = data.stockNowValues || [];
-    var stockPaidData = data.stockPaidValues || [];
-    var stockSumNow = stockNowData.reduce(function(acc, v) { return acc + (Number(v) || 0); }, 0);
-    var stockSumPaid = stockPaidData.reduce(function(acc, v) { return acc + (Number(v) || 0); }, 0);
+    var stockSumNow = derived.stockNow;
+    var stockSumPaid = derived.stockPaid;
 
     var stockSumNowEl = document.getElementById('stockSumNowText');
     var stockSumPaidEl = document.getElementById('stockSumPaidText');
     if (stockSumNowEl) stockSumNowEl.textContent = formatMoney(stockSumNow);
     if (stockSumPaidEl) stockSumPaidEl.textContent = formatMoney(stockSumPaid);
 
-    // Stock gain/loss
     var stockGainEl = document.getElementById('stockGainText');
     var stockGainPctEl = document.getElementById('stockGainPctText');
-    var stockIsPositive = data.stockPortfolioGainIsPositive;
+    var stockIsPositive = derived.stockGain >= 0;
     var stockGainClass = stockIsPositive ? 'pct-positive' : 'pct-negative';
-    var stockSign = stockIsPositive ? '+' : '-';
     if (stockGainEl) {
         stockGainEl.className = stockGainClass;
-        stockGainEl.textContent = stockSign + (data.stockPortfolioGainAbsDisplay || '0') + ' ' + baseCurrency;
+        stockGainEl.textContent = (stockIsPositive ? '+' : '-')
+            + Math.abs(derived.stockGain).toLocaleString(undefined, { maximumFractionDigits: 2 })
+            + ' ' + baseCurrency;
     }
     if (stockGainPctEl) {
         stockGainPctEl.className = stockGainClass;
-        var sPctVal = data.stockPortfolioGainPctDisplay;
-        stockGainPctEl.textContent = (sPctVal && sPctVal !== 'N/A') ? '(' + sPctVal + ')' : '(N/A)';
+        stockGainPctEl.textContent = (derived.stockGainPct == null)
+            ? '(N/A)'
+            : '(' + derived.stockGainPct.toFixed(2) + '%)';
     }
 
     var stockCanvas = document.getElementById('stockChart');
     if (stockCanvas) {
-        new Chart(stockCanvas, {
+        if (_dashboardCharts.stock) { try { _dashboardCharts.stock.destroy(); } catch (_e) {} }
+        _dashboardCharts.stock = new Chart(stockCanvas, {
             type: 'pie',
             data: {
                 labels: ['Total Value Paid', 'Total Value Now'],
@@ -601,7 +738,8 @@ function renderDashboard(data) {
                 };
             };
 
-            new Chart(loanCanvas, {
+            if (_dashboardCharts.loan) { try { _dashboardCharts.loan.destroy(); } catch (_e) {} }
+            _dashboardCharts.loan = new Chart(loanCanvas, {
                 type: 'bar',
                 data: {
                     labels: loanLabels,

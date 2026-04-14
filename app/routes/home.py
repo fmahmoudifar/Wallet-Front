@@ -11,23 +11,17 @@ from flask import Blueprint, jsonify, render_template, session
 from app.services.user_scope import filter_records_by_user
 from config import API_URL, aws_auth
 
-# Reuse the same currency/FX/DexScreener helpers used by the Crypto page
+# Reuse the same currency/FX helpers used by the Crypto page
 from .crypto import (
-    _best_price_usd,
-    _format_number_trim,
     _get_fx_rate,
     _get_user_base_currency,
     _normalize_currency,
 )
 
-# Reuse stock quote + scaling helpers for the Home stock pie
+# Reuse stock scaling helpers for transaction totals
 from .stock import (
-    _av_get,
-    _av_metadata_for_symbol,
-    _provider_mode,
     _scale_minor_currency,
     _to_decimal as _to_decimal_stock,
-    _yh_quote,
 )
 
 home_bp = Blueprint("home", __name__, url_prefix="/")
@@ -100,12 +94,22 @@ def _api_list(path: str, *, user_id: str, list_key: str, timeout: int = 12) -> l
         return []
 
 
-def _ensure_user_settings_row(user_id: str) -> None:
-    """Fetch the user's settings from the DB on every call and sync to session.
+_SETTINGS_SYNC_TTL_SECONDS = 300  # 5 min — balances freshness vs per-request AWS round-trip
 
-    Always does a round-trip so that changes made in another browser/session
-    are picked up immediately on the next page load.
+
+def _ensure_user_settings_row(user_id: str, *, force: bool = False) -> None:
+    """Sync the user's settings from the DB into the session, throttled.
+
+    Called from page route handlers; a fresh AWS round-trip on every page load
+    made navigation slow. We now cache for _SETTINGS_SYNC_TTL_SECONDS via a
+    per-session timestamp; pass force=True after mutations (e.g., settings save).
     """
+    try:
+        last = float(session.get("_settingsSyncTs") or 0.0)
+    except Exception:
+        last = 0.0
+    if not force and last and (time.time() - last) < _SETTINGS_SYNC_TTL_SECONDS:
+        return
     try:
         resp = requests.get(f"{API_URL}/settings", params={"userId": user_id}, auth=aws_auth, timeout=10)
         settings = resp.json().get("settings", []) if resp.status_code == 200 else []
@@ -129,6 +133,7 @@ def _ensure_user_settings_row(user_id: str) -> None:
                 session["expenseCategories"] = first.get("expenseCategories")
         except Exception:
             pass
+        session["_settingsSyncTs"] = time.time()
         return
 
     default_data = {"userId": user_id, **_SETTINGS_DEFAULTS}
@@ -141,6 +146,7 @@ def _ensure_user_settings_row(user_id: str) -> None:
             session["dashboardColors"] = default_data["dashboardColors"]
             session["incomeCategories"] = default_data["incomeCategories"]
             session["expenseCategories"] = default_data["expenseCategories"]
+            session["_settingsSyncTs"] = time.time()
         else:
             try:
                 print(f"Settings default upsert failed: {upsert.status_code} {upsert.text}")
@@ -728,213 +734,54 @@ def dashboard_data():
         print(f"Error computing stock totals: {e}")
         stock_totals_map = {}
 
-    # Fetch live prices from DexScreener for chart values and compute per-wallet live values
-    crypto_chart_now = {}
-    crypto_chart_paid = {}
-    wallet_live_values = defaultdict(lambda: Decimal(0))
-    try:
-        # Convert USD prices into the user's base currency (fiat). If conversion fails, fall back to USD.
-        price_currency = base_currency
-        usd_to_base = Decimal(1)
-        try:
-            usd_to_base = _get_fx_rate("USD", price_currency)
-        except Exception:
-            price_currency = "USD"
-            usd_to_base = Decimal(1)
+    # --- Build raw crypto holdings (no live prices — frontend uses priceCache) ---
+    crypto_holdings = []
+    for name, entry in crypto_totals_map.items():
+        crypto_holdings.append({
+            "name": name,
+            "qty": float(entry.get("total_qty") or Decimal(0)),
+            "paid": float(entry.get("total_value_buy") or Decimal(0)),
+            "revenue": float(entry.get("total_value_sell") or Decimal(0)),
+        })
 
-        # Calculate total values with live prices (same matching approach as crypto.py)
-        # --- Parallel crypto price lookups ---
-        def _resolve_crypto_price(name_entry):
-            name, entry = name_entry
-            raw_name = entry.get("cryptoName") or ""
-            q1 = raw_name
-            if " - " in str(raw_name):
-                q1 = str(raw_name).split(" - ", 1)[0].strip()
-            q2 = str(raw_name).split(" - ", 1)[1].strip() if " - " in str(raw_name) else ""
+    # --- Build raw stock holdings (no live prices — frontend uses priceCache) ---
+    stock_holdings = []
+    for sym, entry in stock_totals_map.items():
+        stock_holdings.append({
+            "symbol": sym,
+            "qty": float(entry.get("total_qty") or Decimal(0)),
+            "paid": float(entry.get("total_value_buy") or Decimal(0)),
+            "revenue": float(entry.get("total_value_sell") or Decimal(0)),
+        })
 
-            price_usd = _best_price_usd(q1)
-            if (not price_usd or price_usd == 0) and q2:
-                price_usd = _best_price_usd(q2)
-            if not price_usd or price_usd == 0:
-                price_usd = _best_price_usd(str(raw_name).strip())
-            return name, price_usd
+    # --- Build per-wallet instrument qty maps (frontend multiplies by live price) ---
+    wallet_crypto_qty_out: dict[str, dict[str, float]] = {}
+    for w_id, per_crypto in wallet_crypto_qty.items():
+        inner = {}
+        for cname, q in per_crypto.items():
+            try:
+                q_float = float(q or Decimal(0))
+            except Exception:
+                q_float = 0.0
+            if q_float != 0:
+                inner[cname] = q_float
+        if inner:
+            wallet_crypto_qty_out[str(w_id)] = inner
 
-        price_by_name = {}
-        with ThreadPoolExecutor(max_workers=10) as price_ex:
-            futures = {price_ex.submit(_resolve_crypto_price, item): item[0]
-                       for item in crypto_totals_map.items()}
-            for fut in as_completed(futures):
-                try:
-                    name, price_usd = fut.result()
-                except Exception:
-                    name = futures[fut]
-                    price_usd = Decimal(0)
-                entry = crypto_totals_map[name]
-                latest_price = (price_usd * usd_to_base) if (price_currency != "USD") else price_usd
-                price_by_name[name] = latest_price
+    wallet_stock_qty_out: dict[str, dict[str, float]] = {}
+    for w_id, per_sym in wallet_stock_qty.items():
+        inner = {}
+        for sym, q in per_sym.items():
+            try:
+                q_float = float(q or Decimal(0))
+            except Exception:
+                q_float = 0.0
+            if q_float != 0:
+                inner[sym] = q_float
+        if inner:
+            wallet_stock_qty_out[str(w_id)] = inner
 
-                total_value_live = entry["total_qty"] * (latest_price or Decimal(0))
-                crypto_chart_now[name] = float(total_value_live) if total_value_live > 0 else 0.0
-                crypto_chart_paid[name] = float(entry.get("total_value_buy", Decimal(0)) or Decimal(0))
-
-        # Compute live values per wallet: sum(qty_by_wallet_crypto * latest_price)
-        for w_id, per_crypto in wallet_crypto_qty.items():
-            total_live = Decimal(0)
-            for cname, q in per_crypto.items():
-                p = price_by_name.get(cname, Decimal(0)) or Decimal(0)
-                total_live += q * p
-            wallet_live_values[w_id] = total_live
-
-    except Exception as e:
-        print(f"Error fetching DexScreener prices: {e}")
-        # Fallback: use 0 for live values if no price available (same as crypto.py)
-        for name, entry in crypto_totals_map.items():
-            # Show ALL cryptos (including zero/negative holdings) to match crypto page
-            total_value_live = entry["total_qty"] * Decimal(0)  # No price = 0 value
-            crypto_chart_now[name] = 0.0
-            crypto_chart_paid[name] = float(entry.get("total_value_buy", Decimal(0)) or Decimal(0))
-        wallet_live_values = defaultdict(lambda: Decimal(0))
-
-    cryptoLabels = list(crypto_chart_now.keys())
-    cryptoNowValues = list(crypto_chart_now.values())
-    cryptoPaidValues = list(crypto_chart_paid.values())
-
-    # Overall portfolio summary (same P&L logic as crypto.py)
-    total_paid = Decimal(0)
-    total_now = Decimal(0)
-    total_revenue = Decimal(0)
-    for entry in crypto_totals_map.values():
-        total_paid += entry.get("total_value_buy") or Decimal(0)
-        total_revenue += entry.get("total_value_sell") or Decimal(0)
-
-    # Sum of current holdings market value across all cryptos
-    for v in crypto_chart_now.values():
-        try:
-            total_now += Decimal(str(v))
-        except Exception:
-            pass
-
-    total_current_worth = total_now + total_revenue
-    gain_amount = total_current_worth - total_paid
-    if total_paid and total_paid != 0:
-        gain_pct = (gain_amount / total_paid) * Decimal(100)
-        gain_pct_display = f"{float(gain_pct):.2f}%"
-    else:
-        gain_pct_display = "N/A"
-
-    gain_amount_abs_display = _format_number_trim(abs(gain_amount), 2)
-    total_paid_display = _format_number_trim(total_paid, 2)
-    total_now_display = _format_number_trim(total_now, 2)
-
-    # Stock chart values for Home (per-symbol now/paid, summed client-side like crypto)
-    stock_chart_now = {}
-    stock_chart_paid = {}
-    price_base_by_symbol = {}
-    try:
-        mode = _provider_mode()
-
-        def _fetch_stock_quote(sym: str):
-            s = (sym or "").strip().upper()
-            if not s:
-                return {"symbol": "", "name": "", "currency": base_currency, "price": None, "asof": ""}
-
-            if mode in ("auto", "alphavantage"):
-                try:
-                    data = _av_get({"function": "GLOBAL_QUOTE", "symbol": s})
-                    gq = data.get("Global Quote") or {}
-                    price_raw = (gq.get("05. price") or "").strip()
-                    try:
-                        price = float(price_raw)
-                    except Exception:
-                        price = None
-                    meta = _av_metadata_for_symbol(s)
-                    return {
-                        "symbol": s,
-                        "name": meta.get("name") or "",
-                        "currency": meta.get("currency") or base_currency,
-                        "price": price,
-                        "asof": (gq.get("07. latest trading day") or ""),
-                    }
-                except Exception:
-                    if mode == "alphavantage":
-                        raise
-                    return _yh_quote(s)
-
-            return _yh_quote(s)
-
-        # --- Parallel stock quote lookups ---
-        stock_quotes = {}
-        with ThreadPoolExecutor(max_workers=10) as stock_ex:
-            quote_futures = {stock_ex.submit(_fetch_stock_quote, sym): sym
-                             for sym in stock_totals_map}
-            for fut in as_completed(quote_futures):
-                sym = quote_futures[fut]
-                try:
-                    stock_quotes[sym] = fut.result()
-                except Exception:
-                    stock_quotes[sym] = {"symbol": sym, "name": "", "currency": base_currency, "price": None, "asof": ""}
-
-        for sym, entry in stock_totals_map.items():
-            quote = stock_quotes.get(sym, {})
-            q_price = quote.get("price")
-            q_currency_raw = quote.get("currency") or base_currency
-
-            # Convert quote price into base currency (and scale minor units like GBX)
-            price_major, q_ccy = _scale_minor_currency(_to_decimal_stock(q_price), q_currency_raw)
-            fx = _get_fx_rate(q_ccy, base_currency)
-            price_base = price_major * fx
-            price_base_by_symbol[sym] = price_base
-
-            total_value_live = (entry.get("total_qty") or Decimal(0)) * (price_base or Decimal(0))
-            stock_chart_now[sym] = float(total_value_live) if total_value_live > 0 else 0.0
-            stock_chart_paid[sym] = float(entry.get("total_value_buy") or Decimal(0))
-
-    except Exception as e:
-        print(f"Error fetching stock prices for Home: {e}")
-        for sym, entry in stock_totals_map.items():
-            stock_chart_now[sym] = 0.0
-            stock_chart_paid[sym] = float(entry.get("total_value_buy") or Decimal(0))
-
-    stockNowValues = list(stock_chart_now.values())
-    stockPaidValues = list(stock_chart_paid.values())
-
-    # Overall stock portfolio P&L (same logic as crypto)
-    stock_total_paid = Decimal(0)
-    stock_total_now = Decimal(0)
-    stock_total_revenue = Decimal(0)
-    for entry in stock_totals_map.values():
-        stock_total_paid += entry.get("total_value_buy") or Decimal(0)
-        stock_total_revenue += entry.get("total_value_sell") or Decimal(0)
-    for v in stock_chart_now.values():
-        try:
-            stock_total_now += Decimal(str(v))
-        except Exception:
-            pass
-
-    stock_total_current_worth = stock_total_now + stock_total_revenue
-    stock_gain_amount = stock_total_current_worth - stock_total_paid
-    if stock_total_paid and stock_total_paid != 0:
-        stock_gain_pct = (stock_gain_amount / stock_total_paid) * Decimal(100)
-        stock_gain_pct_display = f"{float(stock_gain_pct):.2f}%"
-    else:
-        stock_gain_pct_display = "N/A"
-
-    stock_gain_amount_abs_display = _format_number_trim(abs(stock_gain_amount), 2)
-    stock_total_paid_display = _format_number_trim(stock_total_paid, 2)
-    stock_total_now_display = _format_number_trim(stock_total_now, 2)
-
-    # Compute per-wallet live stock values and build wallet list (fiat + crypto + stock)
-    wallet_stock_live_values = defaultdict(lambda: Decimal(0))
-    try:
-        for w_id, per_sym in wallet_stock_qty.items():
-            total_live = Decimal(0)
-            for sym, q in per_sym.items():
-                p = price_base_by_symbol.get(sym, Decimal(0)) or Decimal(0)
-                total_live += q * p
-            wallet_stock_live_values[w_id] = total_live
-    except Exception as e:
-        print(f"Error computing wallet stock live values: {e}")
-
+    # --- Build wallet list with cash + FX info only (live values computed on client) ---
     wallet_list = []
     for wallet in wallets:
         wallet_id = wallet.get("walletId")
@@ -951,10 +798,8 @@ def dashboard_data():
             or wallet.get("walletCurrency")
             or wallet.get("wallet_currency")
         )
-        # wallet_fiat_balances is already in the wallet's own currency.
         cash_in_wallet_ccy = wallet_fiat_balances.get(wallet_id, Decimal(0)) or Decimal(0)
 
-        # Crypto/stock live values are computed in base_currency; convert them into the wallet currency.
         w_ccy = _normalize_currency(wallet_currency, base_currency)
         b_ccy = _normalize_currency(base_currency, "EUR")
         fx_wallet_to_base = Decimal(1)
@@ -968,14 +813,7 @@ def dashboard_data():
             fx_base_to_wallet = Decimal(1)
             fx_wallet_to_base = Decimal(1)
 
-        crypto_base = wallet_live_values.get(wallet_id, Decimal(0)) or Decimal(0)
-        stock_base = wallet_stock_live_values.get(wallet_id, Decimal(0)) or Decimal(0)
-        crypto_in_wallet_ccy = crypto_base * fx_base_to_wallet
-        stock_in_wallet_ccy = stock_base * fx_base_to_wallet
-
         cash_base = cash_in_wallet_ccy * fx_wallet_to_base
-        balance_base = cash_base + crypto_base + stock_base
-        balance_wallet = cash_in_wallet_ccy + crypto_in_wallet_ccy + stock_in_wallet_ccy
 
         wallet_list.append(
             {
@@ -984,33 +822,11 @@ def dashboard_data():
                 "walletType": wallet_type,
                 "currency": wallet_currency,
                 "color": wallet.get("color") or "#00b09a",
-                # Chart bars use base/setting currency.
-                "balance": float(round(balance_base, 2)),
-                "balanceBase": float(round(balance_base, 2)),
-                # Tooltip can show wallet-native currency.
-                "balanceWallet": float(round(balance_wallet, 2)),
+                "cashWallet": float(round(cash_in_wallet_ccy, 2)),
+                "cashBase": float(round(cash_base, 2)),
+                "fxBaseToWallet": float(fx_base_to_wallet),
             }
         )
-
-        if _truthy_env(os.getenv("OVERVIEW_DEBUG_WALLETS")):
-            try:
-                print(
-                    "[dashboard wallet]",
-                    "walletId=", wallet_id,
-                    "name=", wallet_name,
-                    "walletCcy=", w_ccy,
-                    "baseCcy=", b_ccy,
-                    "cash(wallet)=", str(cash_in_wallet_ccy),
-                    "cash(base)=", str(cash_base),
-                    "crypto(base)=", str(crypto_base),
-                    "stock(base)=", str(stock_base),
-                    "fx_base_to_wallet=", str(fx_base_to_wallet),
-                    "fx_wallet_to_base=", str(fx_wallet_to_base),
-                    "balanceBase=", str(balance_base),
-                    "balanceWallet=", str(balance_wallet),
-                )
-            except Exception:
-                pass
 
     # --- Loans (Home card): open positions progress (no FX) ---
     # A position is considered open if outstanding > 0.
@@ -1130,22 +946,11 @@ def dashboard_data():
         )
 
     ctx = {
-        "cryptoLabels": cryptoLabels,
-        "cryptoNowValues": cryptoNowValues,
-        "cryptoPaidValues": cryptoPaidValues,
-        "stockNowValues": stockNowValues,
-        "stockPaidValues": stockPaidValues,
         "baseCurrency": base_currency,
-        "cryptoPortfolioPaidDisplay": total_paid_display,
-        "cryptoPortfolioNowDisplay": total_now_display,
-        "cryptoPortfolioGainAbsDisplay": gain_amount_abs_display,
-        "cryptoPortfolioGainIsPositive": (gain_amount >= 0),
-        "cryptoPortfolioGainPctDisplay": gain_pct_display,
-        "stockPortfolioPaidDisplay": stock_total_paid_display,
-        "stockPortfolioNowDisplay": stock_total_now_display,
-        "stockPortfolioGainAbsDisplay": stock_gain_amount_abs_display,
-        "stockPortfolioGainIsPositive": (stock_gain_amount >= 0),
-        "stockPortfolioGainPctDisplay": stock_gain_pct_display,
+        "cryptoHoldings": crypto_holdings,
+        "stockHoldings": stock_holdings,
+        "walletCryptoQty": wallet_crypto_qty_out,
+        "walletStockQty": wallet_stock_qty_out,
         "wallets": wallet_list,
         "loanHomePositions": loanHomePositions,
         "userId": userId,
