@@ -613,6 +613,8 @@ function renderDashboard(data, cryptoPrices, stockPrices) {
         },
         options: {
             responsive: true, maintainAspectRatio: false, radius: '95%', rotation: pieTopRotation,
+            animation: { duration: 900, easing: 'easeOutQuart', animateRotate: true, animateScale: true },
+            animations: { radius: { from: 0 }, circumference: { from: 0 } },
             plugins: {
                 legend: { labels: { color: cssVar('--muted') || '#9ca3af' } },
                 tooltip: {
@@ -671,6 +673,8 @@ function renderDashboard(data, cryptoPrices, stockPrices) {
             },
             options: {
                 responsive: true, maintainAspectRatio: false, radius: '95%', rotation: pieTopRotation,
+                animation: { duration: 900, easing: 'easeOutQuart', animateRotate: true, animateScale: true },
+                animations: { radius: { from: 0 }, circumference: { from: 0 } },
                 plugins: {
                     legend: { labels: { color: cssVar('--muted') || '#9ca3af' } },
                     tooltip: {

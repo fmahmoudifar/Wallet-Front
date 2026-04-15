@@ -1243,6 +1243,7 @@
             // Higher aspect ratio => shorter chart height (reduces empty vertical space).
             const pieAspect = isMobile ? 1.0 : 1.13;
             const barAspect = 2.4;
+            const chartAppearAnimation = { duration: 900, easing: 'easeOutQuart' };
             const legendFontSize = isMobile ? 11 : 12;
             const legendBoxWidth = isMobile ? 10 : 12;
             const legendPadding = isMobile ? 8 : 10;
@@ -1276,6 +1277,8 @@
                         responsive: true,
                         maintainAspectRatio: true,
                         aspectRatio: pieAspect,
+                        animation: { ...chartAppearAnimation, animateRotate: true, animateScale: true },
+                        animations: { radius: { from: 0 }, circumference: { from: 0 } },
                         layout: { padding: 0 },
                         plugins: {
                             legend: {
@@ -1319,6 +1322,8 @@
                         responsive: true,
                         maintainAspectRatio: true,
                         aspectRatio: pieAspect,
+                        animation: { ...chartAppearAnimation, animateRotate: true, animateScale: true },
+                        animations: { radius: { from: 0 }, circumference: { from: 0 } },
                         layout: { padding: 0 },
                         plugins: {
                             legend: {
@@ -1350,6 +1355,8 @@
                 maintainAspectRatio: !isMobile,
                 aspectRatio: barAspect,
                 indexAxis: isMobile ? 'y' : 'x',
+                animation: chartAppearAnimation,
+                animations: { x: { from: 0 }, y: { from: 0 } },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
