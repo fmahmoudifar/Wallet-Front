@@ -54,6 +54,15 @@
             const s = encodeURIComponent(symbol);
             return type === 'crypto' ? ('/crypto/quote?symbol=' + s) : ('/stock/quote?symbol=' + s);
         }
+        function normalizeSymbol(type, symbol) {
+            let s = String(symbol || '').trim();
+            if (!s) return '';
+            // Keep crypto name information (e.g. "BTC - Bitcoin") but normalize
+            // spacing/case so equivalent variants hit the same cache key.
+            s = s.replace(/\s+/g, ' ');
+            if (type === 'stock' || type === 'crypto') s = s.toUpperCase();
+            return s;
+        }
         function extractPrice(type, d) {
             if (!d) return null;
             if (type === 'crypto') return typeof d.price === 'number' ? d.price : null;
@@ -93,35 +102,64 @@
             // Returns cached price if fresh, else fetches. null on failure.
             async get(type, symbol, opts) {
                 opts = opts || {};
+                const rawSymbol = String(symbol || '').trim();
+                const key = normalizeSymbol(type, rawSymbol);
+                if (!key) return null;
+
                 const now = Date.now();
                 const data = load();
                 const bucket = data[type] || {};
-                const entry = bucket[symbol];
-                const fresh = entry && entry.price != null && (now - (entry.ts || 0)) < TTL_MS;
+                const entry = bucket[key];
+                const entryTs = (entry && typeof entry.ts === 'number' && entry.ts > 0) ? entry.ts : now;
+                const fresh = entry && entry.price != null && (now - entryTs) < TTL_MS;
+                if (entry && entry.price != null && !entry.ts) {
+                    data[type] = data[type] || {};
+                    data[type][key] = { price: entry.price, currency: entry.currency || '', name: entry.name || '', ts: now };
+                    save(data);
+                }
                 if (!opts.force && fresh) return entry.price;
-                const result = await fetchOne(type, symbol);
+
+                const result = await fetchOne(type, rawSymbol || key);
                 if (!result) return entry && entry.price != null ? entry.price : null;
+
                 data[type] = data[type] || {};
-                data[type][symbol] = { price: result.price, currency: result.currency, name: result.name, ts: now };
+                data[type][key] = { price: result.price, currency: result.currency, name: result.name, ts: now };
                 data.lastRefresh = now;
                 save(data);
                 return result.price;
             },
             // Returns the full cached entry (price, currency, name, ts) or null. Does not fetch.
             entry(type, symbol) {
+                const key = normalizeSymbol(type, symbol);
+                if (!key) return null;
                 const data = load();
                 const bucket = data[type] || {};
-                const e = bucket[symbol];
+                const e = bucket[key];
                 if (!e || e.price == null) return null;
-                return { price: e.price, currency: e.currency || '', name: e.name || '', ts: e.ts || 0 };
+                const ts = (typeof e.ts === 'number' && e.ts > 0) ? e.ts : Date.now();
+                return { price: e.price, currency: e.currency || '', name: e.name || '', ts: ts };
             },
             // Parallel batch. Returns { symbol: price|null }.
             async getMany(type, symbols, opts) {
-                const uniq = Array.from(new Set((symbols || []).filter(Boolean).map(String)));
+                const rawList = (symbols || []).map(function (s) { return String(s || '').trim(); }).filter(Boolean);
                 const out = {};
-                await Promise.all(uniq.map(async function (s) {
-                    out[s] = await priceCache.get(type, s, opts);
+                const byKey = new Map();
+                rawList.forEach(function (raw) {
+                    const key = normalizeSymbol(type, raw);
+                    if (key && !byKey.has(key)) byKey.set(key, raw);
+                });
+
+                const priceByKey = {};
+                await Promise.all(Array.from(byKey.entries()).map(async function (pair) {
+                    const key = pair[0];
+                    const raw = pair[1];
+                    priceByKey[key] = await priceCache.get(type, raw, opts);
                 }));
+
+                rawList.forEach(function (raw) {
+                    const key = normalizeSymbol(type, raw);
+                    out[raw] = key ? (priceByKey[key] ?? null) : null;
+                });
                 return out;
             },
             // Force-refresh a single symbol (e.g., after a new transaction for it).
@@ -139,9 +177,11 @@
                 ]);
             },
             invalidate(type, symbol) {
+                const key = normalizeSymbol(type, symbol);
+                if (!key) return;
                 const data = load();
-                if (data[type] && data[type][symbol]) {
-                    delete data[type][symbol];
+                if (data[type] && data[type][key]) {
+                    delete data[type][key];
                     save(data);
                 }
             },

@@ -197,15 +197,26 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
 
     q_symbol, q_name = _extract_symbol_and_name(q_raw)
 
-    # If the query is DOGE, always use the canonical (pegged) token address to avoid fake DOGE pairs.
-    # If the query is BTC, we'll still try symbol search first, but may proxy to WBTC below.
+    # For collision-prone symbols (DOGE/WBTC), canonical address gives stable results.
+    # ELON is ambiguous across multiple tokens, so only force canonical when the name hint
+    # clearly refers to Dogelon Mars.
     search_query = q_raw
     expected_symbol = q_symbol or q_raw.upper()
-    if q_symbol in CANONICAL_ADDRESS_BY_SYMBOL and q_symbol in ("DOGE", "WBTC", "ELON"):
+
+    force_canonical = q_symbol in ("DOGE", "WBTC")
+    if q_symbol == "ELON":
+        hint = (q_name or "").strip().upper()
+        if "DOGELON" in hint or "MARS" in hint:
+            force_canonical = True
+
+    if force_canonical and q_symbol in CANONICAL_ADDRESS_BY_SYMBOL:
         search_query = CANONICAL_ADDRESS_BY_SYMBOL[q_symbol]
         expected_symbol = q_symbol
 
     pairs = _dexscreener_search(search_query)
+    if not pairs and search_query != q_raw:
+        # Canonical lookup can miss non-canonical tokens that share the symbol.
+        pairs = _dexscreener_search(q_raw)
     if not pairs:
         return Decimal(0)
 
