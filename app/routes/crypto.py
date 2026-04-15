@@ -139,6 +139,25 @@ def _dexscreener_search(query: str) -> list:
     if cached and (now - cached.get("ts", 0.0) < _DEXSCREENER_SEARCH_TTL_SECONDS):
         return cached.get("pairs") or []
 
+    # Handle contract address searches (0x-prefixed Ethereum addresses)
+    if q.lower().startswith("0x") and len(q) == 42:
+        # Use token endpoint for contract addresses
+        url = f"https://api.dexscreener.com/latest/dex/tokens/{q}"
+        headers = {"Accept": "application/json", "User-Agent": "Wallet-Front/1.0"}
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+            if r.status_code == 200:
+                data = r.json() if r.content else {}
+                pairs = data.get("pairs") if isinstance(data, dict) else []
+                if not isinstance(pairs, list):
+                    pairs = []
+                _DEXSCREENER_SEARCH_CACHE[q.lower()] = {"ts": now, "pairs": pairs}
+                return pairs
+            # Fall through to symbol search as fallback
+        except Exception:
+            pass
+
+    # Standard symbol/name search
     url = "https://api.dexscreener.com/latest/dex/search"
     headers = {"Accept": "application/json", "User-Agent": "Wallet-Front/1.0"}
     try:
@@ -197,17 +216,12 @@ def _dexscreener_best_price_usd(query: str) -> Decimal:
 
     q_symbol, q_name = _extract_symbol_and_name(q_raw)
 
-    # For collision-prone symbols (DOGE/WBTC), canonical address gives stable results.
-    # ELON is ambiguous across multiple tokens, so only force canonical when the name hint
-    # clearly refers to Dogelon Mars.
+    # For collision-prone symbols (DOGE/WBTC/ELON), canonical address gives stable results.
+    # ELON is ambiguous across multiple tokens, so always force canonical for unambiguous price lookup.
     search_query = q_raw
     expected_symbol = q_symbol or q_raw.upper()
 
-    force_canonical = q_symbol in ("DOGE", "WBTC")
-    if q_symbol == "ELON":
-        hint = (q_name or "").strip().upper()
-        if "DOGELON" in hint or "MARS" in hint:
-            force_canonical = True
+    force_canonical = q_symbol in ("DOGE", "WBTC", "ELON")
 
     if force_canonical and q_symbol in CANONICAL_ADDRESS_BY_SYMBOL:
         search_query = CANONICAL_ADDRESS_BY_SYMBOL[q_symbol]
@@ -935,9 +949,15 @@ def crypto_data():
         v["value_change_amount"] = None
 
         # compute weighted average buy price from current cost basis
+        # Only calculate avg_buy_price if we have actual purchases (total_cost > 0)
+        # If holdings came entirely from transfers (cost = 0), set to None to display as "—"
         try:
             if v["total_qty"] and v["total_qty"] > 0:
-                v["avg_buy_price"] = v["total_cost"] / v["total_qty"]
+                if v["total_cost"] and v["total_cost"] > 0:
+                    v["avg_buy_price"] = v["total_cost"] / v["total_qty"]
+                else:
+                    # Holdings without purchases (transferred in) - show as N/A
+                    v["avg_buy_price"] = None
             else:
                 v["avg_buy_price"] = Decimal(0)
         except Exception:
@@ -1082,9 +1102,10 @@ def crypto_data():
             pct_fill = 0.0
 
         try:
-            avg_buy = float(v.get("avg_buy_price", 0) or 0)
+            abp = v.get("avg_buy_price")
+            avg_buy = float(abp) if abp is not None else None
         except Exception:
-            avg_buy = 0.0
+            avg_buy = None
         try:
             fee_total = float(v.get("total_fee", 0) or 0)
         except Exception:
@@ -1121,7 +1142,7 @@ def crypto_data():
                 "pct_fill": pct_fill,
                 "pct_fill_str": f"{pct_fill:.2f}",
                 "avg_buy_price": avg_buy,
-                "avg_buy_price_display": _format_number_trim(v.get("avg_buy_price", 0), 6),
+                "avg_buy_price_display": _format_number_trim(v.get("avg_buy_price", 0), 6) if v.get("avg_buy_price") is not None else "—",
                 "total_fee": fee_total,
                 "total_fee_display": _format_number_trim(v.get("total_fee", 0), 2),
                 "value_change_amount": change_amt,
