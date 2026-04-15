@@ -69,6 +69,28 @@
         });
     }
 
+    let _stockForceHydrateNextLoad = false;
+
+    function _stockCachedPriceMap(pc, symbols, force) {
+        const out = {};
+        const needFetch = [];
+        const now = Date.now();
+        const ttlMs = (pc && typeof pc.ttlMs === 'function') ? (pc.ttlMs() || 0) : 0;
+        (symbols || []).forEach(sym => {
+            const key = String(sym || '').trim();
+            if (!key) return;
+            const e = pc ? pc.entry('stock', key) : null;
+            if (e && typeof e.price === 'number') {
+                out[key] = e.price;
+                const stale = ttlMs > 0 ? ((now - (e.ts || 0)) >= ttlMs) : false;
+                if (!force && stale) needFetch.push(key);
+            } else {
+                needFetch.push(key);
+            }
+        });
+        return { out, needFetch };
+    }
+
     function buildStockPortfolio() {
         const container = document.getElementById('stockPortfolioCards');
         const emptyMsg = document.getElementById('stockPortfolioEmpty');
@@ -172,7 +194,8 @@
         if (emptyMsg) emptyMsg.style.display = 'none';
 
         // Fill live quote fields asynchronously.
-        hydrateStockPortfolioLiveQuotes();
+        hydrateStockPortfolioLiveQuotes({ force: _stockForceHydrateNextLoad });
+        _stockForceHydrateNextLoad = false;
     }
 
     function showStockPortfolio() {
@@ -297,7 +320,8 @@
             `;
         }).join('');
 
-        hydrateStockWalletContentsLiveQuotes(baseCurrency);
+        hydrateStockWalletContentsLiveQuotes(baseCurrency, { force: _stockForceHydrateNextLoad });
+        _stockForceHydrateNextLoad = false;
     }
 
     async function hydrateStockWalletContentsLiveQuotes(baseCurrency, opts) {
@@ -314,40 +338,59 @@
 
         const uniqSyms = Array.from(rowsBySymbol.keys());
         const pc = window.priceCache;
-        const priceMap = pc ? await pc.getMany('stock', uniqSyms, opts && opts.force ? { force: true } : undefined) : {};
+        const force = !!(opts && opts.force);
 
-        const totalsByWallet = new Map();
-        for (const [sym, symRows] of rowsBySymbol.entries()) {
-            const price = priceMap[sym];
-            const entry = pc ? pc.entry('stock', sym) : null;
-            const curCode = (entry && entry.currency) ? entry.currency : (baseCurrency || '');
-            for (const row of symRows) {
-                const qty = parseFloat(row.getAttribute('data-stock-wallet-qty') || '0') || 0;
-                const walletId = String(row.getAttribute('data-stock-wallet-wallet') || '').trim();
-                const valEl = row.querySelector('[data-stock-wallet-value]');
-
-                if (price == null) {
-                    if (valEl) valEl.textContent = '—';
-                    continue;
-                }
-
-                const valueNow = qty * price;
-                const cur = curCode ? ` ${curCode}` : '';
-                if (valEl) valEl.textContent = `${formatNumber(valueNow, 2)}${cur}`;
-
-                totalsByWallet.set(walletId, (totalsByWallet.get(walletId) || 0) + valueNow);
-            }
+        let cachedMap = {};
+        let needFetch = uniqSyms.slice();
+        if (pc) {
+            const cached = _stockCachedPriceMap(pc, uniqSyms, force);
+            cachedMap = cached.out;
+            needFetch = force ? uniqSyms.slice() : cached.needFetch;
         }
 
-        const cards = Array.from(document.querySelectorAll('#stockWalletsCards [data-stock-wallet-id]'));
-        cards.forEach(card => {
-            const walletId = String(card.getAttribute('data-stock-wallet-id') || '').trim();
-            const totalEl = card.querySelector('[data-stock-wallet-total]');
-            const total = totalsByWallet.get(walletId);
-            const cur = baseCurrency ? ` ${baseCurrency}` : '';
-            if (totalEl) totalEl.textContent = (typeof total === 'number') ? `${formatNumber(total, 2)}${cur}` : '—';
-        });
-        _stockUpdateRefreshLabel();
+        const totalsByWallet = new Map();
+        function applyPrices(priceMap) {
+            for (const [sym, symRows] of rowsBySymbol.entries()) {
+                const price = priceMap[sym];
+                const entry = pc ? pc.entry('stock', sym) : null;
+                const curCode = (entry && entry.currency) ? entry.currency : (baseCurrency || '');
+                for (const row of symRows) {
+                    const qty = parseFloat(row.getAttribute('data-stock-wallet-qty') || '0') || 0;
+                    const walletId = String(row.getAttribute('data-stock-wallet-wallet') || '').trim();
+                    const valEl = row.querySelector('[data-stock-wallet-value]');
+
+                    if (price == null) {
+                        if (valEl) valEl.textContent = '—';
+                        continue;
+                    }
+
+                    const valueNow = qty * price;
+                    const cur = curCode ? ` ${curCode}` : '';
+                    if (valEl) valEl.textContent = `${formatNumber(valueNow, 2)}${cur}`;
+
+                    totalsByWallet.set(walletId, (totalsByWallet.get(walletId) || 0) + valueNow);
+                }
+            }
+
+            const cards = Array.from(document.querySelectorAll('#stockWalletsCards [data-stock-wallet-id]'));
+            cards.forEach(card => {
+                const walletId = String(card.getAttribute('data-stock-wallet-id') || '').trim();
+                const totalEl = card.querySelector('[data-stock-wallet-total]');
+                const total = totalsByWallet.get(walletId);
+                const cur = baseCurrency ? ` ${baseCurrency}` : '';
+                if (totalEl) totalEl.textContent = (typeof total === 'number') ? `${formatNumber(total, 2)}${cur}` : '—';
+            });
+            _stockUpdateRefreshLabel();
+        }
+
+        applyPrices(cachedMap);
+
+        if (!pc || !needFetch.length) return;
+
+        const fetchedMap = await pc.getMany('stock', needFetch, force ? { force: true } : undefined);
+        const merged = Object.assign({}, cachedMap, fetchedMap || {});
+        totalsByWallet.clear();
+        applyPrices(merged);
     }
 
     function showStockWallets() {
@@ -379,57 +422,75 @@
             if (s) symbols.push(s);
         });
         const pc = window.priceCache;
-        const priceMap = pc ? await pc.getMany('stock', symbols, opts && opts.force ? { force: true } : undefined) : {};
+        const force = !!(opts && opts.force);
 
-        for (const card of cards) {
-            const symbol = String(card.getAttribute('data-stock-symbol') || '').trim();
-            if (!symbol) continue;
-            const price = priceMap[symbol];
-            const entry = pc ? pc.entry('stock', symbol) : null;
-            const curCode = (entry && entry.currency) ? entry.currency : '';
-            const cur = curCode ? ` ${curCode}` : '';
-
-            const qty = parseFloat(card.getAttribute('data-stock-qty') || '0') || 0;
-            const paid = parseFloat(card.getAttribute('data-stock-paid') || '0') || 0;
-
-            const liveEl = card.querySelector('[data-stock-live]');
-            const nowEl = card.querySelector('[data-stock-now]');
-            const glEl = card.querySelector('[data-stock-gl]');
-            const pctEl = card.querySelector('[data-stock-pct]');
-            const nameEl = card.querySelector('.stock-name');
-            if (nameEl && entry && entry.name && !nameEl.textContent.trim()) nameEl.textContent = entry.name;
-
-            if (price == null) {
-                if (liveEl) liveEl.textContent = '—';
-                if (nowEl) nowEl.textContent = '—';
-                if (glEl) glEl.textContent = '—';
-                if (pctEl) {
-                    pctEl.textContent = '—';
-                    pctEl.classList.remove('pct-positive','pct-negative');
-                    pctEl.classList.add('pct-neutral');
-                }
-                continue;
-            }
-
-            const valueNow = qty * price;
-            const gl = valueNow - paid;
-            const pct = paid ? (gl / paid) * 100 : 0;
-
-            if (liveEl) liveEl.textContent = `${formatNumber(price, 4)}${cur}`;
-            if (nowEl) nowEl.textContent = `${formatNumber(valueNow, 2)}${cur}`;
-            if (glEl) {
-                const sign = gl >= 0 ? '+' : '';
-                glEl.textContent = `${sign}${formatNumber(gl, 2)}${cur}`;
-                glEl.classList.remove('pct-positive','pct-negative','pct-neutral');
-                glEl.classList.add(gl >= 0 ? 'pct-positive' : 'pct-negative');
-            }
-            if (pctEl) {
-                pctEl.textContent = `${pct >= 0 ? '+' : ''}${formatNumber(pct, 2)}%`;
-                pctEl.classList.remove('pct-positive','pct-negative','pct-neutral');
-                pctEl.classList.add(pct >= 0 ? 'pct-positive' : 'pct-negative');
-            }
+        let cachedMap = {};
+        let needFetch = symbols.slice();
+        if (pc) {
+            const cached = _stockCachedPriceMap(pc, symbols, force);
+            cachedMap = cached.out;
+            needFetch = force ? symbols.slice() : cached.needFetch;
         }
-        _stockUpdateRefreshLabel();
+
+        function applyPrices(priceMap) {
+            for (const card of cards) {
+                const symbol = String(card.getAttribute('data-stock-symbol') || '').trim();
+                if (!symbol) continue;
+                const price = priceMap[symbol];
+                const entry = pc ? pc.entry('stock', symbol) : null;
+                const curCode = (entry && entry.currency) ? entry.currency : '';
+                const cur = curCode ? ` ${curCode}` : '';
+
+                const qty = parseFloat(card.getAttribute('data-stock-qty') || '0') || 0;
+                const paid = parseFloat(card.getAttribute('data-stock-paid') || '0') || 0;
+
+                const liveEl = card.querySelector('[data-stock-live]');
+                const nowEl = card.querySelector('[data-stock-now]');
+                const glEl = card.querySelector('[data-stock-gl]');
+                const pctEl = card.querySelector('[data-stock-pct]');
+                const nameEl = card.querySelector('.stock-name');
+                if (nameEl && entry && entry.name && !nameEl.textContent.trim()) nameEl.textContent = entry.name;
+
+                if (price == null) {
+                    if (liveEl) liveEl.textContent = '—';
+                    if (nowEl) nowEl.textContent = '—';
+                    if (glEl) glEl.textContent = '—';
+                    if (pctEl) {
+                        pctEl.textContent = '—';
+                        pctEl.classList.remove('pct-positive','pct-negative');
+                        pctEl.classList.add('pct-neutral');
+                    }
+                    continue;
+                }
+
+                const valueNow = qty * price;
+                const gl = valueNow - paid;
+                const pct = paid ? (gl / paid) * 100 : 0;
+
+                if (liveEl) liveEl.textContent = `${formatNumber(price, 4)}${cur}`;
+                if (nowEl) nowEl.textContent = `${formatNumber(valueNow, 2)}${cur}`;
+                if (glEl) {
+                    const sign = gl >= 0 ? '+' : '';
+                    glEl.textContent = `${sign}${formatNumber(gl, 2)}${cur}`;
+                    glEl.classList.remove('pct-positive','pct-negative','pct-neutral');
+                    glEl.classList.add(gl >= 0 ? 'pct-positive' : 'pct-negative');
+                }
+                if (pctEl) {
+                    pctEl.textContent = `${pct >= 0 ? '+' : ''}${formatNumber(pct, 2)}%`;
+                    pctEl.classList.remove('pct-positive','pct-negative','pct-neutral');
+                    pctEl.classList.add(pct >= 0 ? 'pct-positive' : 'pct-negative');
+                }
+            }
+            _stockUpdateRefreshLabel();
+        }
+
+        applyPrices(cachedMap);
+
+        if (!pc || !needFetch.length) return;
+
+        const fetchedMap = await pc.getMany('stock', needFetch, force ? { force: true } : undefined);
+        const merged = Object.assign({}, cachedMap, fetchedMap || {});
+        applyPrices(merged);
     }
 
     function _stockUpdateRefreshLabel() {
@@ -454,18 +515,9 @@
         const prev = label ? label.textContent : '';
         if (label) label.textContent = 'Refreshing…';
         try { if (window.pageDataCache) pageDataCache.invalidate('stock'); } catch(_e) {}
-        return loadStockPage(true).then(function() {
-            const panel = document.getElementById('stockPanel');
-            const walletsPanel = document.getElementById('stockWalletsPanel');
-            const portfolioVisible = panel && panel.style.display !== 'none';
-            const walletsVisible = walletsPanel && walletsPanel.style.display !== 'none';
-            const bc = (document.getElementById('stockBaseCurrency')?.value || 'EUR').trim().toUpperCase();
-            const tasks = [];
-            if (portfolioVisible) tasks.push(hydrateStockPortfolioLiveQuotes({ force: !!force }));
-            if (walletsVisible) tasks.push(hydrateStockWalletContentsLiveQuotes(bc, { force: !!force }));
-            if (!tasks.length) tasks.push(hydrateStockPortfolioLiveQuotes({ force: !!force }));
-            return Promise.all(tasks);
-        }).finally(function() {
+        _stockForceHydrateNextLoad = !!force;
+        return loadStockPage(true).finally(function() {
+            _stockForceHydrateNextLoad = false;
             if (btn) btn.disabled = false;
             if (label) label.textContent = prev || 'Refresh prices';
         });

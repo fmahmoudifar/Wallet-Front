@@ -224,7 +224,7 @@ function loadDashboard(forceReload) {
     if (cached) {
         _dashboardData = cached;
         try { if (window.priceCache && cached.baseCurrency) priceCache.setBaseCurrency(cached.baseCurrency); } catch (_e) {}
-        return hydratePricesAndRender(false);
+        return hydratePricesAndRender(!!forceReload);
     }
     return fetch('/api/dashboard-data')
         .then(function(response) {
@@ -235,7 +235,7 @@ function loadDashboard(forceReload) {
             _dashboardData = data;
             try { if (pc) pc.set('dashboard', data); } catch (_e) {}
             try { if (window.priceCache && data.baseCurrency) priceCache.setBaseCurrency(data.baseCurrency); } catch (_e) {}
-            return hydratePricesAndRender(false);
+            return hydratePricesAndRender(!!forceReload);
         })
         .catch(function(err) {
             console.error('Dashboard data fetch failed:', err);
@@ -252,12 +252,39 @@ function collectSymbols(data) {
 function hydratePricesAndRender(force) {
     if (!_dashboardData) return Promise.resolve();
     var syms = collectSymbols(_dashboardData);
-    var opts = force ? { force: true } : undefined;
     var pc = window.priceCache;
-    var cryptoPromise = pc ? pc.getMany('crypto', syms.crypto, opts) : Promise.resolve({});
-    var stockPromise = pc ? pc.getMany('stock', syms.stock, opts) : Promise.resolve({});
+    var cachedCrypto = {};
+    var cachedStock = {};
+
+    if (pc && !force) {
+        syms.crypto.forEach(function(sym) {
+            var e = pc.entry('crypto', sym);
+            if (e && typeof e.price === 'number') cachedCrypto[sym] = e.price;
+        });
+        syms.stock.forEach(function(sym) {
+            var e = pc.entry('stock', sym);
+            if (e && typeof e.price === 'number') cachedStock[sym] = e.price;
+        });
+    }
+
+    // Fast first paint from local cache (or zeroes if missing).
+    renderDashboard(_dashboardData, cachedCrypto, cachedStock);
+    updateLastRefreshLabel();
+
+    if (!pc) return Promise.resolve();
+
+    var needCrypto = force ? syms.crypto : syms.crypto.filter(function(sym) { return !(sym in cachedCrypto); });
+    var needStock = force ? syms.stock : syms.stock.filter(function(sym) { return !(sym in cachedStock); });
+    if (!needCrypto.length && !needStock.length) return Promise.resolve();
+
+    var opts = force ? { force: true } : undefined;
+    var cryptoPromise = needCrypto.length ? pc.getMany('crypto', needCrypto, opts) : Promise.resolve({});
+    var stockPromise = needStock.length ? pc.getMany('stock', needStock, opts) : Promise.resolve({});
+
     return Promise.all([cryptoPromise, stockPromise]).then(function(res) {
-        renderDashboard(_dashboardData, res[0] || {}, res[1] || {});
+        var cryptoPrices = Object.assign({}, cachedCrypto, res[0] || {});
+        var stockPrices = Object.assign({}, cachedStock, res[1] || {});
+        renderDashboard(_dashboardData, cryptoPrices, stockPrices);
         updateLastRefreshLabel();
     });
 }
@@ -269,9 +296,7 @@ function refreshPrices(force) {
     var prevLabel = label ? label.textContent : '';
     if (label) label.textContent = 'Refreshing…';
     try { if (window.pageDataCache) pageDataCache.invalidate('dashboard'); } catch (_e) {}
-    return loadDashboard(true).then(function() {
-        return hydratePricesAndRender(!!force);
-    }).finally(function() {
+    return loadDashboard(true).finally(function() {
         if (btn) btn.disabled = false;
         if (label) label.textContent = prevLabel || 'Refresh prices';
     });

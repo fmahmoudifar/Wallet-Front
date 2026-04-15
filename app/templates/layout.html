@@ -208,6 +208,14 @@
             var method = String(form.method || '').toLowerCase();
             if (method !== 'post') return;
             if (window.pageDataCache) window.pageDataCache.clearAll();
+            try {
+                fetch('/api/dashboard-cache/invalidate', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    keepalive: true,
+                    headers: { 'Accept': 'application/json' }
+                }).catch(function(){});
+            } catch (_e2) {}
         } catch (_e) {}
     }, true);
     </script>

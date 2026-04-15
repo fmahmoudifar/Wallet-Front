@@ -36,12 +36,12 @@ _OVERVIEW_CTX_CACHE: dict[tuple[str, str], dict] = {}
 
 
 def _dashboard_cache_ttl_seconds() -> int:
-    # In dev (Codespaces), default to no caching so numbers update immediately.
-    # In production, caching can be enabled via env var.
+    # In Codespaces/dev, keep a short cache by default to improve dashboard responsiveness
+    # while still refreshing frequently. Can be overridden with OVERVIEW_CACHE_TTL_SECONDS.
     try:
         in_codespaces = str(os.getenv("CODESPACES") or "").strip().lower() in {"1", "true", "yes", "y", "on"}
         if in_codespaces and os.getenv("OVERVIEW_CACHE_TTL_SECONDS") is None:
-            return 0
+            return 10
     except Exception:
         pass
 
@@ -74,6 +74,15 @@ def _dashboard_cache_set(user_id: str, base_currency: str, ctx: dict):
         return
     key = (str(user_id or "").strip(), str(base_currency or "").strip().upper())
     _OVERVIEW_CTX_CACHE[key] = {"ts": time.time(), "ctx": ctx}
+
+
+def _dashboard_cache_invalidate_user(user_id: str) -> None:
+    uid = str(user_id or "").strip()
+    if not uid:
+        return
+    keys = [k for k in list(_OVERVIEW_CTX_CACHE.keys()) if isinstance(k, tuple) and len(k) >= 1 and str(k[0]) == uid]
+    for k in keys:
+        _OVERVIEW_CTX_CACHE.pop(k, None)
 
 
 def _api_list(path: str, *, user_id: str, list_key: str, timeout: int = 12) -> list:
@@ -154,6 +163,16 @@ def _ensure_user_settings_row(user_id: str, *, force: bool = False) -> None:
                 print(f"Settings default upsert failed: {upsert.status_code}")
     except Exception as e:
         print(f"Error creating default settings (home init): {e}")
+
+
+@home_bp.route("/api/dashboard-cache/invalidate", methods=["POST"])
+def invalidate_dashboard_cache():
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    user_id = user.get("username")
+    _dashboard_cache_invalidate_user(user_id)
+    return jsonify({"ok": True})
 
 
 @home_bp.route("/dashboard", methods=["GET"])

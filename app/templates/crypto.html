@@ -865,11 +865,35 @@
             var syms = _cryptoCollectSymbols();
             if (!syms.length) { _cryptoUpdateRefreshLabel(); return Promise.resolve(); }
             var pc = window.priceCache;
-            var p = pc ? pc.getMany('crypto', syms, force ? { force: true } : undefined) : Promise.resolve({});
-            return p.then(function(priceMap) {
+            if (!pc) return Promise.resolve();
+
+            var now = Date.now();
+            var ttlMs = (typeof pc.ttlMs === 'function') ? (pc.ttlMs() || 0) : 0;
+            var cachedMap = {};
+            var needFetch = [];
+            syms.forEach(function(sym) {
+                var e = pc.entry('crypto', sym);
+                if (e && typeof e.price === 'number') {
+                    cachedMap[sym] = e.price;
+                    var stale = ttlMs > 0 ? ((now - (e.ts || 0)) >= ttlMs) : false;
+                    if (!force && stale) needFetch.push(sym);
+                } else {
+                    needFetch.push(sym);
+                }
+            });
+
+            _cryptoApplyPortfolio(cachedMap, bc);
+            _cryptoApplyWallets(cachedMap, bc);
+            _cryptoUpdateRefreshLabel();
+
+            var fetchSyms = force ? syms.slice() : needFetch;
+            if (!fetchSyms.length) return Promise.resolve();
+
+            return pc.getMany('crypto', fetchSyms, force ? { force: true } : undefined).then(function(priceMap) {
                 priceMap = priceMap || {};
-                _cryptoApplyPortfolio(priceMap, bc);
-                _cryptoApplyWallets(priceMap, bc);
+                var merged = Object.assign({}, cachedMap, priceMap);
+                _cryptoApplyPortfolio(merged, bc);
+                _cryptoApplyWallets(merged, bc);
                 _cryptoUpdateRefreshLabel();
             });
         }
@@ -917,14 +941,14 @@
             setCryptoNavVisibility('portfolio');
         }
 
-        function loadCryptoPage(forceReload) {
+        function loadCryptoPage(forceReload, forcePriceRefresh) {
             var pdc = window.pageDataCache;
             var cached = (!forceReload && pdc) ? pdc.get('crypto') : null;
             if (cached) {
                 _cryptoPageData = cached;
                 try { if (window.priceCache && cached.baseCurrency) priceCache.setBaseCurrency(cached.baseCurrency); } catch (_e) {}
                 _cryptoRenderFromData(cached);
-                return hydrateCryptoPrices(false);
+                return hydrateCryptoPrices(!!forcePriceRefresh);
             }
             return fetch('/api/crypto-data')
                 .then(function(resp) {
@@ -936,7 +960,7 @@
                     try { if (pdc) pdc.set('crypto', data); } catch(_e) {}
                     try { if (window.priceCache && data.baseCurrency) priceCache.setBaseCurrency(data.baseCurrency); } catch (_e) {}
                     _cryptoRenderFromData(data);
-                    return hydrateCryptoPrices(false);
+                    return hydrateCryptoPrices(!!forcePriceRefresh);
                 })
                 .catch(function(err) {
                     console.error('Crypto data fetch failed:', err);
@@ -952,9 +976,7 @@
             var prev = label ? label.textContent : '';
             if (label) label.textContent = 'Refreshing…';
             try { if (window.pageDataCache) pageDataCache.invalidate('crypto'); } catch(_e) {}
-            return loadCryptoPage(true).then(function() {
-                return hydrateCryptoPrices(!!force);
-            }).finally(function() {
+            return loadCryptoPage(true, !!force).finally(function() {
                 if (btn) btn.disabled = false;
                 if (label) label.textContent = prev || 'Refresh prices';
             });
