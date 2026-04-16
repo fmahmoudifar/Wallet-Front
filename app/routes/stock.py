@@ -8,7 +8,7 @@ import requests
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 
 from app.services.user_scope import filter_records_by_user
-from config import ALPHA_VANTAGE_API_KEY, API_URL, STOCK_DATA_PROVIDER, aws_auth
+from config import API_URL, aws_auth
 
 # Reuse Settings currency + FX conversion helpers (same as fiat/home)
 from .crypto import (
@@ -19,18 +19,11 @@ from .crypto import (
 
 stock_bp = Blueprint("stock", __name__)
 
-ALPHAVANTAGE_BASE_URL = "https://www.alphavantage.co/query"
-
 # Yahoo Finance endpoints (public)
 YAHOO_SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search"
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
 
-# In-process caches (same approach as crypto.py)
-_AV_SEARCH_CACHE = {}
-_AV_SEARCH_TTL_SECONDS = 900
-_AV_QUOTE_CACHE = {}
-_AV_QUOTE_TTL_SECONDS = 120
-
+# In-process cache for Yahoo queries
 _YH_SEARCH_CACHE = {}
 _YH_SEARCH_TTL_SECONDS = 900
 _YH_QUOTE_CACHE = {}
@@ -72,32 +65,6 @@ def _require_user():
         return None
     return user
 
-
-def _av_get(params):
-    if not ALPHA_VANTAGE_API_KEY:
-        raise RuntimeError("Missing ALPHA_VANTAGE_API_KEY")
-    p = dict(params or {})
-    p["apikey"] = ALPHA_VANTAGE_API_KEY
-    headers = {"Accept": "application/json", "User-Agent": "Wallet-Front/1.0"}
-    r = requests.get(ALPHAVANTAGE_BASE_URL, params=p, headers=headers, timeout=12)
-    r.raise_for_status()
-    data = r.json() if r.content else {}
-    if isinstance(data, dict):
-        if data.get("Note"):
-            raise RuntimeError(data.get("Note"))
-        if data.get("Error Message"):
-            raise RuntimeError(data.get("Error Message"))
-    return data
-
-
-def _is_rate_limit_error(msg: str) -> bool:
-    m = str(msg or "").lower()
-    return (
-        m.startswith("thank you for using alpha vantage")
-        or "rate limit" in m
-        or "frequency" in m
-        or "standard api call frequency" in m
-    )
 
 
 def _yh_get(url: str, params: dict):
@@ -207,60 +174,6 @@ def _yh_quote(symbol: str):
     return out
 
 
-def _provider_mode() -> str:
-    m = (STOCK_DATA_PROVIDER or "auto").strip().lower()
-    if m in ("alphavantage", "av"):
-        return "alphavantage"
-    if m in ("yahoo", "yf", "yahoofinance"):
-        return "yahoo"
-    return "auto"
-
-
-def _av_search(keywords: str, limit: int = 8):
-    q = (keywords or "").strip()
-    if not q:
-        return []
-    now = time.time()
-    cached = _AV_SEARCH_CACHE.get(q.lower())
-    if cached and (now - cached.get("ts", 0.0) < _AV_SEARCH_TTL_SECONDS):
-        return cached.get("data") or []
-
-    data = _av_get({"function": "SYMBOL_SEARCH", "keywords": q})
-    out = []
-    for m in data.get("bestMatches") or []:
-        sym = (m.get("1. symbol") or "").strip()
-        name = (m.get("2. name") or "").strip()
-        region = (m.get("4. region") or "").strip()
-        currency = (m.get("8. currency") or "").strip()
-        if sym and name:
-            out.append({"symbol": sym, "name": name, "region": region, "currency": currency})
-        if len(out) >= max(1, int(limit)):
-            break
-    _AV_SEARCH_CACHE[q.lower()] = {"ts": now, "data": out}
-    return out
-
-
-def _av_metadata_for_symbol(symbol: str):
-    s = (symbol or "").strip().upper()
-    if not s:
-        return {"name": "", "currency": "", "region": ""}
-    matches = _av_search(s, limit=10)
-    for m in matches:
-        if (m.get("symbol") or "").strip().upper() == s:
-            return {
-                "name": m.get("name") or "",
-                "currency": m.get("currency") or "",
-                "region": m.get("region") or "",
-            }
-    if matches:
-        m = matches[0]
-        return {
-            "name": m.get("name") or "",
-            "currency": m.get("currency") or "",
-            "region": m.get("region") or "",
-        }
-    return {"name": "", "currency": "", "region": ""}
-
 
 @stock_bp.route("/stock/search", methods=["GET"])
 def stock_search():
@@ -272,31 +185,7 @@ def stock_search():
     if not q:
         return jsonify({"results": []})
 
-    mode = _provider_mode()
-
-    # Prefer Alpha Vantage unless configured otherwise; fall back to Yahoo on AV failures.
-    if mode in ("auto", "alphavantage"):
-        try:
-            matches = _av_search(q, limit=8)
-            return jsonify({"results": matches, "provider": "alphavantage"})
-        except Exception as e:
-            msg = str(e)
-            # If AV is selected explicitly, don't fall back.
-            if mode == "alphavantage":
-                if "Missing ALPHA_VANTAGE_API_KEY" in msg:
-                    return jsonify({"error": msg, "results": []}), 500
-                if _is_rate_limit_error(msg):
-                    return jsonify({"error": msg, "results": []}), 429
-                return jsonify({"error": "Failed to search", "details": msg, "results": []}), 500
-
-            # auto mode: fall back to Yahoo on rate-limit or any AV error
-            try:
-                matches = _yh_search(q, limit=8)
-                return jsonify({"results": matches, "provider": "yahoo", "fallbackFrom": "alphavantage"})
-            except Exception as e2:
-                return jsonify({"error": "Failed to search", "details": str(e2), "results": []}), 500
-
-    # Yahoo only
+    # Use Yahoo Finance for stock search
     try:
         matches = _yh_search(q, limit=8)
         return jsonify({"results": matches, "provider": "yahoo"})
@@ -319,30 +208,19 @@ def stock_quote():
 
     sym = symbol.strip().upper()
     now = time.time()
-    # Include a version tag so behavior changes don't serve stale cached values.
-    cache_key = (sym, base_currency, "quote_v2")
-    cached = _AV_QUOTE_CACHE.get(cache_key)
-    if cached and (now - cached.get("ts", 0.0) < _AV_QUOTE_TTL_SECONDS):
-        return jsonify(cached.get("data") or {})
-
-    mode = _provider_mode()
 
     def _finalize_quote(
-        symbol_out: str, name: str, currency_raw: str, price_num, asof: str, provider: str, region: str = ""
+        symbol_out: str, name: str, currency_raw: str, price_num, asof: str
     ):
         quote_ccy_raw = _normalize_currency(currency_raw, "") or base_currency
-
-        # For AV we apply a UK/GBX heuristic; for Yahoo we do NOT (Yahoo typically returns GBP).
+        
+        # Detect UK stocks (ending in .L or .LON) and treat as GBX if price suggests pence
         effective_ccy = quote_ccy_raw
         try:
-            if provider == "alphavantage" and price_num is not None:
-                region_txt = str(region or "").strip().upper()
-                is_uk = (
-                    ("UNITED KINGDOM" in region_txt)
-                    or symbol_out.endswith(".LON")
-                    or symbol_out.endswith(".L")
-                )
-                if is_uk and float(price_num) >= 1000:
+            if price_num is not None and quote_ccy_raw == "GBP":
+                is_uk = symbol_out.endswith(".L") or symbol_out.endswith(".LON")
+                # If UK stock with high price, likely in pence (GBX)
+                if is_uk and float(price_num) >= 100:
                     effective_ccy = "GBX"
         except Exception:
             pass
@@ -355,7 +233,7 @@ def stock_quote():
         price_display = None
         if price_num is not None:
             try:
-                price_display = float(price_major) if effective_ccy == "GBX" else float(price_num)
+                price_display = float(price_major)
             except Exception:
                 price_display = price_num
 
@@ -375,74 +253,11 @@ def stock_quote():
             "currencyBase": base_currency,
             "priceBase": price_base,
             "asof": asof or "",
-            "provider": provider,
+            "provider": "yahoo",
         }
         return out
 
-    # 1) Alpha Vantage path (cached)
-    if mode in ("auto", "alphavantage"):
-        cached = _AV_QUOTE_CACHE.get(cache_key)
-        if cached and (now - cached.get("ts", 0.0) < _AV_QUOTE_TTL_SECONDS):
-            return jsonify(cached.get("data") or {})
-
-        try:
-            data = _av_get({"function": "GLOBAL_QUOTE", "symbol": sym})
-            gq = data.get("Global Quote") or {}
-            price_raw = (gq.get("05. price") or "").strip()
-            try:
-                price = float(price_raw)
-            except Exception:
-                price = None
-
-            meta = _av_metadata_for_symbol(sym)
-            out = _finalize_quote(
-                sym,
-                meta.get("name") or "",
-                meta.get("currency") or base_currency,
-                price,
-                (gq.get("07. latest trading day") or ""),
-                "alphavantage",
-                region=(meta.get("region") or ""),
-            )
-            _AV_QUOTE_CACHE[cache_key] = {"ts": now, "data": out}
-            return jsonify(out)
-        except Exception as e:
-            msg = str(e)
-            if mode == "alphavantage":
-                if "Missing ALPHA_VANTAGE_API_KEY" in msg:
-                    return jsonify({"error": msg, "symbol": sym, "price": None}), 500
-                if _is_rate_limit_error(msg):
-                    return jsonify({"error": msg, "symbol": sym, "price": None}), 429
-                return (
-                    jsonify({"error": "Failed to fetch quote", "details": msg, "symbol": sym, "price": None}),
-                    500,
-                )
-
-            # auto mode: fall back to Yahoo
-            try:
-                yh = _yh_quote(sym)
-                out = _finalize_quote(
-                    sym,
-                    yh.get("name") or "",
-                    yh.get("currency") or base_currency,
-                    yh.get("price"),
-                    yh.get("asof") or "",
-                    "yahoo",
-                )
-                # Cache in Yahoo cache too (best-effort)
-                _YH_QUOTE_CACHE[sym] = {"ts": now, "data": yh}
-                return jsonify(dict(out, fallbackFrom="alphavantage"))
-            except Exception as e2:
-                if _is_rate_limit_error(msg):
-                    return jsonify({"error": msg, "details": str(e2), "symbol": sym, "price": None}), 429
-                return (
-                    jsonify(
-                        {"error": "Failed to fetch quote", "details": str(e2), "symbol": sym, "price": None}
-                    ),
-                    500,
-                )
-
-    # 2) Yahoo-only path
+    # Use Yahoo Finance for quotes
     cached = _YH_QUOTE_CACHE.get(sym)
     if cached and (now - cached.get("ts", 0.0) < _YH_QUOTE_TTL_SECONDS):
         yh = cached.get("data") or {}
@@ -452,7 +267,6 @@ def stock_quote():
             yh.get("currency") or base_currency,
             yh.get("price"),
             yh.get("asof") or "",
-            "yahoo",
         )
         return jsonify(out)
 
@@ -464,7 +278,6 @@ def stock_quote():
             yh.get("currency") or base_currency,
             yh.get("price"),
             yh.get("asof") or "",
-            "yahoo",
         )
         return jsonify(out)
     except Exception as e:
@@ -472,6 +285,105 @@ def stock_quote():
             jsonify({"error": "Failed to fetch quote", "details": str(e), "symbol": sym, "price": None}),
             500,
         )
+
+
+@stock_bp.route("/stock/quotes", methods=["GET"])
+def stock_quotes_bulk():
+    """Bulk stock prices endpoint. Takes comma-separated symbols and returns all prices in one request.
+    
+    Query params:
+    - symbols: comma-separated list of stock symbols (e.g., "AAPL,MSFT,SGLN.L")
+    
+    Returns: {AAPL: {price, currency, priceBase, currencyBase, ...}, MSFT: {...}, ...}
+    """
+    user = _require_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    symbols_param = request.args.get("symbols", "").strip()
+    if not symbols_param:
+        return jsonify({})
+
+    user_id = user.get("username")
+    base_currency = _get_user_base_currency(user_id)
+
+    # Parse comma-separated symbols
+    symbols = [s.strip().upper() for s in symbols_param.split(",") if s.strip()]
+    if not symbols:
+        return jsonify({})
+
+    out = {}
+    now = time.time()
+
+    def _finalize_quote_bulk(
+        symbol_out: str, name: str, currency_raw: str, price_num, asof: str
+    ):
+        quote_ccy_raw = _normalize_currency(currency_raw, "") or base_currency
+        
+        # Detect UK stocks (ending in .L or .LON) and treat as GBX if price suggests pence
+        effective_ccy = quote_ccy_raw
+        try:
+            if price_num is not None and quote_ccy_raw == "GBP":
+                is_uk = symbol_out.endswith(".L") or symbol_out.endswith(".LON")
+                # If UK stock with high price, likely in pence (GBX)
+                if is_uk and float(price_num) >= 100:
+                    effective_ccy = "GBX"
+        except Exception:
+            pass
+
+        price_major, quote_ccy = _scale_minor_currency(
+            _to_decimal(price_num) if price_num is not None else Decimal(0),
+            effective_ccy,
+        )
+
+        price_display = None
+        if price_num is not None:
+            try:
+                price_display = float(price_major)
+            except Exception:
+                price_display = price_num
+
+        price_base = None
+        try:
+            if price_display is not None:
+                fx = _get_fx_rate(quote_ccy, base_currency)
+                price_base = float(_to_decimal(price_display) * fx)
+        except Exception:
+            price_base = None
+
+        return {
+            "symbol": symbol_out,
+            "name": name or "",
+            "currency": quote_ccy,
+            "price": price_display,
+            "currencyBase": base_currency,
+            "priceBase": price_base,
+            "asof": asof or "",
+            "provider": "yahoo",
+        }
+
+    for sym in symbols:
+        try:
+            # Check cache first
+            cached = _YH_QUOTE_CACHE.get(sym)
+            if cached and (now - cached.get("ts", 0.0) < _YH_QUOTE_TTL_SECONDS):
+                yh = cached.get("data") or {}
+            else:
+                yh = _yh_quote(sym)
+
+            q = _finalize_quote_bulk(
+                sym,
+                yh.get("name") or "",
+                yh.get("currency") or base_currency,
+                yh.get("price"),
+                yh.get("asof") or "",
+            )
+            out[sym] = q
+        except Exception as e:
+            print(f"Error in stock_quotes_bulk for '{sym}': {e}")
+            out[sym] = {"error": "Failed to fetch quote", "symbol": sym, "price": None}
+
+    return jsonify(out)
 
 
 @stock_bp.route("/stock", methods=["GET"])

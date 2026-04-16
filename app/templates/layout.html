@@ -25,6 +25,9 @@
     </script>
     <script>
     // Direct price fetching without caching - always get fresh prices
+    // But we store metadata (currency) for display purposes
+    window._priceMetadata = {}; // Store {type}:{symbol} => {currency, name}
+    
     window.simpleFetch = {
         async getPrice(type, symbol) {
             try {
@@ -43,13 +46,26 @@
                 }
                 const data = await resp.json();
                 console.log(`[Price] Response data:`, data);
+                
+                // Store metadata for entry() calls
+                const metaKey = `${type}:${symbol}`;
+                // For stocks, priceBase is in currencyBase, so store that as the currency
+                // For crypto, price is in the quote currency, so store that
+                const displayCurrency = type === 'stock' ? data.currencyBase : data.currency;
+                window._priceMetadata[metaKey] = {
+                    currency: displayCurrency,
+                    name: data.name,
+                    currencyBase: data.currencyBase
+                };
+                
                 if (type === 'crypto') {
                     const p = (data && typeof data.price === 'number') ? data.price : null;
-                    console.log(`[Price] ${type}:${symbol} = ${p}`);
+                    console.log(`[Price] ${type}:${symbol} = ${p} ${data.currency}`);
                     return p;
                 }
+                // For stocks, use priceBase (converted to app currency) if available
                 const p = (data && typeof data.priceBase === 'number') ? data.priceBase : (data && typeof data.price === 'number' ? data.price : null);
-                console.log(`[Price] ${type}:${symbol} = ${p}`);
+                console.log(`[Price] ${type}:${symbol} = ${p} ${data.currencyBase}`);
                 return p;
             } catch (e) {
                 console.error(`[Price] Exception for ${type}:${symbol}`, e);
@@ -60,18 +76,69 @@
             return this.getPrice(type, symbol);
         },
         async getMany(type, symbols) {
-            console.log(`[Price] getMany called: type=${type}, symbols=[${symbols.join(', ')}]`);
-            const out = {};
-            const promises = (symbols || []).map(async (sym) => {
-                const price = await this.getPrice(type, sym);
-                out[sym] = price;
-            });
-            await Promise.all(promises);
-            console.log(`[Price] getMany result:`, out);
-            return out;
+            if (!symbols || symbols.length === 0) {
+                console.log(`[Price] getMany called with empty symbols`);
+                return {};
+            }
+            
+            try {
+                const symbolsParam = symbols.join(',');
+                const endpoint = type === 'crypto' 
+                    ? `/crypto/quotes?symbols=${encodeURIComponent(symbolsParam)}`
+                    : `/stock/quotes?symbols=${encodeURIComponent(symbolsParam)}`;
+                
+                console.log(`[Price] Fetching bulk ${type} (${symbols.length} symbols):`, symbolsParam);
+                const resp = await fetch(endpoint, { 
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin',
+                    method: 'GET'
+                });
+                
+                console.log(`[Price] Bulk response status: ${resp.status}`);
+                if (!resp.ok) {
+                    const errText = await resp.text();
+                    console.error(`[Price] Bulk fetch failed - Status ${resp.status}`, errText);
+                    return {};
+                }
+                
+                const data = await resp.json();
+                console.log(`[Price] Bulk response data (${type}):`, data);
+                
+                // Store metadata and extract prices
+                const out = {};
+                for (const [sym, priceData] of Object.entries(data)) {
+                    if (!priceData || typeof priceData !== 'object') {
+                        out[sym] = null;
+                        continue;
+                    }
+                    
+                    const metaKey = `${type}:${sym}`;
+                    const displayCurrency = type === 'stock' ? priceData.currencyBase : priceData.currency;
+                    window._priceMetadata[metaKey] = {
+                        currency: displayCurrency,
+                        name: priceData.name,
+                        currencyBase: priceData.currencyBase
+                    };
+                    
+                    if (type === 'crypto') {
+                        out[sym] = (typeof priceData.price === 'number') ? priceData.price : null;
+                    } else {
+                        // For stocks, use priceBase (in app currency) if available
+                        out[sym] = (typeof priceData.priceBase === 'number') ? priceData.priceBase : (typeof priceData.price === 'number' ? priceData.price : null);
+                    }
+                }
+                
+                console.log(`[Price] Bulk processed results:`, out);
+                return out;
+            } catch (e) {
+                console.error(`[Price] Exception in bulk fetch for ${type}:`, e);
+                return {};
+            }
         },
         entry(type, symbol) {
-            return null; // No cache
+            // Return stored metadata for templates
+            const metaKey = `${type}:${symbol}`;
+            return window._priceMetadata[metaKey] || null;
         },
         setBaseCurrency(bc) {
             // No-op
@@ -102,8 +169,6 @@
             // No-op
         }
     };
-    </script>
-    }, true);
     </script>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">

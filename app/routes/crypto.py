@@ -463,6 +463,74 @@ def crypto_quote():
         })
 
 
+@crypto_bp.route("/crypto/quotes", methods=["GET"])
+def crypto_quotes_bulk():
+    """Bulk crypto prices endpoint. Takes comma-separated symbols and returns all prices in one request.
+    
+    Query params:
+    - symbols: comma-separated list of crypto symbols (e.g., "BTC,ETH,ELON")
+    
+    Returns: {BTC: {price, name, currency}, ETH: {...}, ...}
+    """
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    symbols_param = request.args.get("symbols", "").strip()
+    if not symbols_param:
+        return jsonify({})
+
+    user_id = user.get("username")
+    base_currency = _get_user_base_currency(user_id)
+
+    # Parse comma-separated symbols
+    symbols = [s.strip() for s in symbols_param.split(",") if s.strip()]
+    if not symbols:
+        return jsonify({})
+
+    out = {}
+    for symbol in symbols:
+        try:
+            # Extract symbol from "SYMBOL - Name" format if present
+            if " - " in symbol:
+                sym_to_fetch = symbol.split(" - ", 1)[0].strip()
+            else:
+                sym_to_fetch = symbol.strip()
+
+            # Fetch price in USD from CMC
+            price_usd = _best_price_usd(sym_to_fetch)
+            
+            if not price_usd or price_usd <= 0:
+                out[symbol] = {"price": None, "currency": base_currency, "name": ""}
+                continue
+
+            # Convert USD price to user's base currency
+            usd_to_base = _get_fx_rate("USD", base_currency)
+            price_base = float(price_usd * usd_to_base)
+
+            # Get crypto name from CMC
+            crypto_info = _cmc_get_crypto_info(sym_to_fetch)
+            name = ""
+            if crypto_info and crypto_info.get("name"):
+                name = f"{crypto_info.get('symbol', sym_to_fetch)} - {crypto_info.get('name', '')}"
+            else:
+                if " - " in symbol:
+                    name = symbol
+                else:
+                    name = sym_to_fetch
+
+            out[symbol] = {
+                "price": price_base,
+                "currency": base_currency,
+                "name": name,
+            }
+        except Exception as e:
+            print(f"Error in crypto_quotes_bulk for '{symbol}': {e}")
+            out[symbol] = {"price": None, "currency": base_currency, "name": ""}
+
+    return jsonify(out)
+
+
 @crypto_bp.route("/api/crypto-data", methods=["GET"])
 def crypto_data():
     user = session.get("user")
