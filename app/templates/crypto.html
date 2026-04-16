@@ -220,7 +220,15 @@
     function _formatNumber(value, maxDigits) {
         var v = Number(value);
         if (!isFinite(v)) return '0';
-        var opts = { maximumFractionDigits: (typeof maxDigits === 'number' ? maxDigits : 6) };
+        
+        // For very small numbers, use more decimal places instead of rounding to 0
+        var digits = typeof maxDigits === 'number' ? maxDigits : 6;
+        if (v !== 0 && Math.abs(v) < 0.01) {
+            // Use up to 12 decimal places for small numbers
+            digits = Math.max(digits, 12);
+        }
+        
+        var opts = { maximumFractionDigits: digits };
         try { return new Intl.NumberFormat(undefined, opts).format(v); } catch (e) { return String(v); }
     }
 

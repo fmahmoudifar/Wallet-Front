@@ -9,17 +9,14 @@ import requests
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 
 from app.services.user_scope import filter_records_by_user
-from config import API_URL, aws_auth
+from config import API_URL, aws_auth, CMC_API_KEY
 
 crypto_bp = Blueprint("crypto", __name__)
 
-# DexScreener search cache (in-process) to reduce rate-limit and avoid showing 0 prices.
-_DEXSCREENER_SEARCH_CACHE = {}
-_DEXSCREENER_SEARCH_TTL_SECONDS = 300
+# CoinMarketCap cache (in-process) to reduce API calls and respect rate limits
+_CMC_QUOTE_CACHE = {}  # Caches full crypto data by symbol
+_CMC_QUOTE_TTL_SECONDS = 300  # 5 minutes
 
-# Binance spot price cache (in-process). Used to avoid DexScreener symbol-collision issues
-# for well-known assets (ADA, DOGE, etc.). Prices are pulled from SYMBOLUSDT and treated
-# as USD-equivalent for downstream FX conversion.
 _BINANCE_PRICE_CACHE = {}
 _BINANCE_PRICE_TTL_SECONDS = 60
 
@@ -129,275 +126,230 @@ def _format_number_trim(val, max_decimals: int) -> str:
     return s or "0"
 
 
-def _dexscreener_search(query: str) -> list:
-    q = (query or "").strip()
-    if not q:
-        return []
+# ===== CoinMarketCap API Functions =====
 
+def _cmc_get_crypto_info(symbol: str) -> dict:
+    """Fetch crypto info from CoinMarketCap by symbol.
+    
+    Returns dict with keys: id, name, symbol, price_usd
+    Returns empty dict if not found or API unavailable.
+    """
+    if not CMC_API_KEY:
+        print("Warning: CMC_API_KEY not configured")
+        return {}
+
+    sym = (symbol or "").strip().upper()
+    if not sym:
+        return {}
+
+    # Check cache first
     now = time.time()
-    cached = _DEXSCREENER_SEARCH_CACHE.get(q.lower())
-    if cached and (now - cached.get("ts", 0.0) < _DEXSCREENER_SEARCH_TTL_SECONDS):
-        return cached.get("pairs") or []
+    cached = _CMC_QUOTE_CACHE.get(sym)
+    if cached and (now - cached.get("ts", 0.0) < _CMC_QUOTE_TTL_SECONDS):
+        return cached.get("data", {})
 
-    # Handle contract address searches (0x-prefixed Ethereum addresses)
-    if q.lower().startswith("0x") and len(q) == 42:
-        # Use token endpoint for contract addresses
-        url = f"https://api.dexscreener.com/latest/dex/tokens/{q}"
-        headers = {"Accept": "application/json", "User-Agent": "Wallet-Front/1.0"}
-        try:
-            r = requests.get(url, headers=headers, timeout=10)
-            if r.status_code == 200:
-                data = r.json() if r.content else {}
-                pairs = data.get("pairs") if isinstance(data, dict) else []
-                if not isinstance(pairs, list):
-                    pairs = []
-                _DEXSCREENER_SEARCH_CACHE[q.lower()] = {"ts": now, "pairs": pairs}
-                return pairs
-            # Fall through to symbol search as fallback
-        except Exception:
-            pass
+    url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+    headers = {
+        "X-CMC_PRO_API_KEY": CMC_API_KEY,
+        "Accept": "application/json",
+        "User-Agent": "Wallet-Front/1.0",
+    }
 
-    # Standard symbol/name search
-    url = "https://api.dexscreener.com/latest/dex/search"
-    headers = {"Accept": "application/json", "User-Agent": "Wallet-Front/1.0"}
     try:
-        r = requests.get(url, params={"q": q}, headers=headers, timeout=10)
+        r = requests.get(
+            url,
+            params={"symbol": sym, "convert": "USD"},
+            headers=headers,
+            timeout=10,
+        )
         if r.status_code != 200:
-            # Fall back to cache if available.
-            if cached:
-                return cached.get("pairs") or []
-            return []
-        data = r.json() if r.content else {}
-        pairs = data.get("pairs") if isinstance(data, dict) else []
-        if not isinstance(pairs, list):
-            pairs = []
-        _DEXSCREENER_SEARCH_CACHE[q.lower()] = {"ts": now, "pairs": pairs}
-        return pairs
-    except Exception:
-        if cached:
-            return cached.get("pairs") or []
+            return {}
+
+        data = r.json() or {}
+        if "data" not in data or not data["data"]:
+            return {}
+
+        # CMC returns data keyed by symbol
+        crypto_data = data["data"].get(sym) if isinstance(data["data"], dict) else None
+        if not crypto_data:
+            return {}
+
+        result = {
+            "id": crypto_data.get("id"),
+            "name": crypto_data.get("name", sym),
+            "symbol": crypto_data.get("symbol", sym),
+            "price_usd": float(
+                (crypto_data.get("quote", {}).get("USD", {}).get("price")) or 0
+            ),
+        }
+
+        # Cache the result
+        _CMC_QUOTE_CACHE[sym] = {"ts": now, "data": result}
+        return result
+
+    except Exception as e:
+        print(f"Error fetching CMC data for {sym}: {e}")
+        return {}
+
+
+def _cmc_search_symbols(query: str) -> list:
+    """Search for cryptocurrencies on CoinMarketCap.
+    
+    Returns list of dicts with id, symbol, name, and rank.
+    """
+    if not CMC_API_KEY:
         return []
+
+    q = (query or "").strip()
+    if not q or len(q) < 1:
+        return []
+
+    url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/map"
+    headers = {
+        "X-CMC_PRO_API_KEY": CMC_API_KEY,
+        "Accept": "application/json",
+        "User-Agent": "Wallet-Front/1.0",
+    }
+
+    try:
+        # CMC map endpoint supports symbol and listing_status filters
+        # First try exact symbol match
+        r = requests.get(
+            url,
+            params={
+                "symbol": q.upper(),
+                "listing_status": "active,inactive",
+            },
+            headers=headers,
+            timeout=10,
+        )
+
+        if r.status_code != 200:
+            return []
+
+        data = r.json() or {}
+        cryptocurrencies = data.get("data", [])
+
+        if not cryptocurrencies:
+            # Try search by name if symbol didn't match
+            r = requests.get(
+                url,
+                params={
+                    "start": 1,
+                    "limit": 50,
+                    "listing_status": "active,inactive",
+                },
+                headers=headers,
+                timeout=10,
+            )
+            if r.status_code != 200:
+                return []
+
+            data = r.json() or {}
+            cryptocurrencies = data.get("data", [])
+            # Filter by name/symbol match
+            q_upper = q.upper()
+            cryptocurrencies = [
+                c
+                for c in cryptocurrencies
+                if q_upper in str(c.get("name", "")).upper()
+                or q_upper in str(c.get("symbol", "")).upper()
+            ][:20]
+
+        result = []
+        for c in cryptocurrencies:
+            result.append(
+                {
+                    "id": c.get("id"),
+                    "symbol": c.get("symbol"),
+                    "name": c.get("name"),
+                    "rank": c.get("rank"),
+                }
+            )
+        return result
+
+    except Exception as e:
+        print(f"Error searching CMC for '{q}': {e}")
+        return []
+
+
+def _cmc_price_usd(symbol: str) -> Decimal:
+    """Get USD price for a crypto symbol from CoinMarketCap."""
+    if not symbol:
+        return Decimal(0)
+
+    # Handle stablecoins
+    if symbol.upper() in ("USD", "USDT", "USDC", "DAI", "BUSD", "FDUSD"):
+        return Decimal(1)
+
+    info = _cmc_get_crypto_info(symbol)
+    if not info:
+        return Decimal(0)
+
+    try:
+        price = Decimal(str(info.get("price_usd", 0)))
+        return price if price > 0 else Decimal(0)
+    except Exception:
+        return Decimal(0)
+
+
+def _dexscreener_search(query: str) -> list:
+    """DEPRECATED - Use CMC via _cmc_search_symbols() instead."""
+    return []
 
 
 def _dexscreener_best_price_usd(query: str) -> Decimal:
-    """Return best-effort USD price for a token-like query.
-
-    DexScreener returns many pairs; we pick the most liquid/high-volume match.
-    """
-    q_raw = (query or "").strip()
-    if not q_raw:
-        return Decimal(0)
-
-    # DexScreener is symbol-driven and many symbols are reused by unrelated tokens.
-    # Prefer canonical contract address queries for some well-known assets.
-    # (These are the wrapped/pegged representations most likely to have deep liquidity.)
-    CANONICAL_ADDRESS_BY_SYMBOL = {
-        # Binance-Peg Dogecoin (BSC)
-        "DOGE": "0xba2ae424d960c26247dd6c32edc70b295c744c43",
-        # Wrapped BTC (Ethereum)
-        "WBTC": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
-        # Dogelon Mars (Ethereum)
-        "ELON": "0x761d38e5ddf6ccf6cf7c55759d5210750b5d60f3",
-    }
-
-    def _extract_symbol_and_name(s: str) -> tuple[str, str]:
-        s = (s or "").strip()
-        if " - " in s:
-            a, b = s.split(" - ", 1)
-            return (a.strip().upper(), b.strip())
-        # If user passed "SYM Name" try to treat the first token as a symbol.
-        parts = s.split()
-        if len(parts) >= 2 and 1 <= len(parts[0]) <= 10 and parts[0].replace("-", "").isalnum():
-            return (parts[0].strip().upper(), " ".join(parts[1:]).strip())
-        # Symbol-only (common case)
-        if s and " " not in s and len(s) <= 10:
-            return (s.strip().upper(), "")
-        return ("", s)
-
-    q_symbol, q_name = _extract_symbol_and_name(q_raw)
-
-    # For collision-prone symbols (DOGE/WBTC/ELON), canonical address gives stable results.
-    # ELON is ambiguous across multiple tokens, so always force canonical for unambiguous price lookup.
-    search_query = q_raw
-    expected_symbol = q_symbol or q_raw.upper()
-
-    force_canonical = q_symbol in ("DOGE", "WBTC", "ELON")
-
-    if force_canonical and q_symbol in CANONICAL_ADDRESS_BY_SYMBOL:
-        search_query = CANONICAL_ADDRESS_BY_SYMBOL[q_symbol]
-        expected_symbol = q_symbol
-
-    pairs = _dexscreener_search(search_query)
-    if not pairs and search_query != q_raw:
-        # Canonical lookup can miss non-canonical tokens that share the symbol.
-        pairs = _dexscreener_search(q_raw)
-    if not pairs:
-        return Decimal(0)
-
-    def to_float(x) -> float:
-        try:
-            if x is None:
-                return 0.0
-            return float(x)
-        except Exception:
-            return 0.0
-
-    def score_pair(p: dict) -> tuple:
-        try:
-            base = (p.get("baseToken") or {}) if isinstance(p, dict) else {}
-            base_sym = str(base.get("symbol") or "").strip().upper()
-            base_name = str(base.get("name") or "").strip().upper()
-            quote = (p.get("quoteToken") or {}) if isinstance(p, dict) else {}
-            quote_sym = str(quote.get("symbol") or "").strip().upper()
-
-            liquidity_usd = to_float(((p.get("liquidity") or {}) if isinstance(p, dict) else {}).get("usd"))
-            vol_h24 = to_float(((p.get("volume") or {}) if isinstance(p, dict) else {}).get("h24"))
-
-            # Prefer exact symbol match when we have one.
-            exact_sym = 1 if (expected_symbol and base_sym == expected_symbol) else 0
-
-            # Prefer name hits if the caller provided a name (e.g. "DOGE - Dogecoin").
-            name_hit = 0
-            if q_name:
-                want = str(q_name).strip().upper()
-                if want and want in base_name:
-                    name_hit = 1
-
-            # Prefer stable-quoted pairs for cleaner USD pricing.
-            stable_quote = 1 if quote_sym in ("USD", "USDT", "USDC", "DAI", "BUSD", "FDUSD") else 0
-
-            return (exact_sym, name_hit, stable_quote, liquidity_usd, vol_h24)
-        except Exception:
-            return (0, 0, 0, 0.0, 0.0)
-
-    best = None
-    best_score = None
-    for p in pairs:
-        if not isinstance(p, dict):
-            continue
-        price_usd_raw = p.get("priceUsd")
-        if price_usd_raw is None:
-            continue
-        s = score_pair(p)
-        if best is None or s > (best_score or (0, 0, 0, 0.0, 0.0)):
-            best = p
-            best_score = s
-
-    if not best:
-        return Decimal(0)
-
-    try:
-        price = Decimal(str(best.get("priceUsd") or "0"))
-    except Exception:
-        price = Decimal(0)
-
-    # DexScreener is DEX-pair based. Some L1 symbols (especially BTC) are commonly
-    # used by unrelated tokens on various chains. In that case, a direct symbol
-    # search can produce a very low "BTC" price that is not actually Bitcoin.
-    # If we detect an implausibly low price for BTC, proxy to WBTC.
-    try:
-        if (q_symbol or q_raw.upper()) in ("BTC", "BITCOIN") and (price is None or price < Decimal("1000")):
-            # Prefer canonical WBTC address.
-            proxy = _dexscreener_best_price_usd(CANONICAL_ADDRESS_BY_SYMBOL.get("WBTC") or "WBTC")
-            if proxy and proxy > 0:
-                return proxy
-    except Exception:
-        pass
-
-    return price
+    """DEPRECATED - Use CMC only via _best_price_usd()"""
+    return Decimal(0)
 
 
 def _binance_price_usd(symbol: str) -> Decimal:
-    """Return best-effort USD price for a spot symbol using Binance.
-
-    We query SYMBOLUSDT and treat USDT as USD-equivalent.
+    """DEPRECATED - Use CMC only via _best_price_usd(). 
+    
+    Kept for backward compatibility - only returns stablecoins.
     """
     sym = (symbol or "").strip().upper()
-    if not sym:
-        return Decimal(0)
-
-    # Skip contract addresses / odd queries
-    if sym.startswith("0X") or ":" in sym or "/" in sym:
-        return Decimal(0)
-
+    
     # Common stablecoins
     if sym in ("USD", "USDT", "USDC", "DAI", "FDUSD", "BUSD"):
         return Decimal(1)
-
-    # Conservative symbol validation
-    if not sym.replace("-", "").isalnum() or len(sym) > 15:
-        return Decimal(0)
-
-    now = time.time()
-    cached = _BINANCE_PRICE_CACHE.get(sym)
-    if cached and (now - cached.get("ts", 0.0) < _BINANCE_PRICE_TTL_SECONDS):
-        try:
-            return Decimal(str(cached.get("price") or "0"))
-        except Exception:
-            return Decimal(0)
-
-    url = "https://api.binance.com/api/v3/ticker/price"
-    headers = {"Accept": "application/json", "User-Agent": "Wallet-Front/1.0"}
-    pair = f"{sym}USDT"
-    try:
-        r = requests.get(url, params={"symbol": pair}, headers=headers, timeout=10)
-        if r.status_code != 200:
-            if cached:
-                return Decimal(str(cached.get("price") or "0"))
-            return Decimal(0)
-        data = r.json() if r.content else {}
-        price_raw = data.get("price") if isinstance(data, dict) else None
-        if price_raw is None:
-            return Decimal(0)
-        price = Decimal(str(price_raw))
-        if price and price > 0:
-            _BINANCE_PRICE_CACHE[sym] = {"ts": now, "price": str(price)}
-        return price
-    except Exception:
-        if cached:
-            return Decimal(str(cached.get("price") or "0"))
-        return Decimal(0)
+    
+    return Decimal(0)
 
 
 def _best_price_usd(query: str) -> Decimal:
-    """Unified price lookup.
-
-    Prefer Binance for plain symbols (reduces symbol-collision errors), then fall back
-    to DexScreener for long-tail tokens.
+    """Unified price lookup using CoinMarketCap.
+    
+    Extracts symbol from query (handles "SYMBOL - Name" format) and fetches price.
+    CMC-only, no fallbacks to legacy sources.
     """
     q = (query or "").strip()
     if not q:
         return Decimal(0)
 
-    # If user passed "SYMBOL - Name" prefer the symbol part.
+    # Extract symbol from query
     sym = ""
     if " - " in q:
         sym = q.split(" - ", 1)[0].strip().upper()
     else:
         # If query looks like a symbol, treat it as such
-        if " " not in q and len(q) <= 15:
+        if " " not in q and len(q) <= 15 and not q.startswith("0x"):
             sym = q.strip().upper()
         else:
             parts = q.split()
-            if parts and 1 <= len(parts[0]) <= 15:
+            if parts and 1 <= len(parts[0]) <= 15 and not parts[0].startswith("0x"):
                 sym = parts[0].strip().upper()
 
-    # Skip Binance for contract address searches
-    if q.lower().startswith("0x") or ":" in q or "/" in q:
-        return _dexscreener_best_price_usd(q)
-
-    # Try Binance first for symbol-like queries
+    # Use CMC for price lookup (no fallbacks)
     if sym:
-        p = _binance_price_usd(sym)
-        if p and p > 0:
-            return p
+        return _cmc_price_usd(sym)
 
-    return _dexscreener_best_price_usd(q)
+    return Decimal(0)
 
 
 @crypto_bp.get("/crypto/search")
 def crypto_search():
-    """Autocomplete helper: return a small list of token suggestions from DexScreener.
+    """Autocomplete helper: return a small list of token suggestions from CoinMarketCap.
 
     Response shape matches the client-side expectations: {coins:[{id,symbol,name}, ...]}.
     """
@@ -406,64 +358,21 @@ def crypto_search():
         return jsonify({"coins": []})
 
     q = (request.args.get("q") or "").strip()
-    if len(q) < 2:
+    if len(q) < 1:
         return jsonify({"coins": []})
 
-    pairs = _dexscreener_search(q)
-    if not pairs:
+    # Search CMC for matching cryptos
+    results = _cmc_search_symbols(q)
+    if not results:
         return jsonify({"coins": []})
 
-    q_upper = q.upper()
-
-    def to_float(x) -> float:
-        try:
-            if x is None:
-                return 0.0
-            return float(x)
-        except Exception:
-            return 0.0
-
-    def score_pair(p: dict) -> tuple:
-        try:
-            base = (p.get("baseToken") or {}) if isinstance(p, dict) else {}
-            base_sym = str(base.get("symbol") or "").strip().upper()
-            base_name = str(base.get("name") or "").strip().upper()
-            quote = (p.get("quoteToken") or {}) if isinstance(p, dict) else {}
-            quote_sym = str(quote.get("symbol") or "").strip().upper()
-
-            liquidity_usd = to_float(((p.get("liquidity") or {}) if isinstance(p, dict) else {}).get("usd"))
-            vol_h24 = to_float(((p.get("volume") or {}) if isinstance(p, dict) else {}).get("h24"))
-
-            exact_sym = 1 if (base_sym == q_upper) else 0
-            sym_hit = 1 if (q_upper in base_sym and base_sym) else 0
-            name_hit = 1 if (q_upper in base_name and base_name) else 0
-            stable_quote = 1 if quote_sym in ("USD", "USDT", "USDC", "DAI", "BUSD", "FDUSD") else 0
-
-            return (exact_sym, sym_hit, name_hit, stable_quote, liquidity_usd, vol_h24)
-        except Exception:
-            return (0, 0, 0, 0, 0.0, 0.0)
-
-    # Pick the best representative pair per base symbol.
-    best_by_symbol = {}
-    for p in pairs:
-        if not isinstance(p, dict):
-            continue
-        base = p.get("baseToken") or {}
-        sym = str(base.get("symbol") or "").strip().upper()
-        if not sym:
-            continue
-        s = score_pair(p)
-        existing = best_by_symbol.get(sym)
-        if (existing is None) or (s > existing["score"]):
-            best_by_symbol[sym] = {
-                "score": s,
-                "name": str(base.get("name") or "").strip() or sym,
-            }
-
-    ranked = sorted(best_by_symbol.items(), key=lambda kv: kv[1]["score"], reverse=True)
     coins = []
-    for sym, meta in ranked[:20]:
-        coins.append({"id": sym.lower(), "symbol": sym, "name": meta.get("name") or sym})
+    for c in results[:20]:  # Limit to 20 results
+        coins.append({
+            "id": str(c.get("id", "")).lower(),
+            "symbol": c.get("symbol") or "",
+            "name": f"{c.get('symbol') or ''} - {c.get('name') or ''}",
+        })
 
     return jsonify({"coins": coins})
 
@@ -480,46 +389,17 @@ def crypto_page():
 
 
 def _dexscreener_token_name(query: str) -> str:
-    """Return the token name for a query by reading already-cached DexScreener pairs.
-
-    Uses the same scoring logic as _dexscreener_best_price_usd so we pick the same pair.
-    Returns empty string if nothing is cached or no name is found.
-    """
-    q = (query or "").strip()
-    if not q:
-        return ""
-    cached = _DEXSCREENER_SEARCH_CACHE.get(q.lower())
-    if not cached:
-        return ""
-    pairs = cached.get("pairs") or []
-    best = None
-    best_score = None
-    for p in pairs:
-        if not isinstance(p, dict):
-            continue
-        if p.get("priceUsd") is None:
-            continue
-        base = p.get("baseToken") or {}
-        base_sym = str(base.get("symbol") or "").strip().upper()
-        quote = p.get("quoteToken") or {}
-        quote_sym = str(quote.get("symbol") or "").strip().upper()
-        liq = float(((p.get("liquidity") or {}).get("usd") or 0) or 0)
-        vol = float(((p.get("volume") or {}).get("h24") or 0) or 0)
-        expected = q.upper().split(" - ", 1)[0].strip().upper() if " - " in q else q.upper()
-        exact = 1 if base_sym == expected else 0
-        stable = 1 if quote_sym in ("USD", "USDT", "USDC", "DAI", "BUSD", "FDUSD") else 0
-        score = (exact, stable, liq, vol)
-        if best is None or score > best_score:
-            best = p
-            best_score = score
-    if best:
-        return str((best.get("baseToken") or {}).get("name") or "").strip()
+    """DEPRECATED - Use CMC via _cmc_get_crypto_info() instead."""
     return ""
+
 
 
 @crypto_bp.route("/crypto/quote", methods=["GET"])
 def crypto_quote():
-    """Per-symbol live price endpoint (called client-side to hydrate portfolio cards)."""
+    """Per-symbol live price endpoint (called client-side to hydrate portfolio cards).
+    
+    Uses CMC as sole price source. Returns price in user's base currency.
+    """
     user = session.get("user")
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
@@ -532,28 +412,38 @@ def crypto_quote():
     base_currency = _get_user_base_currency(user_id)
 
     try:
-        # Try symbol as-is, then first part of "SYMBOL - Name"
-        q1 = symbol
-        q2 = ""
+        # Extract symbol from "SYMBOL - Name" format if present
         if " - " in symbol:
-            q1 = symbol.split(" - ", 1)[0].strip()
-            q2 = symbol.split(" - ", 1)[1].strip()
+            sym_to_fetch = symbol.split(" - ", 1)[0].strip()
+        else:
+            sym_to_fetch = symbol.strip()
 
-        price_usd = _best_price_usd(q1)
-        if (not price_usd or price_usd == 0) and q2:
-            price_usd = _best_price_usd(q2)
-        if not price_usd or price_usd == 0:
-            price_usd = _best_price_usd(symbol)
+        # Fetch price in USD from CMC (CMC-only, no fallbacks)
+        price_usd = _best_price_usd(sym_to_fetch)
+        
+        # If no price found, return null (frontend will display "—")
+        if not price_usd or price_usd <= 0:
+            return jsonify({
+                "symbol": symbol,
+                "price": None,
+                "currency": base_currency,
+            })
 
-        if not price_usd or price_usd == 0:
-            return jsonify({"symbol": symbol, "price": None, "currency": base_currency})
-
+        # Convert USD price to user's base currency
         usd_to_base = _get_fx_rate("USD", base_currency)
         price_base = float(price_usd * usd_to_base)
 
-        # Try to resolve a human-readable name from DexScreener cache (no extra API call).
-        # If stored as "BTC - Bitcoin", prefer the inline name.
-        name = q2 if q2 else _dexscreener_token_name(q1)
+        # Get crypto name from CMC
+        crypto_info = _cmc_get_crypto_info(sym_to_fetch)
+        name = ""
+        if crypto_info and crypto_info.get("name"):
+            name = f"{crypto_info.get('symbol', sym_to_fetch)} - {crypto_info.get('name', '')}"
+        else:
+            # Fallback: use what we have
+            if " - " in symbol:
+                name = symbol
+            else:
+                name = sym_to_fetch
 
         return jsonify({
             "symbol": symbol,
@@ -561,9 +451,16 @@ def crypto_quote():
             "currency": base_currency,
             "name": name,
         })
+
     except Exception as e:
-        print(f"Error in crypto quote for {symbol}: {e}")
-        return jsonify({"symbol": symbol, "price": None, "currency": base_currency})
+        print(f"Error in crypto_quote for '{symbol}': {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "symbol": symbol,
+            "price": None,
+            "currency": base_currency,
+        })
 
 
 @crypto_bp.route("/api/crypto-data", methods=["GET"])
@@ -649,59 +546,15 @@ def crypto_data():
             )
 
         # Enrich coins that only have SYMBOL as name (e.g. 'BTC' -> 'Bitcoin').
-        # Uses DexScreener search so autocomplete shows "SYMBOL - Full Name".
+        # Uses CoinMarketCap data so autocomplete shows "SYMBOL - Full Name".
         def _best_token_name_for_symbol(symbol: str) -> str:
             sym_q = (symbol or "").strip().upper()
             if not sym_q:
                 return ""
-            pairs = _dexscreener_search(sym_q)
-            if not pairs:
+            info = _cmc_get_crypto_info(sym_q)
+            if not info:
                 return ""
-
-            def to_float(x) -> float:
-                try:
-                    if x is None:
-                        return 0.0
-                    return float(x)
-                except Exception:
-                    return 0.0
-
-            def score_pair(p: dict) -> tuple:
-                try:
-                    base = (p.get("baseToken") or {}) if isinstance(p, dict) else {}
-                    base_sym = str(base.get("symbol") or "").strip().upper()
-                    quote = (p.get("quoteToken") or {}) if isinstance(p, dict) else {}
-                    quote_sym = str(quote.get("symbol") or "").strip().upper()
-                    liquidity_usd = to_float(
-                        ((p.get("liquidity") or {}) if isinstance(p, dict) else {}).get("usd")
-                    )
-                    vol_h24 = to_float(
-                        ((p.get("volume") or {}) if isinstance(p, dict) else {}).get("h24")
-                    )
-                    exact_sym = 1 if base_sym == sym_q else 0
-                    stable_quote = (
-                        1 if quote_sym in ("USD", "USDT", "USDC", "DAI", "BUSD", "FDUSD") else 0
-                    )
-                    return (exact_sym, stable_quote, liquidity_usd, vol_h24)
-                except Exception:
-                    return (0, 0, 0.0, 0.0)
-
-            best = None
-            best_score = None
-            for p in pairs:
-                if not isinstance(p, dict):
-                    continue
-                base = p.get("baseToken") or {}
-                if str(base.get("symbol") or "").strip().upper() != sym_q:
-                    continue
-                s = score_pair(p)
-                if best is None or s > (best_score or (0, 0, 0.0, 0.0)):
-                    best = p
-                    best_score = s
-            if not best:
-                return ""
-            base = best.get("baseToken") or {}
-            return str(base.get("name") or "").strip()
+            return info.get("name", "")
 
         # Collect symbols that need name enrichment
         symbols_to_lookup = []
@@ -1142,9 +995,9 @@ def crypto_data():
                 "pct_fill": pct_fill,
                 "pct_fill_str": f"{pct_fill:.2f}",
                 "avg_buy_price": avg_buy,
-                "avg_buy_price_display": _format_number_trim(v.get("avg_buy_price", 0), 6) if v.get("avg_buy_price") is not None else "—",
+                "avg_buy_price_display": _format_number_trim(v.get("avg_buy_price", 0), 12) if v.get("avg_buy_price") is not None else "—",
                 "total_fee": fee_total,
-                "total_fee_display": _format_number_trim(v.get("total_fee", 0), 2),
+                "total_fee_display": _format_number_trim(v.get("total_fee", 0), 10) if v.get("total_fee", 0) > 0 else "—",
                 "value_change_amount": change_amt,
                 "value_change_amount_abs_display": "\u2014" if change_amt is None else _format_number_trim(
                     abs(change_amt), 2

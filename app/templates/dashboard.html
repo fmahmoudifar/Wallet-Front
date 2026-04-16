@@ -430,7 +430,23 @@ function renderDashboard(data, cryptoPrices, stockPrices) {
 
     var formatMoney = function(v) {
         var n = Number(v || 0);
-        return n.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + baseCurrency;
+        // For very small numbers, use more decimals instead of rounding to 0
+        var maxDecimals = 2;
+        if (n !== 0 && Math.abs(n) < 0.01) {
+            maxDecimals = 12;
+        }
+        return n.toLocaleString(undefined, { maximumFractionDigits: maxDecimals }) + ' ' + baseCurrency;
+    };
+
+    // Format a number with extended decimals for small values
+    var formatSmallNumber = function(v, decimals) {
+        var n = Number(v || 0);
+        // For very small numbers, use more decimals
+        var maxDecimals = decimals || 2;
+        if (n !== 0 && Math.abs(n) < 0.01) {
+            maxDecimals = Math.max(maxDecimals, 12);
+        }
+        return n.toLocaleString(undefined, { maximumFractionDigits: maxDecimals });
     };
 
     var borderLend = (_dbColors && _dbColors.colorLend) || '#6c757d';
@@ -483,7 +499,7 @@ function renderDashboard(data, cryptoPrices, stockPrices) {
         var walletTotal = walletFiltered.reduce(function(s, w) { return s + (Number(w.balanceBase || w.balance) || 0); }, 0);
         var walletTotalEl = document.getElementById('walletTotalText');
         if (walletTotalEl) {
-            walletTotalEl.textContent = walletTotal.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + baseCurrency;
+            walletTotalEl.textContent = formatSmallNumber(walletTotal, 2) + ' ' + baseCurrency;
             walletTotalEl.style.color = '#00b09a';
             walletTotalEl.className = '';
         }
@@ -519,8 +535,8 @@ function renderDashboard(data, cryptoPrices, stockPrices) {
                                 var base = String(baseCurrency || '').trim();
                                 var curUpper = cur ? cur.toUpperCase() : '';
                                 var baseUpper = base ? base.toUpperCase() : '';
-                                var a = base ? vBase.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + base : vBase.toLocaleString(undefined, { maximumFractionDigits: 2 });
-                                var b = cur ? vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + cur : vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                                var a = base ? formatSmallNumber(vBase, 2) + ' ' + base : formatSmallNumber(vBase, 2);
+                                var b = cur ? formatSmallNumber(vWallet, 2) + ' ' + cur : formatSmallNumber(vWallet, 2);
                                 if (curUpper && baseUpper && curUpper === baseUpper) return a;
                                 if (baseUpper && !curUpper) return a;
                                 if (!baseUpper && curUpper) return b;
@@ -550,9 +566,9 @@ function renderDashboard(data, cryptoPrices, stockPrices) {
                 var baseUpper = baseCurrency ? baseCurrency.toUpperCase() : '';
                 var sameCurrency = curUpper && baseUpper && curUpper === baseUpper;
                 var walletVal = cur
-                    ? vWallet.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + cur
-                    : vBase.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + baseCurrency;
-                var baseVal = vBase.toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' ' + baseCurrency;
+                    ? formatSmallNumber(vWallet, 2) + ' ' + cur
+                    : formatSmallNumber(vBase, 2) + ' ' + baseCurrency;
+                var baseVal = formatSmallNumber(vBase, 2) + ' ' + baseCurrency;
                 var convertedLine = sameCurrency ? ''
                     : '<div style="text-align:right; font-size:11px; color:#6a7d94; margin-top:1px;">≈ ' + baseVal + '</div>';
                 return '<div style="display:flex; align-items:flex-start; justify-content:space-between; padding:4px 0; font-size:12px; gap:8px;">'

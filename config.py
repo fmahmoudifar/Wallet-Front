@@ -17,6 +17,9 @@ aws_auth = AWS4Auth(AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION, AWS_SERVICE)
 # Backward compatible env var: AV_API_KEY
 ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY") or os.getenv("AV_API_KEY")
 
+# CoinMarketCap API (crypto)
+CMC_API_KEY = os.getenv("CMC_API_KEY")
+
 # Stock data provider:
 # - yahoo (default): Yahoo Finance only
 # - auto: try Alpha Vantage, fall back to Yahoo Finance
