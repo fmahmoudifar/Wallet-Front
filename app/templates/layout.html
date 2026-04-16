@@ -90,7 +90,7 @@
             // Wipes the cache if the base currency changed since last use.
             setBaseCurrency(bc) {
                 const data = load();
-                const cur = String(bc || '').trim();
+                const cur = String(bc || '').trim().toUpperCase();
                 if (!cur) return;
                 if (data.baseCurrency && data.baseCurrency !== cur) {
                     save({ crypto: {}, stock: {}, baseCurrency: cur, lastRefresh: 0 });
@@ -124,7 +124,8 @@
 
                 data[type] = data[type] || {};
                 data[type][key] = { price: result.price, currency: result.currency, name: result.name, ts: now };
-                data.lastRefresh = now;
+                // Only update lastRefresh on explicit force-refresh, not on auto-fetches
+                if (opts.force) data.lastRefresh = now;
                 save(data);
                 return result.price;
             },

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cache Debugger</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+        .section { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        h2 { margin-top: 0; border-bottom: 2px solid #3a3a3a; }
+        pre { background: #f0f0f0; padding: 10px; overflow-x: auto; }
+        .time-info { color: #666; font-size: 0.9em; }
+        code { background: #e0e0e0; padding: 2px 4px; border-radius: 2px; }
+        button { padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .alert { padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Cache Debugger</h1>
+    
+    <div class="section">
+        <h2>Price Cache Status</h2>
+        <button onclick="showPriceCache()">Check Price Cache</button>
+        <button onclick="clearCaches()">Clear All Caches</button>
+        <pre id="priceOutput">Loading...</pre>
+    </div>
+
+    <div class="section">
+        <h2>Page Data Cache Status</h2>
+        <button onclick="showPageDataCache()">Check Page Data Cache</button>
+        <pre id="pageOutput">Loading...</pre>
+    </div>
+
+    <div class="section">
+        <h2>Instructions</h2>
+        <ol>
+            <li>Open this page in your browser while logged in</li>
+            <li>Click "Check Price Cache" to see what prices are cached and their timestamps</li>
+            <li>Navigate between pages (dashboard, crypto, stock) within 1 minute</li>
+            <li>Come back here and click "Check Price Cache" again</li>
+            <li>Check if timestamps changed or if <code>lastRefresh</code> updated</li>
+        </ol>
+        <p><strong>If lastRefresh timestamp is updating even though prices are still in cache,</strong> it confirms the bug.</p>
+    </div>
+
+    <script>
+        function formatTime(ts) {
+            if (!ts) return 'never';
+            const d = new Date(ts);
+            return d.toLocaleString() + ` (${Math.round((Date.now() - ts) / 1000)}s ago)`;
+        }
+
+        function showPriceCache() {
+            try {
+                const raw = localStorage.getItem('walletfront:priceCache:v1');
+                const data = raw ? JSON.parse(raw) : {};
+                
+                let output = `Current time: ${formatTime(Date.now())}\n`;
+                output += `\nGlobal lastRefresh: ${formatTime(data.lastRefresh)}\n`;
+                output += `TTL: 1 hour (3600000 ms)\n\n`;
+                
+                // Helper function to check if entry is fresh
+                function isFresh(entry) {
+                    const TTL_MS = 3600000;
+                    if (!entry || !entry.ts) return false;
+                    return (Date.now() - entry.ts) < TTL_MS;
+                }
+                
+                output += '=== CRYPTO PRICES ===\n';
+                const crypto = data.crypto || {};
+                if (Object.keys(crypto).length === 0) {
+                    output += '(none cached)\n';
+                } else {
+                    Object.entries(crypto).forEach(([key, entry]) => {
+                        const fresh = isFresh(entry) ? '✓ FRESH' : '✗ STALE';
+                        const age = entry.ts ? Math.round((Date.now() - entry.ts) / 1000) : '?';
+                        output += `${key}: ${entry.price} ${entry.currency}\n`;
+                        output += `  ${fresh} (${age}s old, ts: ${formatTime(entry.ts)})\n`;
+                    });
+                }
+                
+                output += '\n=== STOCK PRICES ===\n';
+                const stock = data.stock || {};
+                if (Object.keys(stock).length === 0) {
+                    output += '(none cached)\n';
+                } else {
+                    Object.entries(stock).forEach(([key, entry]) => {
+                        const fresh = isFresh(entry) ? '✓ FRESH' : '✗ STALE';
+                        const age = entry.ts ? Math.round((Date.now() - entry.ts) / 1000) : '?';
+                        output += `${key}: ${entry.price} ${entry.currency}\n`;
+                        output += `  ${fresh} (${age}s old, ts: ${formatTime(entry.ts)})\n`;
+                    });
+                }
+                
+                output += `\nBase Currency: ${data.baseCurrency || '(not set)'}`;
+                document.getElementById('priceOutput').textContent = output;
+            } catch (e) {
+                document.getElementById('priceOutput').textContent = `Error: ${e.message}`;
+            }
+        }
+
+        function showPageDataCache() {
+            try {
+                const raw = localStorage.getItem('walletfront:pageDataCache:v1');
+                const data = raw ? JSON.parse(raw) : {};
+                
+                let output = `Current time: ${formatTime(Date.now())}\n`;
+                output += `TTL: 1 hour (3600000 ms)\n\n`;
+                
+                const TTL_MS = 3600000;
+                Object.entries(data).forEach(([pageName, entry]) => {
+                    const fresh = (Date.now() - (entry.ts || 0)) < TTL_MS ? '✓ FRESH' : '✗ STALE';
+                    const age = entry.ts ? Math.round((Date.now() - entry.ts) / 1000) : '?';
+                    output += `${pageName}: ${fresh} (${age}s old, ts: ${formatTime(entry.ts)})\n`;
+                    if (entry.payload && typeof entry.payload === 'object') {
+                        output += `  Keys: ${Object.keys(entry.payload).join(', ')}\n`;
+                    }
+                });
+                
+                if (Object.keys(data).length === 0) {
+                    output += '(no pages cached)';
+                }
+                document.getElementById('pageOutput').textContent = output;
+            } catch (e) {
+                document.getElementById('pageOutput').textContent = `Error: ${e.message}`;
+            }
+        }
+
+        function clearCaches() {
+            if (confirm('Clear all caches? This will delete priceCache and pageDataCache from localStorage.')) {
+                localStorage.removeItem('walletfront:priceCache:v1');
+                localStorage.removeItem('walletfront:pageDataCache:v1');
+                alert('Caches cleared. Now refresh the page.');
+                showPriceCache();
+                showPageDataCache();
+            }
+        }
+
+        // Show both on load
+        window.addEventListener('load', () => {
+            showPriceCache();
+            showPageDataCache();
+        });
+
+        // Auto-refresh every 5 seconds
+        setInterval(() => {
+            showPriceCache();
+            showPageDataCache();
+        }, 5000);
+    </script>
+</body>
+</html>
