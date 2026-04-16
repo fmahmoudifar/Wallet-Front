@@ -24,240 +24,85 @@
         })();
     </script>
     <script>
-    // Shared client-side price cache for crypto and stock symbols.
-    // - Prices are stored in localStorage, keyed by type + symbol, in the user's base currency.
-    // - TTL is 1 hour. Expired entries are re-fetched on access.
-    // - Changing the base currency wipes the cache (stored prices are in the previous currency).
-    (function () {
-        const KEY = 'walletfront:priceCache:v1';
-        const TTL_MS = 60 * 60 * 1000;
-
-        function load() {
+    // Direct price fetching without caching - always get fresh prices
+    window.simpleFetch = {
+        async getPrice(type, symbol) {
             try {
-                const raw = localStorage.getItem(KEY);
-                if (!raw) return { crypto: {}, stock: {}, baseCurrency: '', lastRefresh: 0 };
-                const parsed = JSON.parse(raw) || {};
-                return {
-                    crypto: parsed.crypto || {},
-                    stock: parsed.stock || {},
-                    baseCurrency: parsed.baseCurrency || '',
-                    lastRefresh: parsed.lastRefresh || 0,
-                };
+                const endpoint = type === 'crypto' ? `/crypto/quote?symbol=${encodeURIComponent(symbol)}` : `/stock/quote?symbol=${encodeURIComponent(symbol)}`;
+                console.log(`[Price] Fetching ${endpoint}`);
+                const resp = await fetch(endpoint, { 
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin',
+                    method: 'GET'
+                });
+                console.log(`[Price] Response status: ${resp.status}`);
+                if (!resp.ok) {
+                    const errText = await resp.text();
+                    console.error(`[Price] Fetch failed ${type}:${symbol} - Status ${resp.status}`, errText);
+                    return null;
+                }
+                const data = await resp.json();
+                console.log(`[Price] Response data:`, data);
+                if (type === 'crypto') {
+                    const p = (data && typeof data.price === 'number') ? data.price : null;
+                    console.log(`[Price] ${type}:${symbol} = ${p}`);
+                    return p;
+                }
+                const p = (data && typeof data.priceBase === 'number') ? data.priceBase : (data && typeof data.price === 'number' ? data.price : null);
+                console.log(`[Price] ${type}:${symbol} = ${p}`);
+                return p;
             } catch (e) {
-                return { crypto: {}, stock: {}, baseCurrency: '', lastRefresh: 0 };
-            }
-        }
-        function save(data) {
-            try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
-        }
-        function endpoint(type, symbol) {
-            const s = encodeURIComponent(symbol);
-            return type === 'crypto' ? ('/crypto/quote?symbol=' + s) : ('/stock/quote?symbol=' + s);
-        }
-        function normalizeSymbol(type, symbol) {
-            let s = String(symbol || '').trim();
-            if (!s) return '';
-            // Keep crypto name information (e.g. "BTC - Bitcoin") but normalize
-            // spacing/case so equivalent variants hit the same cache key.
-            s = s.replace(/\s+/g, ' ');
-            if (type === 'stock' || type === 'crypto') s = s.toUpperCase();
-            return s;
-        }
-        function extractPrice(type, d) {
-            if (!d) return null;
-            if (type === 'crypto') return typeof d.price === 'number' ? d.price : null;
-            if (typeof d.priceBase === 'number') return d.priceBase;
-            if (typeof d.price === 'number') return d.price;
-            return null;
-        }
-
-        async function fetchOne(type, symbol) {
-            try {
-                const r = await fetch(endpoint(type, symbol), { headers: { 'Accept': 'application/json' } });
-                if (!r.ok) return null;
-                const d = await r.json();
-                const price = extractPrice(type, d);
-                if (price == null) return null;
-                const currency = (type === 'stock' && d.currencyBase) ? d.currencyBase : (d.currency || '');
-                return { price, currency, name: d.name || '' };
-            } catch (e) {
+                console.error(`[Price] Exception for ${type}:${symbol}`, e);
                 return null;
             }
+        },
+        async get(type, symbol, opts) {
+            return this.getPrice(type, symbol);
+        },
+        async getMany(type, symbols) {
+            console.log(`[Price] getMany called: type=${type}, symbols=[${symbols.join(', ')}]`);
+            const out = {};
+            const promises = (symbols || []).map(async (sym) => {
+                const price = await this.getPrice(type, sym);
+                out[sym] = price;
+            });
+            await Promise.all(promises);
+            console.log(`[Price] getMany result:`, out);
+            return out;
+        },
+        entry(type, symbol) {
+            return null; // No cache
+        },
+        setBaseCurrency(bc) {
+            // No-op
+        },
+        lastRefresh() {
+            return 0;
+        },
+        ttlMs() {
+            return 0;
         }
-
-        const priceCache = {
-            // Call once per page load with the current base currency.
-            // Wipes the cache if the base currency changed since last use.
-            setBaseCurrency(bc) {
-                const data = load();
-                const cur = String(bc || '').trim().toUpperCase();
-                if (!cur) return;
-                if (data.baseCurrency && data.baseCurrency !== cur) {
-                    save({ crypto: {}, stock: {}, baseCurrency: cur, lastRefresh: 0 });
-                } else if (!data.baseCurrency) {
-                    data.baseCurrency = cur;
-                    save(data);
-                }
-            },
-            // Returns cached price if fresh, else fetches. null on failure.
-            async get(type, symbol, opts) {
-                opts = opts || {};
-                const rawSymbol = String(symbol || '').trim();
-                const key = normalizeSymbol(type, rawSymbol);
-                if (!key) return null;
-
-                const now = Date.now();
-                const data = load();
-                const bucket = data[type] || {};
-                const entry = bucket[key];
-                const entryTs = (entry && typeof entry.ts === 'number' && entry.ts > 0) ? entry.ts : now;
-                const fresh = entry && entry.price != null && (now - entryTs) < TTL_MS;
-                if (entry && entry.price != null && !entry.ts) {
-                    data[type] = data[type] || {};
-                    data[type][key] = { price: entry.price, currency: entry.currency || '', name: entry.name || '', ts: now };
-                    save(data);
-                }
-                if (!opts.force && fresh) return entry.price;
-
-                const result = await fetchOne(type, rawSymbol || key);
-                if (!result) return entry && entry.price != null ? entry.price : null;
-
-                data[type] = data[type] || {};
-                data[type][key] = { price: result.price, currency: result.currency, name: result.name, ts: now };
-                // Only update lastRefresh on explicit force-refresh, not on auto-fetches
-                if (opts.force) data.lastRefresh = now;
-                save(data);
-                return result.price;
-            },
-            // Returns the full cached entry (price, currency, name, ts) or null. Does not fetch.
-            entry(type, symbol) {
-                const key = normalizeSymbol(type, symbol);
-                if (!key) return null;
-                const data = load();
-                const bucket = data[type] || {};
-                const e = bucket[key];
-                if (!e || e.price == null) return null;
-                const ts = (typeof e.ts === 'number' && e.ts > 0) ? e.ts : Date.now();
-                return { price: e.price, currency: e.currency || '', name: e.name || '', ts: ts };
-            },
-            // Parallel batch. Returns { symbol: price|null }.
-            async getMany(type, symbols, opts) {
-                const rawList = (symbols || []).map(function (s) { return String(s || '').trim(); }).filter(Boolean);
-                const out = {};
-                const byKey = new Map();
-                rawList.forEach(function (raw) {
-                    const key = normalizeSymbol(type, raw);
-                    if (key && !byKey.has(key)) byKey.set(key, raw);
-                });
-
-                const priceByKey = {};
-                await Promise.all(Array.from(byKey.entries()).map(async function (pair) {
-                    const key = pair[0];
-                    const raw = pair[1];
-                    priceByKey[key] = await priceCache.get(type, raw, opts);
-                }));
-
-                rawList.forEach(function (raw) {
-                    const key = normalizeSymbol(type, raw);
-                    out[raw] = key ? (priceByKey[key] ?? null) : null;
-                });
-                return out;
-            },
-            // Force-refresh a single symbol (e.g., after a new transaction for it).
-            async refresh(type, symbol) {
-                return priceCache.get(type, symbol, { force: true });
-            },
-            // Force-refresh all currently cached symbols of any type.
-            async refreshAll() {
-                const data = load();
-                const cSyms = Object.keys(data.crypto || {});
-                const sSyms = Object.keys(data.stock || {});
-                await Promise.all([
-                    priceCache.getMany('crypto', cSyms, { force: true }),
-                    priceCache.getMany('stock', sSyms, { force: true }),
-                ]);
-            },
-            invalidate(type, symbol) {
-                const key = normalizeSymbol(type, symbol);
-                if (!key) return;
-                const data = load();
-                if (data[type] && data[type][key]) {
-                    delete data[type][key];
-                    save(data);
-                }
-            },
-            lastRefresh() {
-                return load().lastRefresh || 0;
-            },
-            ttlMs() { return TTL_MS; },
-        };
-
-        window.priceCache = priceCache;
-    })();
-
-    // Shared client-side cache for expensive page-data API payloads (e.g. /api/dashboard-data).
-    // - Stored in localStorage, keyed by logical page key.
-    // - TTL is 1 hour. Invalidate explicitly after any mutation that would change the data.
-    (function () {
-        const KEY = 'walletfront:pageDataCache:v1';
-        const TTL_MS = 60 * 60 * 1000;
-
-        function load() {
-            try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }
-            catch (e) { return {}; }
+    };
+    window.priceCache = window.simpleFetch; // Compatibility alias
+    console.log('[Price] Price cache initialized');
+    </script>
+    <script>
+    // Direct page data fetching without caching - always get fresh data
+    window.pageDataCache = {
+        async get(name) {
+            return null; // Always fetch fresh
+        },
+        set(name, payload) {
+            // No-op - don't cache
+        },
+        invalidate(name) {
+            // No-op
+        },
+        clearAll() {
+            // No-op
         }
-        function save(data) {
-            try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
-        }
-
-        const pageDataCache = {
-            get(name) {
-                const data = load();
-                const entry = data[name];
-                if (!entry) return null;
-                if ((Date.now() - (entry.ts || 0)) >= TTL_MS) return null;
-                return entry.payload != null ? entry.payload : null;
-            },
-            set(name, payload) {
-                const data = load();
-                data[name] = { ts: Date.now(), payload: payload };
-                save(data);
-            },
-            invalidate(name) {
-                const data = load();
-                if (data[name]) { delete data[name]; save(data); }
-            },
-            lastRefresh(name) {
-                const entry = load()[name];
-                return entry ? (entry.ts || 0) : 0;
-            },
-            ttlMs() { return TTL_MS; },
-            clearAll() { save({}); },
-        };
-
-        window.pageDataCache = pageDataCache;
-    })();
-
-    // Invalidate cached page payloads whenever the user submits any data-mutating POST form
-    // (create/update/delete across crypto/stock/wallet/fiat/loans/settings). The cache is only
-    // meant to short-circuit read-only navigation — any write should force the next dashboard
-    // visit to re-fetch fresh data.
-    document.addEventListener('submit', function (e) {
-        try {
-            var form = e.target;
-            if (!form || form.tagName !== 'FORM') return;
-            var method = String(form.method || '').toLowerCase();
-            if (method !== 'post') return;
-            if (window.pageDataCache) window.pageDataCache.clearAll();
-            try {
-                fetch('/api/dashboard-cache/invalidate', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    keepalive: true,
-                    headers: { 'Accept': 'application/json' }
-                }).catch(function(){});
-            } catch (_e2) {}
-        } catch (_e) {}
+    };
+    </script>
     }, true);
     </script>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">

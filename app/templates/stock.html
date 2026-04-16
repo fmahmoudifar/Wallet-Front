@@ -514,7 +514,6 @@
         if (btn) btn.disabled = true;
         const prev = label ? label.textContent : '';
         if (label) label.textContent = 'Refreshing…';
-        try { if (window.pageDataCache) pageDataCache.invalidate('stock'); } catch(_e) {}
         _stockForceHydrateNextLoad = !!force;
         return loadStockPage(true).finally(function() {
             _stockForceHydrateNextLoad = false;
@@ -1265,21 +1264,13 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     window.loadStockPage = function(forceReload) {
-        var pdc = window.pageDataCache;
-        var cached = (!forceReload && pdc) ? pdc.get('stock') : null;
-        if (cached) {
-            try { if (window.priceCache && cached.base_currency) priceCache.setBaseCurrency(cached.base_currency); } catch(_e) {}
-            _stockRenderFromData(cached);
-            return Promise.resolve();
-        }
+        // Always fetch fresh - no caching
         return fetch('/api/stock-data')
             .then(function(resp) {
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 return resp.json();
             })
             .then(function(data) {
-                try { if (pdc) pdc.set('stock', data); } catch(_e) {}
-                try { if (window.priceCache && data.base_currency) priceCache.setBaseCurrency(data.base_currency); } catch(_e) {}
                 _stockRenderFromData(data);
             })
             .catch(function(err) {
