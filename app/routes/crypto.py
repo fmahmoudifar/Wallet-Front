@@ -22,7 +22,7 @@ _BINANCE_PRICE_TTL_SECONDS = 60
 
 # FX rates cache (in-process) to convert transaction currency -> website currency
 _FX_RATES_CACHE = {}
-_FX_RATES_TTL_SECONDS = 3600
+_FX_RATES_TTL_SECONDS = 86400  # 24 hours (Option 2: Much longer cache)
 
 
 def _normalize_currency(code: str, default: str = "") -> str:
@@ -56,8 +56,54 @@ def _get_user_base_currency(user_id: str) -> str:
     return "EUR"
 
 
+def _get_fx_rate_yahoo(from_currency: str, to_currency: str) -> Decimal | None:
+    """Option 3: Try Yahoo Finance for FX rates using currency ETFs/forex pairs.
+    
+    Returns Decimal rate or None if not available.
+    This is a fast alternative to external APIs for common pairs.
+    """
+    from_ccy = _normalize_currency(from_currency)
+    to_ccy = _normalize_currency(to_currency)
+    
+    if from_ccy == to_ccy:
+        return Decimal(1)
+    
+    # Yahoo Finance doesn't have direct FX endpoint, but we can try common forex pairs
+    # Format: "EURUSD=X" for EUR to USD, "GBPUSD=X" for GBP to USD, etc.
+    try:
+        symbol = f"{from_ccy}{to_ccy}=X"
+        headers = {"Accept": "application/json", "User-Agent": "Wallet-Front/1.0"}
+        
+        # Try Yahoo's quote endpoint
+        r = requests.get(
+            "https://query1.finance.yahoo.com/v7/finance/quote",
+            params={"symbols": symbol, "fields": "regularMarketPrice"},
+            headers=headers,
+            timeout=5
+        )
+        
+        if r.status_code == 200:
+            data = r.json() or {}
+            quotes = data.get("quoteResponse", {}).get("result", [])
+            if quotes and len(quotes) > 0:
+                price = quotes[0].get("regularMarketPrice")
+                if price and isinstance(price, (int, float)) and price > 0:
+                    return Decimal(str(price))
+    except Exception as e:
+        pass  # Silently fail, will fall back to Frankfurter
+    
+    return None
+
+
 def _get_fx_rate(from_currency: str, to_currency: str) -> Decimal:
-    """Get latest FX rate from_currency -> to_currency using Frankfurter (cached)."""
+    """Get latest FX rate from_currency -> to_currency.
+    
+    Strategy:
+    1. Check cache (24 hours) - Option 2: Longer cache
+    2. Try Yahoo Finance - Option 3: Fast alternative
+    3. Fall back to Frankfurter (free, reliable)
+    4. Use last cached value if available
+    """
     from_ccy = _normalize_currency(from_currency)
     to_ccy = _normalize_currency(to_currency)
     if from_ccy == to_ccy:
@@ -68,6 +114,13 @@ def _get_fx_rate(from_currency: str, to_currency: str) -> Decimal:
     cached = _FX_RATES_CACHE.get(key)
     if cached and (now - cached.get("ts", 0.0) < _FX_RATES_TTL_SECONDS):
         return cached["rate"]
+
+    # Option 3: Try Yahoo Finance first (fast, no API key needed)
+    yahoo_rate = _get_fx_rate_yahoo(from_ccy, to_ccy)
+    if yahoo_rate:
+        print(f"[FX] Using Yahoo Finance: {from_ccy}->{to_ccy} = {yahoo_rate}")
+        _FX_RATES_CACHE[key] = {"ts": now, "rate": yahoo_rate}
+        return yahoo_rate
 
     # Frankfurter supports many fiat currencies. Crypto tx currencies should be normalized before calling.
     url = "https://api.frankfurter.app/latest"
@@ -82,16 +135,19 @@ def _get_fx_rate(from_currency: str, to_currency: str) -> Decimal:
             if rate_val is None:
                 raise ValueError(f"Missing FX rate {from_ccy}->{to_ccy}")
             rate = Decimal(str(rate_val))
+            print(f"[FX] Using Frankfurter: {from_ccy}->{to_ccy} = {rate}")
             _FX_RATES_CACHE[key] = {"ts": now, "rate": rate}
             return rate
 
         # Non-200: fall back to cached, if available
         if cached:
+            print(f"[FX] Frankfurter failed (status {r.status_code}), using cached rate")
             return cached["rate"]
         raise RuntimeError(f"FX API returned {r.status_code}")
-    except Exception:
+    except Exception as e:
         # On network/parsing errors, prefer cache rather than breaking totals.
         if cached:
+            print(f"[FX] Error fetching rate, using cached: {e}")
             return cached["rate"]
         raise
 
@@ -190,6 +246,95 @@ def _cmc_get_crypto_info(symbol: str) -> dict:
     except Exception as e:
         print(f"Error fetching CMC data for {sym}: {e}")
         return {}
+
+
+def _cmc_get_crypto_info_batch(symbols: list) -> dict:
+    """Fetch crypto info for multiple symbols in ONE API call using batching.
+    
+    Args:
+        symbols: List of crypto symbols (e.g., ['BTC', 'ETH', 'ELON'])
+    
+    Returns:
+        Dict mapping symbol -> {id, name, symbol, price_usd}
+    """
+    if not CMC_API_KEY:
+        print("Warning: CMC_API_KEY not configured")
+        return {}
+
+    if not symbols:
+        return {}
+
+    now = time.time()
+    
+    # Separate cached vs uncached symbols
+    result = {}
+    uncached_syms = []
+    
+    for sym in symbols:
+        sym_upper = (sym or "").strip().upper()
+        if not sym_upper:
+            continue
+            
+        cached = _CMC_QUOTE_CACHE.get(sym_upper)
+        if cached and (now - cached.get("ts", 0.0) < _CMC_QUOTE_TTL_SECONDS):
+            result[sym_upper] = cached.get("data", {})
+        else:
+            uncached_syms.append(sym_upper)
+    
+    # If all cached, return early
+    if not uncached_syms:
+        return result
+    
+    # Batch fetch uncached symbols (CMC supports up to ~200 per request)
+    url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+    headers = {
+        "X-CMC_PRO_API_KEY": CMC_API_KEY,
+        "Accept": "application/json",
+        "User-Agent": "Wallet-Front/1.0",
+    }
+
+    try:
+        symbols_param = ",".join(uncached_syms[:200])  # Limit to 200 per CMC docs
+        r = requests.get(
+            url,
+            params={"symbol": symbols_param, "convert": "USD"},
+            headers=headers,
+            timeout=15,
+        )
+        
+        if r.status_code != 200:
+            print(f"CMC batch request failed with status {r.status_code}")
+            return result
+
+        data = r.json() or {}
+        if "data" not in data or not data["data"]:
+            print("CMC batch response has no data")
+            return result
+
+        # CMC returns data keyed by symbol
+        for sym_upper in uncached_syms:
+            crypto_data = data["data"].get(sym_upper) if isinstance(data["data"], dict) else None
+            if crypto_data:
+                batch_result = {
+                    "id": crypto_data.get("id"),
+                    "name": crypto_data.get("name", sym_upper),
+                    "symbol": crypto_data.get("symbol", sym_upper),
+                    "price_usd": float(
+                        (crypto_data.get("quote", {}).get("USD", {}).get("price")) or 0
+                    ),
+                }
+                result[sym_upper] = batch_result
+                # Cache it
+                _CMC_QUOTE_CACHE[sym_upper] = {"ts": now, "data": batch_result}
+            else:
+                result[sym_upper] = {}
+
+        return result
+
+    except Exception as e:
+        print(f"Error fetching CMC batch data for {uncached_syms}: {e}")
+        return result
+
 
 
 def _cmc_search_symbols(query: str) -> list:
@@ -467,6 +612,8 @@ def crypto_quote():
 def crypto_quotes_bulk():
     """Bulk crypto prices endpoint. Takes comma-separated symbols and returns all prices in one request.
     
+    Uses batched CMC API call for all symbols at once (1 request instead of N).
+    
     Query params:
     - symbols: comma-separated list of crypto symbols (e.g., "BTC,ETH,ELON")
     
@@ -488,36 +635,61 @@ def crypto_quotes_bulk():
     if not symbols:
         return jsonify({})
 
+    # Fetch FX rate ONCE outside the loop
+    try:
+        usd_to_base = _get_fx_rate("USD", base_currency)
+    except Exception as e:
+        print(f"Error fetching FX rate USD->{base_currency}: {e}")
+        usd_to_base = Decimal(1)
+
+    # Extract clean symbols for batch CMC call
+    clean_symbols = []
+    symbol_map = {}  # Map clean symbol -> original symbol
+    for symbol in symbols:
+        if " - " in symbol:
+            clean_sym = symbol.split(" - ", 1)[0].strip()
+        else:
+            clean_sym = symbol.strip()
+        clean_symbols.append(clean_sym)
+        symbol_map[clean_sym] = symbol
+
+    # BATCH fetch all crypto info in ONE CMC API call (not 25!)
+    crypto_batch = _cmc_get_crypto_info_batch(clean_symbols)
+
+    # Now build response
     out = {}
     for symbol in symbols:
         try:
-            # Extract symbol from "SYMBOL - Name" format if present
             if " - " in symbol:
-                sym_to_fetch = symbol.split(" - ", 1)[0].strip()
+                clean_sym = symbol.split(" - ", 1)[0].strip()
             else:
-                sym_to_fetch = symbol.strip()
+                clean_sym = symbol.strip()
 
-            # Fetch price in USD from CMC
-            price_usd = _best_price_usd(sym_to_fetch)
-            
+            crypto_info = crypto_batch.get(clean_sym, {})
+            price_usd_raw = crypto_info.get("price_usd")
+
+            # Handle stablecoins
+            if clean_sym.upper() in ("USD", "USDT", "USDC", "DAI", "BUSD", "FDUSD"):
+                price_usd = Decimal(1)
+            elif price_usd_raw:
+                price_usd = Decimal(str(price_usd_raw))
+            else:
+                out[symbol] = {"price": None, "currency": base_currency, "name": ""}
+                continue
+
             if not price_usd or price_usd <= 0:
                 out[symbol] = {"price": None, "currency": base_currency, "name": ""}
                 continue
 
-            # Convert USD price to user's base currency
-            usd_to_base = _get_fx_rate("USD", base_currency)
+            # Convert USD price to user's base currency (using pre-fetched rate)
             price_base = float(price_usd * usd_to_base)
 
-            # Get crypto name from CMC
-            crypto_info = _cmc_get_crypto_info(sym_to_fetch)
+            # Get name from batch result
             name = ""
             if crypto_info and crypto_info.get("name"):
-                name = f"{crypto_info.get('symbol', sym_to_fetch)} - {crypto_info.get('name', '')}"
+                name = f"{crypto_info.get('symbol', clean_sym)} - {crypto_info.get('name', '')}"
             else:
-                if " - " in symbol:
-                    name = symbol
-                else:
-                    name = sym_to_fetch
+                name = symbol if " - " in symbol else clean_sym
 
             out[symbol] = {
                 "price": price_base,

@@ -1,6 +1,6 @@
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from decimal import Decimal
 
@@ -174,6 +174,71 @@ def _yh_quote(symbol: str):
     return out
 
 
+def _yh_quote_batch(symbols: list) -> dict:
+    """Fetch multiple stock quotes in parallel using ThreadPoolExecutor.
+    
+    Args:
+        symbols: List of stock symbols (e.g., ['AAPL', 'SGLN.L', 'MSFT'])
+    
+    Returns:
+        Dict mapping symbol -> {symbol, name, currency, price, asof}
+    """
+    if not symbols:
+        return {}
+
+    now = time.time()
+    
+    # Separate cached vs uncached symbols
+    result = {}
+    uncached_syms = []
+    
+    for sym in symbols:
+        sym_upper = (sym or "").strip().upper()
+        if not sym_upper:
+            continue
+            
+        cached = _YH_QUOTE_CACHE.get(sym_upper)
+        if cached and (now - cached.get("ts", 0.0) < _YH_QUOTE_TTL_SECONDS):
+            result[sym_upper] = cached.get("data", {})
+        else:
+            uncached_syms.append(sym_upper)
+    
+    # If all cached, return early
+    if not uncached_syms:
+        return result
+    
+    # Parallelize uncached symbol fetches (5 workers)
+    def _fetch_one(sym):
+        try:
+            return _yh_quote(sym)
+        except Exception as e:
+            print(f"Error fetching {sym}: {e}")
+            return {
+                "symbol": sym,
+                "name": "",
+                "currency": "",
+                "price": None,
+                "asof": "",
+            }
+    
+    try:
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {executor.submit(_fetch_one, sym): sym for sym in uncached_syms}
+            for future in as_completed(futures):
+                quote_data = future.result()
+                sym = quote_data.get("symbol", "")
+                if sym:
+                    result[sym] = quote_data
+    except Exception as e:
+        print(f"Error in ThreadPoolExecutor: {e}")
+        # Fallback to sequential
+        for sym in uncached_syms:
+            quote_data = _fetch_one(sym)
+            sym_key = quote_data.get("symbol", "")
+            if sym_key:
+                result[sym_key] = quote_data
+    
+    return result
 
 @stock_bp.route("/stock/search", methods=["GET"])
 def stock_search():
@@ -291,6 +356,8 @@ def stock_quote():
 def stock_quotes_bulk():
     """Bulk stock prices endpoint. Takes comma-separated symbols and returns all prices in one request.
     
+    Uses parallelized Yahoo Finance calls with caching.
+    
     Query params:
     - symbols: comma-separated list of stock symbols (e.g., "AAPL,MSFT,SGLN.L")
     
@@ -311,9 +378,6 @@ def stock_quotes_bulk():
     symbols = [s.strip().upper() for s in symbols_param.split(",") if s.strip()]
     if not symbols:
         return jsonify({})
-
-    out = {}
-    now = time.time()
 
     def _finalize_quote_bulk(
         symbol_out: str, name: str, currency_raw: str, price_num, asof: str
@@ -362,26 +426,29 @@ def stock_quotes_bulk():
             "provider": "yahoo",
         }
 
-    for sym in symbols:
-        try:
-            # Check cache first
-            cached = _YH_QUOTE_CACHE.get(sym)
-            if cached and (now - cached.get("ts", 0.0) < _YH_QUOTE_TTL_SECONDS):
-                yh = cached.get("data") or {}
-            else:
-                yh = _yh_quote(sym)
+    # BATCH fetch all stocks in parallel (not sequential!)
+    quotes_batch = _yh_quote_batch(symbols)
 
-            q = _finalize_quote_bulk(
-                sym,
-                yh.get("name") or "",
-                yh.get("currency") or base_currency,
-                yh.get("price"),
-                yh.get("asof") or "",
-            )
-            out[sym] = q
-        except Exception as e:
-            print(f"Error in stock_quotes_bulk for '{sym}': {e}")
-            out[sym] = {"error": "Failed to fetch quote", "symbol": sym, "price": None}
+    # Build response
+    out = {}
+    try:
+        for sym in symbols:
+            try:
+                yh = quotes_batch.get(sym, {})
+                
+                q = _finalize_quote_bulk(
+                    sym,
+                    yh.get("name") or "",
+                    yh.get("currency") or base_currency,
+                    yh.get("price"),
+                    yh.get("asof") or "",
+                )
+                out[sym] = q
+            except Exception as e:
+                print(f"Error in stock_quotes_bulk for '{sym}': {e}")
+                out[sym] = {"error": "Failed to fetch quote", "symbol": sym, "price": None}
+    except Exception as e:
+        print(f"Error in stock_quotes_bulk: {e}")
 
     return jsonify(out)
 

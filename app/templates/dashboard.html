@@ -245,19 +245,25 @@ function hydratePricesAndRender(force) {
     if (!_dashboardData) return Promise.resolve();
     var syms = collectSymbols(_dashboardData);
     
-    // Always fetch fresh prices - no caching
+    // Render immediately with data (empty prices), don't wait for price fetches
     renderDashboard(_dashboardData, {}, {});
     updateLastRefreshLabel();
 
+    // Fetch prices in background, update when they arrive
     var cryptoPromise = syms.crypto.length ? window.priceCache.getMany('crypto', syms.crypto) : Promise.resolve({});
     var stockPromise = syms.stock.length ? window.priceCache.getMany('stock', syms.stock) : Promise.resolve({});
 
-    return Promise.all([cryptoPromise, stockPromise]).then(function(res) {
+    Promise.all([cryptoPromise, stockPromise]).then(function(res) {
         var cryptoPrices = res[0] || {};
         var stockPrices = res[1] || {};
         renderDashboard(_dashboardData, cryptoPrices, stockPrices);
         updateLastRefreshLabel();
+    }).catch(function(err) {
+        console.warn('Price hydration failed:', err);
     });
+    
+    // Return immediately - don't wait for prices
+    return Promise.resolve();
 }
 
 function refreshPrices(force) {

@@ -106,8 +106,16 @@
                 
                 // Store metadata and extract prices
                 const out = {};
+                let firstSymbolLogged = false;
                 for (const [sym, priceData] of Object.entries(data)) {
+                    // Log first symbol's full structure for debugging
+                    if (!firstSymbolLogged) {
+                        console.log(`[Price] First ${type} symbol (${sym}) full structure:`, priceData);
+                        firstSymbolLogged = true;
+                    }
+                    
                     if (!priceData || typeof priceData !== 'object') {
+                        console.log(`[Price] ${sym}: priceData is null/not object`, priceData);
                         out[sym] = null;
                         continue;
                     }
@@ -121,9 +129,19 @@
                     };
                     
                     if (type === 'crypto') {
+                        const priceVal = priceData.price;
+                        const priceType = typeof priceVal;
+                        if (priceType !== 'number') {
+                            console.log(`[Price] ${sym}: price is ${priceType}, value:`, priceVal);
+                        }
                         out[sym] = (typeof priceData.price === 'number') ? priceData.price : null;
                     } else {
                         // For stocks, use priceBase (in app currency) if available
+                        const priceVal = priceData.priceBase || priceData.price;
+                        const priceType = typeof priceVal;
+                        if (priceType !== 'number') {
+                            console.log(`[Price] ${sym}: priceBase/price is ${priceType}, value:`, priceVal);
+                        }
                         out[sym] = (typeof priceData.priceBase === 'number') ? priceData.priceBase : (typeof priceData.price === 'number' ? priceData.price : null);
                     }
                 }
