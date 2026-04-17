@@ -6,6 +6,16 @@
 {% block content %}
 
 <script>
+    function getRandomColor() {
+        // Generate random hex color
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+    }
+
     function setWalletNavVisibility(activeView) {
         const btns = Array.from(document.querySelectorAll('[data-wallet-nav]'));
         btns.forEach(btn => {
@@ -41,6 +51,13 @@
         if (listDiv) listDiv.style.display = 'none';
         if (updateDiv) updateDiv.style.display = 'none';
         setWalletNavVisibility('new');
+
+        // Set random color for new wallet form
+        const randomColor = getRandomColor();
+        const colorPicker = document.getElementById('createColor');
+        const colorHex = document.getElementById('createColorHex');
+        if (colorPicker) colorPicker.value = randomColor;
+        if (colorHex) colorHex.value = randomColor.toUpperCase();
     }
 
     // Keep these names for sidebar menu compatibility.
@@ -106,6 +123,13 @@ document.addEventListener("DOMContentLoaded", function() {
 
     bindWalletColorHex('createColor', 'createColorHex');
     bindWalletColorHex('updateColor', 'updateColorHex');
+
+    // Set initial random color for new wallet form
+    const randomColor = getRandomColor();
+    const createColorPicker = document.getElementById('createColor');
+    const createColorHex = document.getElementById('createColorHex');
+    if (createColorPicker) createColorPicker.value = randomColor;
+    if (createColorHex) createColorHex.value = randomColor.toUpperCase();
 
     // Default view: Wallets list.
     showWalletList();
