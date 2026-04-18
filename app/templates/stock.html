@@ -118,6 +118,7 @@
             const qty = toNum(s.quantity);
             const price = toNum((s.priceBase != null ? s.priceBase : s.price));
             const fee = toNum((s.feeBase != null ? s.feeBase : s.fee));
+            const operation = String((s.operation || s.side || 'buy')).toLowerCase();
 
             // Group by stock + currency (keeps numbers honest if user mixes currencies).
             const key = `${stockSymbol}||${currency}`;
@@ -127,19 +128,36 @@
                     currency,
                     totalQty: 0,
                     totalValuePaid: 0,
+                    totalRevenue: 0,
                     totalFee: 0,
                     txCount: 0,
                 });
             }
             const g = groups.get(key);
-            g.totalQty += qty;
             g.totalFee += fee;
-            g.totalValuePaid += (qty * price) + fee;
             g.txCount += 1;
+
+            // Handle BUY vs SELL transactions differently
+            if (operation === 'sell') {
+                // SELL: reduce holdings, track proceeds
+                g.totalQty -= qty;
+                g.totalRevenue += (qty * price) - fee;  // Proceeds minus fee
+            } else {
+                // BUY (default for unknown): increase holdings, track cost
+                g.totalQty += qty;
+                g.totalValuePaid += (qty * price) + fee;  // Cost plus fee
+            }
         });
 
-        const list = Array.from(groups.values());
-        list.sort((a, b) => (b.totalValuePaid - a.totalValuePaid));
+        const list = Array.from(groups.values())
+            .filter(g => g.totalQty > 0)  // Only include positions with holdings
+            .sort((a, b) => (b.totalValuePaid - a.totalValuePaid));
+
+        if (list.length === 0) {
+            container.innerHTML = '';
+            if (emptyMsg) emptyMsg.style.display = '';
+            return;
+        }
 
         container.innerHTML = list.map(g => {
             const avgBuy = g.totalQty ? ((g.totalValuePaid - g.totalFee) / g.totalQty) : 0;
@@ -190,8 +208,6 @@
                 </div>
             `;
         }).join('');
-
-        if (emptyMsg) emptyMsg.style.display = 'none';
 
         // Fill live quote fields asynchronously.
         hydrateStockPortfolioLiveQuotes({ force: _stockForceHydrateNextLoad });
