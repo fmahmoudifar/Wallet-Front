@@ -253,19 +253,21 @@
 
             var displaySymbol = t.cryptoName.indexOf(' - ') >= 0 ? t.cryptoName.split(' - ')[0].trim() : t.cryptoName;
             var inlineName = t.cryptoName.indexOf(' - ') >= 0 ? t.cryptoName.split(' - ').slice(1).join(' - ').trim() : '';
-            return '<div class="totals-card" data-crypto-symbol="' + _escapeHtml(t.cryptoName) + '" data-crypto-qty="' + t.total_qty + '" data-crypto-paid="' + t.total_value_buy + '" data-crypto-sell="' + (t.total_value_sell || 0) + '">'
+            return '<div class="totals-card" data-crypto-symbol="' + _escapeHtml(t.cryptoName) + '" data-crypto-qty="' + t.total_qty + '" data-crypto-cost="' + (t.total_value || 0) + '" data-crypto-buy="' + (t.total_value_buy || 0) + '" data-crypto-sell="' + (t.total_value_sell || 0) + '">'
                 + '<div class="totals-header"><div>'
                 + '<div style="font-size:1rem;font-weight:700"><span class="crypto-symbol">' + _escapeHtml(displaySymbol) + '</span><span data-crypto-fullname class="small-muted" style="margin-left:8px;font-weight:600;">' + _escapeHtml(inlineName) + '</span></div>'
                 + '</div>'
-                + '<div class="pct-badge pct-neutral" data-crypto-pct>\u2014</div></div>'
+                + '</div>'
                 + '<div class="totals-meta">'
                 + '<div class="totals-row"><span class="totals-label small-muted">Total Quantity:</span><span class="totals-value">' + _escapeHtml(t.total_qty_display || '') + '</span></div>'
                 + '<div class="totals-row"><span class="totals-label small-muted">Total Value Now:</span><span class="totals-value" data-crypto-now>\u2014</span></div>'
-                + '<div class="totals-row"><span class="totals-label small-muted">Total Value Paid:</span><span class="totals-value">' + _escapeHtml(t.total_value_buy_display || '') + cur + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Cost Basis:</span><span class="totals-value">' + _escapeHtml(_formatNumber(t.total_value || 0, 2)) + cur + '</span></div>'
                 + '<div class="totals-row"><span class="totals-label small-muted">Unit price now:</span><span class="totals-value" data-crypto-live>\u2014</span></div>'
                 + '<div class="totals-row"><span class="totals-label small-muted">Avg Buy Price:</span><span class="totals-value">' + _escapeHtml(t.avg_buy_price_display || '') + cur + '</span></div>'
                 + '<div class="totals-row"><span class="totals-label small-muted">Fees paid:</span><span class="totals-value">' + _escapeHtml(t.total_fee_display || '') + cur + '</span></div>'
-                + '<div class="totals-row"><span class="totals-label small-muted">Gain / Loss:</span><span class="totals-value" style="font-weight:bold;" data-crypto-gl>\u2014</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Realized P/L:</span><span class="totals-value" data-crypto-realized>\u2014 (N/A)</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Unrealized P/L:</span><span class="totals-value" data-crypto-unrealized>\u2014 (N/A)</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Total Gain / Loss:</span><span class="totals-value" style="font-weight:bold;" data-crypto-gl>\u2014 (N/A)</span></div>'
                 + '</div></div>';
         }).join('');
     }
@@ -816,16 +818,22 @@
                 var price = priceMap[symbol];
                 if (price == null) return;
                 var qty = parseFloat(card.getAttribute('data-crypto-qty')) || 0;
-                var paid = parseFloat(card.getAttribute('data-crypto-paid')) || 0;
+                var cost = parseFloat(card.getAttribute('data-crypto-cost')) || 0;
+                var buy = parseFloat(card.getAttribute('data-crypto-buy')) || 0;
                 var sell = parseFloat(card.getAttribute('data-crypto-sell')) || 0;
                 var totalNow = price * qty;
-                var netCost = paid - sell;
-                var gl = totalNow - netCost;
-                var pct = netCost !== 0 ? ((gl / netCost) * 100) : 0;
+                var soldCost = Math.max(0, buy - cost);
+                var realized = sell - soldCost;
+                var unrealized = totalNow - cost;
+                var gl = realized + unrealized;
+                var realizedPct = soldCost !== 0 ? ((realized / soldCost) * 100) : null;
+                var unrealizedPct = cost !== 0 ? ((unrealized / cost) * 100) : null;
+                var totalPct = cost !== 0 ? ((gl / cost) * 100) : null;
 
-                var pctBadge = card.querySelector('[data-crypto-pct]');
                 var nowEl = card.querySelector('[data-crypto-now]');
                 var liveEl = card.querySelector('[data-crypto-live]');
+                var realizedEl = card.querySelector('[data-crypto-realized]');
+                var unrealizedEl = card.querySelector('[data-crypto-unrealized]');
                 var glEl = card.querySelector('[data-crypto-gl]');
                 var nameEl = card.querySelector('[data-crypto-fullname]');
                 if (nameEl && !nameEl.textContent.trim() && window.priceCache) {
@@ -834,15 +842,29 @@
                 }
                 if (nowEl) nowEl.textContent = _formatNumber(totalNow, 2) + ' ' + bc;
                 if (liveEl) liveEl.textContent = _formatNumber(price, 6) + ' ' + bc;
+                if (realizedEl) {
+                    var rp = (realizedPct === null)
+                        ? 'N/A'
+                        : ((realizedPct >= 0 ? '+' : '') + _formatNumber(realizedPct, 2) + '%');
+                    realizedEl.textContent = (realized >= 0 ? '+' : '') + _formatNumber(realized, 2) + ' ' + bc + ' (' + rp + ')';
+                    realizedEl.classList.remove('pct-positive', 'pct-negative', 'pct-neutral');
+                    realizedEl.classList.add(realized >= 0 ? 'pct-positive' : 'pct-negative');
+                }
+                if (unrealizedEl) {
+                    var up = (unrealizedPct === null)
+                        ? 'N/A'
+                        : ((unrealizedPct >= 0 ? '+' : '') + _formatNumber(unrealizedPct, 2) + '%');
+                    unrealizedEl.textContent = (unrealized >= 0 ? '+' : '') + _formatNumber(unrealized, 2) + ' ' + bc + ' (' + up + ')';
+                    unrealizedEl.classList.remove('pct-positive', 'pct-negative', 'pct-neutral');
+                    unrealizedEl.classList.add(unrealized >= 0 ? 'pct-positive' : 'pct-negative');
+                }
                 if (glEl) {
-                    glEl.textContent = (gl >= 0 ? '+' : '') + _formatNumber(gl, 2) + ' ' + bc;
+                    var tp = (totalPct === null)
+                        ? 'N/A'
+                        : ((totalPct >= 0 ? '+' : '') + _formatNumber(totalPct, 2) + '%');
+                    glEl.textContent = (gl >= 0 ? '+' : '') + _formatNumber(gl, 2) + ' ' + bc + ' (' + tp + ')';
                     glEl.classList.remove('pct-positive', 'pct-negative', 'pct-neutral');
                     glEl.classList.add(gl >= 0 ? 'pct-positive' : 'pct-negative');
-                }
-                if (pctBadge) {
-                    pctBadge.textContent = (pct >= 0 ? '+' : '') + _formatNumber(pct, 2) + '%';
-                    pctBadge.classList.remove('pct-neutral', 'pct-positive', 'pct-negative');
-                    pctBadge.classList.add(pct >= 0 ? 'pct-positive' : 'pct-negative');
                 }
             });
         }

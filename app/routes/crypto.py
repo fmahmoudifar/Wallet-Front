@@ -995,7 +995,7 @@ def crypto_data():
                             # Update holdings
                             entry["total_qty"] -= qty_to_sell
                             entry["total_cost"] -= sold_cost
-                            entry["total_value_sell"] += revenue_base  # Revenue from sale (excluding fee)
+                            entry["total_value_sell"] += (revenue_base - fee_base)  # Net revenue from sale (after fee)
                             entry["total_fee"] += fee_base
 
                             # If selling more than we have, handle the excess as short position
@@ -1008,7 +1008,7 @@ def crypto_data():
                         else:
                             # Selling without holdings (short sell) - track as negative
                             entry["total_qty"] -= qty
-                            entry["total_value_sell"] += revenue_base
+                            entry["total_value_sell"] += (revenue_base - fee_base)
                             entry["total_fee"] += fee_base
 
                         # Wallet holdings: sells leave fromWallet

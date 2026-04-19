@@ -441,7 +441,7 @@ def dashboard_data():
                             # Update holdings
                             entry["total_qty"] -= qty_to_sell
                             entry["total_cost"] -= sold_cost
-                            entry["total_value_sell"] += revenue_base  # Revenue from sale (excluding fee)
+                            entry["total_value_sell"] += (revenue_base - fee_base)  # Net revenue from sale (after fee)
                             entry["total_fee"] += fee_base
 
                             # If selling more than we have, handle the excess as short position
@@ -454,7 +454,7 @@ def dashboard_data():
                         else:
                             # Selling without holdings (short sell) - track as negative
                             entry["total_qty"] -= qty
-                            entry["total_value_sell"] += revenue_base
+                            entry["total_value_sell"] += (revenue_base - fee_base)
                             entry["total_fee"] += fee_base
 
                         # Wallet balance: crypto goes out of from_wallet, money goes into to_wallet
@@ -729,7 +729,7 @@ def dashboard_data():
                             sold_cost = qty_to_sell * avg_cost_per_unit
                             entry["total_qty"] -= qty_to_sell
                             entry["total_cost"] -= sold_cost
-                            entry["total_value_sell"] += revenue_base
+                            entry["total_value_sell"] += (revenue_base - fee_base)
                             entry["total_fee"] += fee_base
 
                             excess_qty = qty - qty_to_sell
@@ -737,7 +737,7 @@ def dashboard_data():
                                 entry["total_qty"] -= excess_qty
                         else:
                             entry["total_qty"] -= qty
-                            entry["total_value_sell"] += revenue_base
+                            entry["total_value_sell"] += (revenue_base - fee_base)
                             entry["total_fee"] += fee_base
                     else:
                         continue
@@ -759,7 +759,8 @@ def dashboard_data():
         crypto_holdings.append({
             "name": name,
             "qty": float(entry.get("total_qty") or Decimal(0)),
-            "paid": float(entry.get("total_value_buy") or Decimal(0)),
+            "paid": float(entry.get("total_cost") or Decimal(0)),
+            "buyTotal": float(entry.get("total_value_buy") or Decimal(0)),
             "revenue": float(entry.get("total_value_sell") or Decimal(0)),
         })
 
@@ -769,7 +770,8 @@ def dashboard_data():
         stock_holdings.append({
             "symbol": sym,
             "qty": float(entry.get("total_qty") or Decimal(0)),
-            "paid": float(entry.get("total_value_buy") or Decimal(0)),
+            "paid": float(entry.get("total_cost") or Decimal(0)),
+            "buyTotal": float(entry.get("total_value_buy") or Decimal(0)),
             "revenue": float(entry.get("total_value_sell") or Decimal(0)),
         })
 

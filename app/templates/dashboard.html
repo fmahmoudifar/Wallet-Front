@@ -132,7 +132,7 @@
                         <div class="totals-value"><span style="color:#00b09a;" id="sumNowText"></span></div>
                     </div>
                     <div class="totals-row">
-                        <div class="totals-label small-muted">Total value paid</div>
+                        <div class="totals-label small-muted">Remaining cost</div>
                         <div class="totals-value"><span style="color:#6a7d94;" id="sumPaidText"></span></div>
                     </div>
                     <div class="totals-row">
@@ -169,7 +169,7 @@
                         <div class="totals-value"><span style="color:#00b09a;" id="stockSumNowText"></span></div>
                     </div>
                     <div class="totals-row">
-                        <div class="totals-label small-muted">Total value paid</div>
+                        <div class="totals-label small-muted">Remaining cost</div>
                         <div class="totals-value"><span style="color:#6a7d94;" id="stockSumPaidText"></span></div>
                     </div>
                     <div class="totals-row">
@@ -294,29 +294,31 @@ function updateLastRefreshLabel() {
 }
 
 function computeDashboardDerived(data, cryptoPrices, stockPrices) {
-    var cryptoNow = 0, cryptoPaid = 0, cryptoRevenue = 0;
+    var cryptoNow = 0, cryptoCost = 0, cryptoBuyTotal = 0, cryptoRevenue = 0;
     (data.cryptoHoldings || []).forEach(function(h) {
         var price = Number(cryptoPrices[h.name] || 0);
         var qty = Number(h.qty || 0);
         var now = qty * price;
         if (now > 0) cryptoNow += now;
-        cryptoPaid += Number(h.paid || 0);
+        cryptoCost += Number(h.paid || 0);
+        cryptoBuyTotal += Number(h.buyTotal != null ? h.buyTotal : (h.paid || 0));
         cryptoRevenue += Number(h.revenue || 0);
     });
-    var cryptoGain = (cryptoNow + cryptoRevenue) - cryptoPaid;
-    var cryptoGainPct = cryptoPaid ? (cryptoGain / cryptoPaid) * 100 : null;
+    var cryptoGain = (cryptoNow + cryptoRevenue) - cryptoBuyTotal;
+    var cryptoGainPct = cryptoCost ? (cryptoGain / cryptoCost) * 100 : null;
 
-    var stockNow = 0, stockPaid = 0, stockRevenue = 0;
+    var stockNow = 0, stockCost = 0, stockBuyTotal = 0, stockRevenue = 0;
     (data.stockHoldings || []).forEach(function(h) {
         var price = Number(stockPrices[h.symbol] || 0);
         var qty = Number(h.qty || 0);
         var now = qty * price;
         if (now > 0) stockNow += now;
-        stockPaid += Number(h.paid || 0);
+        stockCost += Number(h.paid || 0);
+        stockBuyTotal += Number(h.buyTotal != null ? h.buyTotal : (h.paid || 0));
         stockRevenue += Number(h.revenue || 0);
     });
-    var stockGain = (stockNow + stockRevenue) - stockPaid;
-    var stockGainPct = stockPaid ? (stockGain / stockPaid) * 100 : null;
+    var stockGain = (stockNow + stockRevenue) - stockBuyTotal;
+    var stockGainPct = stockCost ? (stockGain / stockCost) * 100 : null;
 
     var walletBalances = {};
     (data.wallets || []).forEach(function(w) {
@@ -336,8 +338,8 @@ function computeDashboardDerived(data, cryptoPrices, stockPrices) {
     });
 
     return {
-        cryptoNow: cryptoNow, cryptoPaid: cryptoPaid, cryptoGain: cryptoGain, cryptoGainPct: cryptoGainPct,
-        stockNow: stockNow, stockPaid: stockPaid, stockGain: stockGain, stockGainPct: stockGainPct,
+        cryptoNow: cryptoNow, cryptoPaid: cryptoCost, cryptoGain: cryptoGain, cryptoGainPct: cryptoGainPct,
+        stockNow: stockNow, stockPaid: stockCost, stockGain: stockGain, stockGainPct: stockGainPct,
         walletBalances: walletBalances,
     };
 }
@@ -594,7 +596,7 @@ function renderDashboard(data, cryptoPrices, stockPrices) {
     _dashboardCharts.crypto = new Chart(document.getElementById('myChart'), {
         type: 'pie',
         data: {
-            labels: ['Total Value Paid', 'Total Value Now'],
+            labels: ['Remaining Cost', 'Total Value Now'],
             datasets: [{
                 label: 'Crypto Portfolio (' + baseCurrency + ')',
                 data: [sumPaid, sumNow],
@@ -654,7 +656,7 @@ function renderDashboard(data, cryptoPrices, stockPrices) {
         _dashboardCharts.stock = new Chart(stockCanvas, {
             type: 'pie',
             data: {
-                labels: ['Total Value Paid', 'Total Value Now'],
+                labels: ['Remaining Cost', 'Total Value Now'],
                 datasets: [{
                     label: 'Stock Portfolio (' + baseCurrency + ')',
                     data: [stockSumPaid, stockSumNow],

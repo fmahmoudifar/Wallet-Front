@@ -112,7 +112,13 @@
             return isFinite(n) ? n : 0;
         }
 
-        stocks.forEach(s => {
+        const stocksSorted = stocks.slice().sort((a, b) => {
+            const da = String(a.tdate || a.date || '');
+            const db = String(b.tdate || b.date || '');
+            return da.localeCompare(db);
+        });
+
+        stocksSorted.forEach(s => {
             const stockSymbol = String(s.stockName || '').trim() || 'UNKNOWN';
             const currency = String((s.currencyBase || s.currency || '')).trim();
             const qty = toNum(s.quantity);
@@ -127,31 +133,44 @@
                     stockSymbol,
                     currency,
                     totalQty: 0,
-                    totalValuePaid: 0,
-                    totalRevenue: 0,
+                    totalCost: 0,
+                    totalValueBuy: 0,
+                    totalValueSell: 0,
                     totalFee: 0,
                     txCount: 0,
                 });
             }
             const g = groups.get(key);
-            g.totalFee += fee;
             g.txCount += 1;
 
             // Handle BUY vs SELL transactions differently
             if (operation === 'sell') {
-                // SELL: reduce holdings, track proceeds
-                g.totalQty -= qty;
-                g.totalRevenue += (qty * price) - fee;  // Proceeds minus fee
+                // SELL: reduce holdings using weighted-average cost basis.
+                if (g.totalQty > 0) {
+                    const avgCost = g.totalCost / g.totalQty;
+                    const qtyToSell = Math.min(qty, g.totalQty);
+                    const soldCost = qtyToSell * avgCost;
+                    g.totalQty -= qtyToSell;
+                    g.totalCost -= soldCost;
+                    const excessQty = qty - qtyToSell;
+                    if (excessQty > 0) g.totalQty -= excessQty;
+                } else {
+                    g.totalQty -= qty;
+                }
+                g.totalValueSell += (qty * price) - fee;
+                g.totalFee += fee;
             } else {
                 // BUY (default for unknown): increase holdings, track cost
                 g.totalQty += qty;
-                g.totalValuePaid += (qty * price) + fee;  // Cost plus fee
+                g.totalCost += (qty * price) + fee;
+                g.totalValueBuy += (qty * price) + fee;
+                g.totalFee += fee;
             }
         });
 
         const list = Array.from(groups.values())
             .filter(g => g.totalQty > 0)  // Only include positions with holdings
-            .sort((a, b) => (b.totalValuePaid - a.totalValuePaid));
+            .sort((a, b) => (b.totalCost - a.totalCost));
 
         if (list.length === 0) {
             container.innerHTML = '';
@@ -160,11 +179,13 @@
         }
 
         container.innerHTML = list.map(g => {
-            const avgBuy = g.totalQty ? ((g.totalValuePaid - g.totalFee) / g.totalQty) : 0;
+            const avgBuy = g.totalQty ? (g.totalCost / g.totalQty) : 0;
+            const soldCost = Math.max(0, g.totalValueBuy - g.totalCost);
+            const realized = g.totalValueSell - soldCost;
             const cur = g.currency ? ` ${g.currency}` : (baseCurrency ? ` ${baseCurrency}` : '');
             const symbol = String(g.stockSymbol || '').toUpperCase();
             return `
-                <div class="totals-card" data-stock-symbol="${symbol}" data-stock-qty="${g.totalQty}" data-stock-paid="${g.totalValuePaid}">
+                <div class="totals-card" data-stock-symbol="${symbol}" data-stock-qty="${g.totalQty}" data-stock-cost="${g.totalCost}" data-stock-buy="${g.totalValueBuy}" data-stock-sell="${g.totalValueSell}">
                     <div class="totals-header">
                         <div>
                             <div style="font-size:1rem;font-weight:700">
@@ -172,7 +193,6 @@
                                 <span class="stock-name small-muted" style="margin-left:8px; font-weight:600;"></span>
                             </div>
                         </div>
-                        <div class="pct-badge pct-neutral" data-stock-pct>—</div>
                     </div>
 
                     <div class="totals-meta">
@@ -185,8 +205,8 @@
                             <span class="totals-value" data-stock-now>—</span>
                         </div>
                         <div class="totals-row">
-                            <span class="totals-label small-muted">Total Value Paid:</span>
-                            <span class="totals-value">${formatNumber(g.totalValuePaid, 2)}${cur}</span>
+                            <span class="totals-label small-muted">Cost Basis:</span>
+                            <span class="totals-value">${formatNumber(g.totalCost, 2)}${cur}</span>
                         </div>
                         <div class="totals-row">
                             <span class="totals-label small-muted">Unit price now:</span>
@@ -201,8 +221,16 @@
                             <span class="totals-value">${formatNumber(g.totalFee, 2)}${cur}</span>
                         </div>
                         <div class="totals-row">
-                            <span class="totals-label small-muted">Gain / Loss:</span>
-                            <span class="totals-value" data-stock-gl>—</span>
+                            <span class="totals-label small-muted">Realized P/L:</span>
+                            <span class="totals-value" data-stock-realized>— (N/A)</span>
+                        </div>
+                        <div class="totals-row">
+                            <span class="totals-label small-muted">Unrealized P/L:</span>
+                            <span class="totals-value" data-stock-unrealized>— (N/A)</span>
+                        </div>
+                        <div class="totals-row">
+                            <span class="totals-label small-muted">Total Gain / Loss:</span>
+                            <span class="totals-value" style="font-weight:bold;" data-stock-gl>— (N/A)</span>
                         </div>
                     </div>
                 </div>
@@ -274,6 +302,7 @@
         // Holdings logic based on transaction semantics:
         // - Buy: shares land in toWallet
         // - Sell: shares leave fromWallet
+        // - Transfer: shares move from fromWallet to toWallet
         stocks.forEach(tx => {
             const symbol = String(tx.stockName || '').trim().toUpperCase();
             const op = String(tx.operation || tx.side || '').trim().toLowerCase();
@@ -284,6 +313,9 @@
                 addQty(tx.toWallet, symbol, qty);
             } else if (op === 'sell') {
                 addQty(tx.fromWallet, symbol, -qty);
+            } else if (op === 'transfer') {
+                addQty(tx.fromWallet, symbol, -qty);
+                addQty(tx.toWallet, symbol, qty);
             }
         });
 
@@ -458,43 +490,64 @@
                 const cur = curCode ? ` ${curCode}` : '';
 
                 const qty = parseFloat(card.getAttribute('data-stock-qty') || '0') || 0;
-                const paid = parseFloat(card.getAttribute('data-stock-paid') || '0') || 0;
+                const cost = parseFloat(card.getAttribute('data-stock-cost') || '0') || 0;
+                const buy = parseFloat(card.getAttribute('data-stock-buy') || '0') || 0;
+                const sell = parseFloat(card.getAttribute('data-stock-sell') || '0') || 0;
 
                 const liveEl = card.querySelector('[data-stock-live]');
                 const nowEl = card.querySelector('[data-stock-now]');
+                const realizedEl = card.querySelector('[data-stock-realized]');
+                const unrealizedEl = card.querySelector('[data-stock-unrealized]');
                 const glEl = card.querySelector('[data-stock-gl]');
-                const pctEl = card.querySelector('[data-stock-pct]');
                 const nameEl = card.querySelector('.stock-name');
                 if (nameEl && entry && entry.name && !nameEl.textContent.trim()) nameEl.textContent = entry.name;
+
+                const soldCost = Math.max(0, buy - cost);
+                const realized = sell - soldCost;
+                const realizedPct = soldCost ? (realized / soldCost) * 100 : null;
+                if (realizedEl) {
+                    const signR = realized >= 0 ? '+' : '';
+                    const rp = realizedPct == null
+                        ? 'N/A'
+                        : `${realizedPct >= 0 ? '+' : ''}${formatNumber(realizedPct, 2)}%`;
+                    realizedEl.textContent = `${signR}${formatNumber(realized, 2)}${cur} (${rp})`;
+                    realizedEl.classList.remove('pct-positive','pct-negative','pct-neutral');
+                    realizedEl.classList.add(realized >= 0 ? 'pct-positive' : 'pct-negative');
+                }
 
                 if (price == null) {
                     if (liveEl) liveEl.textContent = '—';
                     if (nowEl) nowEl.textContent = '—';
-                    if (glEl) glEl.textContent = '—';
-                    if (pctEl) {
-                        pctEl.textContent = '—';
-                        pctEl.classList.remove('pct-positive','pct-negative');
-                        pctEl.classList.add('pct-neutral');
-                    }
+                    if (unrealizedEl) unrealizedEl.textContent = '— (N/A)';
+                    if (glEl) glEl.textContent = '— (N/A)';
                     continue;
                 }
 
                 const valueNow = qty * price;
-                const gl = valueNow - paid;
-                const pct = paid ? (gl / paid) * 100 : 0;
+                const unrealized = valueNow - cost;
+                const gl = realized + unrealized;
+                const unrealizedPct = cost ? (unrealized / cost) * 100 : null;
+                const totalPct = cost ? (gl / cost) * 100 : null;
 
                 if (liveEl) liveEl.textContent = `${formatNumber(price, 4)}${cur}`;
                 if (nowEl) nowEl.textContent = `${formatNumber(valueNow, 2)}${cur}`;
+                if (unrealizedEl) {
+                    const signU = unrealized >= 0 ? '+' : '';
+                    const up = unrealizedPct == null
+                        ? 'N/A'
+                        : `${unrealizedPct >= 0 ? '+' : ''}${formatNumber(unrealizedPct, 2)}%`;
+                    unrealizedEl.textContent = `${signU}${formatNumber(unrealized, 2)}${cur} (${up})`;
+                    unrealizedEl.classList.remove('pct-positive','pct-negative','pct-neutral');
+                    unrealizedEl.classList.add(unrealized >= 0 ? 'pct-positive' : 'pct-negative');
+                }
                 if (glEl) {
                     const sign = gl >= 0 ? '+' : '';
-                    glEl.textContent = `${sign}${formatNumber(gl, 2)}${cur}`;
+                    const tp = totalPct == null
+                        ? 'N/A'
+                        : `${totalPct >= 0 ? '+' : ''}${formatNumber(totalPct, 2)}%`;
+                    glEl.textContent = `${sign}${formatNumber(gl, 2)}${cur} (${tp})`;
                     glEl.classList.remove('pct-positive','pct-negative','pct-neutral');
                     glEl.classList.add(gl >= 0 ? 'pct-positive' : 'pct-negative');
-                }
-                if (pctEl) {
-                    pctEl.textContent = `${pct >= 0 ? '+' : ''}${formatNumber(pct, 2)}%`;
-                    pctEl.classList.remove('pct-positive','pct-negative','pct-neutral');
-                    pctEl.classList.add(pct >= 0 ? 'pct-positive' : 'pct-negative');
                 }
             }
             _stockUpdateRefreshLabel();
