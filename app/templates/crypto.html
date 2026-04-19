@@ -133,7 +133,7 @@
         setCryptoNavVisibility('portfolio');
     });
 
-    function editCrypto(cryptoId, userId, cryptoName, tdate, fromWallet, toWallet, operation, quantity, price, currency, fee, note) {
+    function editCrypto(cryptoId, userId, cryptoName, tdate, fromWallet, toWallet, operation, quantity, price, currency, fee, feeCurrency, note) {
         document.getElementById("updateCryptoId").value = cryptoId;
         document.getElementById("updateUserId").value = userId;
         // set update visible input and hidden value; prefer uppercase symbol when available
@@ -172,6 +172,13 @@
         document.getElementById("updatePrice").value = price;
         document.getElementById("updateCurrency").value = currency;
         document.getElementById("updateFee").value = fee;
+        {
+            const el = document.getElementById("updateFeeCurrency");
+            if (el) {
+                el.value = feeCurrency || currency || 'EUR';
+                el.dataset.userSelected = '1';
+            }
+        }
         document.getElementById("updateNote").value = note;
         showCryptoUpdate();
         document.getElementById("deleteForm").action = `/deleteCrypto/${cryptoId}/${userId}`;
@@ -355,7 +362,7 @@
                 + (note ? '<div class="crypto-history-sub">' + _escapeHtml(note) + '</div>' : '')
                 + '</div>'
                 + '<div class="crypto-history-actions">'
-                + '<button class="btn-insert" onclick="editCrypto(\'' + _escapeHtml(c.cryptoId || '') + '\',\'' + _escapeHtml(c.userId || '') + '\',\'' + _escapeHtml(c.cryptoName || '') + '\',\'' + _escapeHtml(c.tdate || '') + '\',\'' + _escapeHtml(c.fromWallet || '') + '\',\'' + _escapeHtml(c.toWallet || '') + '\',\'' + _escapeHtml(op) + '\',\'' + _escapeHtml(c.quantity || '') + '\',\'' + _escapeHtml(c.price || '') + '\',\'' + _escapeHtml(c.currency || '') + '\',\'' + _escapeHtml(c.fee || '') + '\',\'' + _escapeHtml(note) + '\')">Edit</button>'
+                + '<button class="btn-insert" onclick="editCrypto(\'' + _escapeHtml(c.cryptoId || '') + '\',\'' + _escapeHtml(c.userId || '') + '\',\'' + _escapeHtml(c.cryptoName || '') + '\',\'' + _escapeHtml(c.tdate || '') + '\',\'' + _escapeHtml(c.fromWallet || '') + '\',\'' + _escapeHtml(c.toWallet || '') + '\',\'' + _escapeHtml(op) + '\',\'' + _escapeHtml(c.quantity || '') + '\',\'' + _escapeHtml(c.price || '') + '\',\'' + _escapeHtml(c.currency || '') + '\',\'' + _escapeHtml(c.fee || '') + '\',\'' + _escapeHtml(c.feeCurrency || c.currency || '') + '\',\'' + _escapeHtml(note) + '\')">Edit</button>'
                 + '</div>'
                 + '</div>'
                 + '</li>';
@@ -600,6 +607,7 @@
             const p = prefix ? String(prefix) : '';
             const op = document.getElementById(p ? (p + 'Operation') : 'operation');
             const feeUnit = document.getElementById(p ? (p + 'FeeUnit') : 'feeUnit');
+            const feeCurrency = document.getElementById(p ? (p + 'FeeCurrency') : 'feeCurrency');
             const price = document.getElementById(p ? (p + 'Price') : 'price');
             const currency = document.getElementById(p ? (p + 'Currency') : 'currency');
             const feeLabel = document.querySelector(`label[for="${p ? (p + 'Fee') : 'fee'}"]`);
@@ -615,12 +623,25 @@
             if (!op) return;
 
             const transferMode = isTransfer(op.value);
-            if (feeUnit) {
+            if (feeUnit && !feeCurrency) {
                 feeUnit.value = transferMode ? 'crypto' : 'fiat';
             }
 
+            function syncFeeUnitFromFeeCurrency() {
+                if (!feeUnit || !feeCurrency) return;
+                const v = String(feeCurrency.value || '').trim().toUpperCase();
+                feeUnit.value = v === 'CRYPTO' ? 'crypto' : 'fiat';
+            }
+
+            if (feeCurrency) {
+                if (!feeCurrency.dataset.userSelected) {
+                    feeCurrency.value = String((currency && currency.value) || 'EUR').toUpperCase();
+                }
+                syncFeeUnitFromFeeCurrency();
+            }
+
             if (feeLabel) {
-                feeLabel.textContent = transferMode ? 'Fee (crypto quantity):' : 'Fee:';
+                feeLabel.textContent = 'Fee:';
             }
 
             // For transfer, price/currency are not meaningful. Keep them, but disable and force 0.
@@ -644,6 +665,10 @@
                     delete currency.dataset.locked;
                     currency.required = true;
                 }
+            }
+
+            if (!transferMode && feeCurrency && String(feeCurrency.value || '').trim().toUpperCase() === 'CRYPTO') {
+                syncFeeUnitFromFeeCurrency();
             }
 
             if (priceLabel) {
@@ -672,6 +697,18 @@
         if (ccyCreate) {
             ccyCreate.addEventListener('change', function(){
                 if (ccyCreate.dataset.locked === '1') ccyCreate.value = 'EUR';
+                const feeCcy = document.getElementById('feeCurrency');
+                if (feeCcy && feeCcy.dataset.locked !== '1' && String(feeCcy.value || '').trim().toUpperCase() !== 'CRYPTO') {
+                    feeCcy.value = ccyCreate.value || 'EUR';
+                }
+            });
+        }
+        const feeCcyCreate = document.getElementById('feeCurrency');
+        if (feeCcyCreate) {
+            feeCcyCreate.addEventListener('change', function(){
+                feeCcyCreate.dataset.userSelected = '1';
+                const feeUnit = document.getElementById('feeUnit');
+                if (feeUnit) feeUnit.value = String(feeCcyCreate.value || '').trim().toUpperCase() === 'CRYPTO' ? 'crypto' : 'fiat';
             });
         }
         const opUpdate = document.getElementById('updateOperation');
@@ -682,6 +719,18 @@
         if (ccyUpdate) {
             ccyUpdate.addEventListener('change', function(){
                 if (ccyUpdate.dataset.locked === '1') ccyUpdate.value = 'EUR';
+                const feeCcy = document.getElementById('updateFeeCurrency');
+                if (feeCcy && feeCcy.dataset.locked !== '1' && String(feeCcy.value || '').trim().toUpperCase() !== 'CRYPTO') {
+                    feeCcy.value = ccyUpdate.value || 'EUR';
+                }
+            });
+        }
+        const feeCcyUpdate = document.getElementById('updateFeeCurrency');
+        if (feeCcyUpdate) {
+            feeCcyUpdate.addEventListener('change', function(){
+                feeCcyUpdate.dataset.userSelected = '1';
+                const feeUnit = document.getElementById('updateFeeUnit');
+                if (feeUnit) feeUnit.value = String(feeCcyUpdate.value || '').trim().toUpperCase() === 'CRYPTO' ? 'crypto' : 'fiat';
             });
         }
 
@@ -751,6 +800,8 @@
 
             const qty = parseFloat((qtyEl && qtyEl.value) ? qtyEl.value : '0');
             const fee = parseFloat((feeEl && feeEl.value) ? feeEl.value : '0');
+            const feeCurrencyEl = document.getElementById(p ? (p + 'FeeCurrency') : 'feeCurrency');
+            const feeCurrency = String((feeCurrencyEl && feeCurrencyEl.value) || '').trim().toUpperCase();
             if (!(qty > 0)) {
                 if (qtyEl) showError(qtyEl, 'Quantity must be greater than 0 for Transfer.');
                 return false;
@@ -759,7 +810,7 @@
                 if (feeEl) showError(feeEl, 'Fee must be a valid number (>= 0).');
                 return false;
             }
-            if (fee > qty) {
+            if (feeCurrency === 'CRYPTO' && fee > qty) {
                 if (feeEl) showError(feeEl, 'Fee cannot be greater than Quantity for Transfer.');
                 return false;
             }
@@ -1430,7 +1481,30 @@
             </div>
             <div>
                 <label>Currency:</label>
+                {% set _new_ccy = baseCurrency|default('EUR')|upper %}
                 <select id="currency" name="currency" required>
+                    <option value="EUR" {% if _new_ccy == 'EUR' %}selected{% endif %}>EUR</option>
+                    <option value="USD" {% if _new_ccy == 'USD' %}selected{% endif %}>USD</option>
+                    <option value="GBP" {% if _new_ccy == 'GBP' %}selected{% endif %}>GBP</option>
+                    <option value="CHF" {% if _new_ccy == 'CHF' %}selected{% endif %}>CHF</option>
+                    <option value="CAD" {% if _new_ccy == 'CAD' %}selected{% endif %}>CAD</option>
+                    <option value="AUD" {% if _new_ccy == 'AUD' %}selected{% endif %}>AUD</option>
+                    <option value="JPY" {% if _new_ccy == 'JPY' %}selected{% endif %}>JPY</option>
+                    <option value="SEK" {% if _new_ccy == 'SEK' %}selected{% endif %}>SEK</option>
+                    <option value="NOK" {% if _new_ccy == 'NOK' %}selected{% endif %}>NOK</option>
+                    <option value="DKK" {% if _new_ccy == 'DKK' %}selected{% endif %}>DKK</option>
+                </select>
+                <!-- <label for="currency">Currency:</label>
+                <input type="text" name="currency" required> -->
+            </div>
+            <div>
+                <label for="fee">Fee:</label>
+                <input type="text" id="fee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
+            </div>
+            <div>
+                <label for="feeCurrency">Fee Currency:</label>
+                <select id="feeCurrency" name="feeCurrency" required>
+                    <option value="CRYPTO">Crypto (same asset)</option>
                     <option value="EUR">EUR</option>
                     <option value="USD">USD</option>
                     <option value="GBP">GBP</option>
@@ -1442,12 +1516,6 @@
                     <option value="NOK">NOK</option>
                     <option value="DKK">DKK</option>
                 </select>
-                <!-- <label for="currency">Currency:</label>
-                <input type="text" name="currency" required> -->
-            </div>
-            <div>
-                <label for="fee">Fee:</label>
-                <input type="text" id="fee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
             </div>
             <div>
                 <label for="note">Note:</label>
@@ -1575,6 +1643,22 @@
             <div>
                 <label for="updateFee">Fee:</label>
                 <input type="text" id="updateFee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
+            </div>
+            <div>
+                <label for="updateFeeCurrency">Fee Currency:</label>
+                <select id="updateFeeCurrency" name="feeCurrency" required>
+                    <option value="CRYPTO">Crypto (same asset)</option>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                    <option value="GBP">GBP</option>
+                    <option value="CHF">CHF</option>
+                    <option value="CAD">CAD</option>
+                    <option value="AUD">AUD</option>
+                    <option value="JPY">JPY</option>
+                    <option value="SEK">SEK</option>
+                    <option value="NOK">NOK</option>
+                    <option value="DKK">DKK</option>
+                </select>
             </div>
             <div>
                 <label for="updateNote">Note:</label>

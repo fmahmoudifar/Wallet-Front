@@ -500,20 +500,23 @@ def stock_data():
     for s in stocks:
         try:
             tx_ccy_raw = _normalize_currency(s.get("currency"), base_currency)
+            fee_ccy_raw = _normalize_currency(s.get("feeCurrency"), tx_ccy_raw)
             qty = _to_decimal(s.get("quantity", 0))
             price_raw = _to_decimal(s.get("price", 0))
             fee_raw = _to_decimal(s.get("fee", 0))
 
             price_major, tx_ccy = _scale_minor_currency(price_raw, tx_ccy_raw)
-            fee_major, _ = _scale_minor_currency(fee_raw, tx_ccy_raw)
+            fee_major, fee_ccy = _scale_minor_currency(fee_raw, fee_ccy_raw)
 
-            fx = _get_fx_rate(tx_ccy, base_currency)
+            fx_price = _get_fx_rate(tx_ccy, base_currency)
+            fx_fee = _get_fx_rate(fee_ccy, base_currency)
 
             s["currencyBase"] = base_currency
-            s["priceBase"] = float(price_major * fx)
-            s["feeBase"] = float(fee_major * fx)
-            s["valuePaidBase"] = float(((qty * price_major) + fee_major) * fx)
+            s["priceBase"] = float(price_major * fx_price)
+            s["feeBase"] = float(fee_major * fx_fee)
+            s["valuePaidBase"] = float((qty * price_major * fx_price) + (fee_major * fx_fee))
             s["baseCurrency"] = base_currency
+            s["feeCurrency"] = fee_ccy
         except Exception:
             fx_warning = True
 
@@ -553,6 +556,7 @@ def create_stock():
         "price": request.form["price"],
         "currency": request.form["currency"],
         "fee": request.form["fee"],
+        "feeCurrency": request.form.get("feeCurrency") or request.form.get("currency"),
         "note": request.form["note"],
     }
 
@@ -587,6 +591,7 @@ def update_stock():
         "price": request.form["price"],
         "currency": request.form["currency"],
         "fee": request.form["fee"],
+        "feeCurrency": request.form.get("feeCurrency") or request.form.get("currency"),
         "note": request.form["note"],
     }
     print(f"🔄 [DEBUG] Updating stock: {data}")

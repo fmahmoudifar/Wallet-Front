@@ -1884,24 +1884,25 @@
     <label for="receivedAmount" id="createReceivedAmountLabel">Received Amount:</label>
     <input type="text" id="receivedAmount" name="receivedAmount" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
     </div>
+    <div id="createCurrencyRow">
+    <label for="currency">Currency:</label>
+    {% set _new_ccy = base_currency|default('EUR')|upper %}
+    <select id="currency" name="currency" required>
+        <option value="EUR" {% if _new_ccy == 'EUR' %}selected{% endif %}>EUR</option>
+        <option value="USD" {% if _new_ccy == 'USD' %}selected{% endif %}>USD</option>
+        <option value="GBP" {% if _new_ccy == 'GBP' %}selected{% endif %}>GBP</option>
+        <option value="CHF" {% if _new_ccy == 'CHF' %}selected{% endif %}>CHF</option>
+        <option value="CAD" {% if _new_ccy == 'CAD' %}selected{% endif %}>CAD</option>
+        <option value="AUD" {% if _new_ccy == 'AUD' %}selected{% endif %}>AUD</option>
+        <option value="JPY" {% if _new_ccy == 'JPY' %}selected{% endif %}>JPY</option>
+        <option value="SEK" {% if _new_ccy == 'SEK' %}selected{% endif %}>SEK</option>
+        <option value="NOK" {% if _new_ccy == 'NOK' %}selected{% endif %}>NOK</option>
+        <option value="DKK" {% if _new_ccy == 'DKK' %}selected{% endif %}>DKK</option>
+    </select>
+    </div>
     <div id="createFeeRow">
     <label for="fee">Fee:</label>
     <input type="text" id="fee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
-    </div>
-    <div id="createCurrencyRow">
-    <label for="currency">Currency:</label>
-    <select id="currency" name="currency" required>
-        <option value="EUR">EUR</option>
-        <option value="USD">USD</option>
-        <option value="GBP">GBP</option>
-        <option value="CHF">CHF</option>
-        <option value="CAD">CAD</option>
-        <option value="AUD">AUD</option>
-        <option value="JPY">JPY</option>
-        <option value="SEK">SEK</option>
-        <option value="NOK">NOK</option>
-        <option value="DKK">DKK</option>
-    </select>
     </div>
     <div>
     <label for="note">Note:</label>

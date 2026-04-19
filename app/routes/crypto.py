@@ -899,6 +899,7 @@ def crypto_data():
                     fee = to_decimal(tx.get("fee", 0))
                     operation = str(tx.get("operation") or tx.get("side") or "buy").lower()
                     fee_unit = str(tx.get("feeUnit") or "").strip().lower()
+                    fee_currency = _normalize_currency(tx.get("feeCurrency"), "")
                     ckey = norm_crypto_key(tx.get("cryptoName") or name)
 
                     # TRANSFER: fee is a crypto quantity.
@@ -912,7 +913,7 @@ def crypto_data():
 
                         # Transfer fee is expected to be a crypto quantity when feeUnit == 'crypto'.
                         # If older records have feeUnit missing or set differently, treat fee as 0 for qty math.
-                        fee_qty = fee if (fee_unit == "crypto" or fee_unit == "") else Decimal(0)
+                        fee_qty = fee if (fee_unit == "crypto" or fee_currency == "CRYPTO" or fee_unit == "") else Decimal(0)
                         qty_total = qty
                         qty_net = qty_total - fee_qty
                         if qty_net < 0:
@@ -955,10 +956,15 @@ def crypto_data():
                     tx_currency = _normalize_currency(tx.get("currency"), base_currency)
                     fx_rate = _get_fx_rate(tx_currency, base_currency)
 
-                    # Transaction value (qty * price + fee)
-                    tx_value = (qty * price) + fee
-                    tx_value_base = tx_value * fx_rate
-                    fee_base = fee * fx_rate
+                    # Fees can be fiat (feeCurrency set) or same-asset crypto (feeCurrency=CRYPTO / feeUnit=crypto).
+                    if fee_unit == "crypto" or fee_currency == "CRYPTO":
+                        fee_base = (fee * price) * fx_rate
+                    else:
+                        fee_ccy = _normalize_currency(fee_currency, tx_currency)
+                        fee_fx = _get_fx_rate(fee_ccy, base_currency)
+                        fee_base = fee * fee_fx
+
+                    tx_value_base = ((qty * price) * fx_rate) + fee_base
                     revenue_base = (qty * price) * fx_rate
 
                     if operation == "buy":
@@ -1299,6 +1305,7 @@ def create_crypto():
         "price": request.form["price"],
         "currency": request.form["currency"],
         "fee": request.form["fee"],
+        "feeCurrency": request.form.get("feeCurrency") or request.form.get("currency"),
         "note": request.form["note"],
     }
 
@@ -1334,6 +1341,7 @@ def update_crypto():
         "price": request.form["price"],
         "currency": request.form["currency"],
         "fee": request.form["fee"],
+        "feeCurrency": request.form.get("feeCurrency") or request.form.get("currency"),
         "note": request.form["note"],
     }
     print(f"🔄 [DEBUG] Updating crypto: {data}")

@@ -942,7 +942,7 @@
         setStockNavVisibility('update');
     }
 
-    function editStock(stockId, userId, stockName, tdate, fromWallet, toWallet, operation, quantity, price, currency, fee, note) {
+    function editStock(stockId, userId, stockName, tdate, fromWallet, toWallet, operation, quantity, price, currency, fee, feeCurrency, note) {
         document.getElementById("updateStockId").value = stockId;
         document.getElementById("updateUserId").value = userId;
         const hidden = document.getElementById("updateStockName");
@@ -969,6 +969,10 @@
         document.getElementById("updatePrice").value = price;
         document.getElementById("updateCurrency").value = currency;
         document.getElementById("updateFee").value = fee;
+        {
+            const el = document.getElementById("updateFeeCurrency");
+            if (el) el.value = feeCurrency || currency || 'EUR';
+        }
         document.getElementById("updateNote").value = note;
         showStockUpdate();
         // Route is lowercase in the blueprint: /deletestock/<stock_id>/<user_id>
@@ -1007,6 +1011,7 @@
             li.dataset.price,
             li.dataset.currency,
             li.dataset.fee,
+            li.dataset.feecurrency,
             li.dataset.note
         );
     }
@@ -1261,7 +1266,7 @@
             if (fromName && toName) walletLine = fromName + ' - ' + toName;
             else if (fromName || toName) walletLine = fromName || toName;
 
-            return '<li data-id="' + escapeHtml(s.stockId || '') + '" data-userid="' + escapeHtml(s.userId || '') + '" data-tdate="' + escapeHtml(s.tdate || '') + '" data-stock="' + escapeHtml(s.stockName || '') + '" data-operation="' + escapeHtml(op) + '" data-qty="' + escapeHtml(s.quantity || '') + '" data-price="' + escapeHtml(s.price || '') + '" data-currency="' + escapeHtml(s.currency || '') + '" data-fee="' + escapeHtml(s.fee || 0) + '" data-note="' + escapeHtml(note) + '" data-from="' + escapeHtml(s.fromWallet || '') + '" data-to="' + escapeHtml(s.toWallet || '') + '">'
+            return '<li data-id="' + escapeHtml(s.stockId || '') + '" data-userid="' + escapeHtml(s.userId || '') + '" data-tdate="' + escapeHtml(s.tdate || '') + '" data-stock="' + escapeHtml(s.stockName || '') + '" data-operation="' + escapeHtml(op) + '" data-qty="' + escapeHtml(s.quantity || '') + '" data-price="' + escapeHtml(s.price || '') + '" data-currency="' + escapeHtml(s.currency || '') + '" data-fee="' + escapeHtml(s.fee || 0) + '" data-feecurrency="' + escapeHtml(s.feeCurrency || s.currency || '') + '" data-note="' + escapeHtml(note) + '" data-from="' + escapeHtml(s.fromWallet || '') + '" data-to="' + escapeHtml(s.toWallet || '') + '">'
                 + '<div class="crypto-history-row">'
                 + '<div class="crypto-history-left">'
                 + '<div class="crypto-history-title">' + escapeHtml(s.stockName || '') + '</div>'
@@ -1294,6 +1299,24 @@
 document.addEventListener("DOMContentLoaded", function() {
     initStockAutocomplete('stockSearch', 'stockSearchList', 'stockName', { priceId: 'stockPrice', currencyId: 'stockCurrency' });
     initStockAutocomplete('updateStockSearch', 'updateStockSearchList', 'updateStockName', { priceId: 'updatePrice', currencyId: 'updateCurrency' });
+
+    const createCurrency = document.getElementById('stockCurrency');
+    const createFeeCurrency = document.getElementById('feeCurrency');
+    if (createCurrency && createFeeCurrency) {
+        createFeeCurrency.value = createCurrency.value || 'EUR';
+        createCurrency.addEventListener('change', function() {
+            createFeeCurrency.value = createCurrency.value || 'EUR';
+        });
+    }
+
+    const updateCurrency = document.getElementById('updateCurrency');
+    const updateFeeCurrency = document.getElementById('updateFeeCurrency');
+    if (updateCurrency && updateFeeCurrency) {
+        updateFeeCurrency.value = updateCurrency.value || 'EUR';
+        updateCurrency.addEventListener('change', function() {
+            updateFeeCurrency.value = updateCurrency.value || 'EUR';
+        });
+    }
 
     // Wire filter events
     ['stockFilterStart','stockFilterEnd','stockFilterSymbol','stockFilterNote','stockFilterFromWallet','stockFilterToWallet'].forEach(function(id) {
@@ -1463,7 +1486,28 @@ function stockWalletsDiv() { showStockWallets(); }
         </div>
         <div>
         <label for="currency">Currency:</label>
+        {% set _new_ccy = base_currency|default('EUR')|upper %}
         <select id="stockCurrency" name="currency" required>
+            <option value="EUR" {% if _new_ccy == 'EUR' %}selected{% endif %}>EUR</option>
+            <option value="USD" {% if _new_ccy == 'USD' %}selected{% endif %}>USD</option>
+            <option value="GBP" {% if _new_ccy == 'GBP' %}selected{% endif %}>GBP</option>
+            <option value="GBX" {% if _new_ccy == 'GBX' %}selected{% endif %}>GBX</option>
+            <option value="CHF" {% if _new_ccy == 'CHF' %}selected{% endif %}>CHF</option>
+            <option value="CAD" {% if _new_ccy == 'CAD' %}selected{% endif %}>CAD</option>
+            <option value="AUD" {% if _new_ccy == 'AUD' %}selected{% endif %}>AUD</option>
+            <option value="JPY" {% if _new_ccy == 'JPY' %}selected{% endif %}>JPY</option>
+            <option value="SEK" {% if _new_ccy == 'SEK' %}selected{% endif %}>SEK</option>
+            <option value="NOK" {% if _new_ccy == 'NOK' %}selected{% endif %}>NOK</option>
+            <option value="DKK" {% if _new_ccy == 'DKK' %}selected{% endif %}>DKK</option>
+        </select>
+        </div>
+        <div>
+        <label for="fee">Fee:</label>
+        <input type="text" id="fee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
+        </div>
+        <div>
+        <label for="feeCurrency">Fee Currency:</label>
+        <select id="feeCurrency" name="feeCurrency" required>
             <option value="EUR">EUR</option>
             <option value="USD">USD</option>
             <option value="GBP">GBP</option>
@@ -1476,10 +1520,6 @@ function stockWalletsDiv() { showStockWallets(); }
             <option value="NOK">NOK</option>
             <option value="DKK">DKK</option>
         </select>
-        </div>
-        <div>
-        <label for="fee">Fee:</label>
-        <input type="text" id="fee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
         </div>
         <div>
         <label for="note">Note:</label>
@@ -1606,6 +1646,22 @@ function stockWalletsDiv() { showStockWallets(); }
             <div>
                 <label>Fee:</label>
                 <input type="text" id="updateFee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
+            </div>
+            <div>
+                <label>Fee Currency:</label>
+                <select id="updateFeeCurrency" name="feeCurrency" required>
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                    <option value="GBP">GBP</option>
+                    <option value="GBX">GBX</option>
+                    <option value="CHF">CHF</option>
+                    <option value="CAD">CAD</option>
+                    <option value="AUD">AUD</option>
+                    <option value="JPY">JPY</option>
+                    <option value="SEK">SEK</option>
+                    <option value="NOK">NOK</option>
+                    <option value="DKK">DKK</option>
+                </select>
             </div>
             <div>
                 <label>Note:</label>

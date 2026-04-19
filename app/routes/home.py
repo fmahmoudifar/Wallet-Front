@@ -356,6 +356,8 @@ def dashboard_data():
                     price = to_decimal(tx.get("price", 0))
                     fee = to_decimal(tx.get("fee", 0))
                     operation = str(tx.get("operation") or tx.get("side") or "buy").lower()
+                    fee_unit = str(tx.get("feeUnit") or "").strip().lower()
+                    fee_currency = _normalize_currency(tx.get("feeCurrency"), "")
 
                     to_wallet = tx.get("toWallet")
                     from_wallet = tx.get("fromWallet")
@@ -366,7 +368,7 @@ def dashboard_data():
                     # - To wallet receives (qty - fee) (net)
                     # Portfolio delta = (+net if toWallet else 0) - (qty if fromWallet else 0)
                     if operation == "transfer":
-                        fee_qty = fee
+                        fee_qty = fee if (fee_unit == "crypto" or fee_currency == "CRYPTO" or fee_unit == "") else Decimal(0)
                         qty_total = qty
                         qty_net = qty_total - fee_qty
                         if qty_net < 0:
@@ -400,10 +402,16 @@ def dashboard_data():
                     tx_currency = _normalize_currency(tx.get("currency"), base_currency)
                     fx_rate = _get_fx_rate(tx_currency, base_currency)
 
-                    # Transaction value (qty * price + fee)
+                    # Fee conversion: fiat feeCurrency or same-asset crypto fee.
+                    if fee_unit == "crypto" or fee_currency == "CRYPTO":
+                        fee_base = (fee * price) * fx_rate
+                    else:
+                        fee_ccy = _normalize_currency(fee_currency, tx_currency)
+                        fee_fx = _get_fx_rate(fee_ccy, base_currency)
+                        fee_base = fee * fee_fx
+
                     tx_value = (qty * price) + fee
-                    tx_value_base = tx_value * fx_rate
-                    fee_base = fee * fx_rate
+                    tx_value_base = ((qty * price) * fx_rate) + fee_base
                     revenue_base = (qty * price) * fx_rate
 
                     if operation == "buy":
@@ -418,7 +426,7 @@ def dashboard_data():
                             wallet_balances[from_wallet] -= tx_value_base  # Cash out (base currency)
                             # Cash out in the from_wallet's own currency
                             try:
-                                wallet_fiat_balances[from_wallet] -= _fx_amount_to_wallet(tx_value, tx_currency, from_wallet)
+                                wallet_fiat_balances[from_wallet] -= _fx_amount_to_wallet(tx_value_base, base_currency, from_wallet)
                             except Exception:
                                 pass
                         if to_wallet:
@@ -466,8 +474,8 @@ def dashboard_data():
                             wallet_balances[to_wallet] += revenue_base  # Cash in (base currency)
                             # Cash in (net of fee) in the to_wallet's own currency
                             try:
-                                net_proceeds = (qty * price) - fee
-                                wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet(net_proceeds, tx_currency, to_wallet)
+                                net_proceeds_base = revenue_base - fee_base
+                                wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet(net_proceeds_base, base_currency, to_wallet)
                             except Exception:
                                 pass
                         # Track live crypto quantity leaving the source wallet
@@ -681,17 +689,15 @@ def dashboard_data():
                     to_wallet = tx.get("toWallet")
 
                     tx_currency_raw = _normalize_currency(tx.get("currency"), base_currency)
+                    fee_currency_raw = _normalize_currency(tx.get("feeCurrency"), tx_currency_raw)
                     price_major, tx_ccy = _scale_minor_currency(price_raw, tx_currency_raw)
-                    fee_major, _ = _scale_minor_currency(fee_raw, tx_currency_raw)
+                    fee_major, fee_ccy = _scale_minor_currency(fee_raw, fee_currency_raw)
 
                     fx_rate = _get_fx_rate(tx_ccy, base_currency)
-                    tx_value_base = ((qty * price_major) + fee_major) * fx_rate
-                    fee_base = fee_major * fx_rate
+                    fx_fee = _get_fx_rate(fee_ccy, base_currency)
+                    tx_value_base = ((qty * price_major) * fx_rate) + (fee_major * fx_fee)
+                    fee_base = fee_major * fx_fee
                     revenue_base = (qty * price_major) * fx_rate
-
-                    tx_value_tx = (qty * price_major) + fee_major
-                    revenue_tx = qty * price_major
-                    fee_tx = fee_major
 
                     # Wallet holdings / cash-flow effects:
                     # - buy: cash decreases in fromWallet, stock qty increases in toWallet
@@ -702,14 +708,14 @@ def dashboard_data():
                             wallet_stock_qty[to_wallet][sym] += qty
                         if from_wallet:
                             wallet_fiat_balances[from_wallet] -= _fx_amount_to_wallet(
-                                tx_value_tx, tx_ccy, from_wallet
+                                tx_value_base, base_currency, from_wallet
                             )
                     elif operation == "sell":
                         if from_wallet:
                             wallet_stock_qty[from_wallet][sym] -= qty
                         if to_wallet:
                             wallet_fiat_balances[to_wallet] += _fx_amount_to_wallet(
-                                (revenue_tx - fee_tx), tx_ccy, to_wallet
+                                (revenue_base - fee_base), base_currency, to_wallet
                             )
                     elif operation == "transfer":
                         if from_wallet:
