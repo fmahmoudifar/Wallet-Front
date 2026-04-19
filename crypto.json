@@ -1,0 +1,298 @@
+{
+  "baseCurrency": "USD",
+  "coins": [
+    {
+      "id": "btc",
+      "name": "Bitcoin",
+      "symbol": "BTC"
+    },
+    {
+      "id": "doge",
+      "name": "Dogecoin",
+      "symbol": "DOGE"
+    },
+    {
+      "id": "xrp",
+      "name": "XRP",
+      "symbol": "XRP"
+    }
+  ],
+  "cryptos": [
+    {
+      "cryptoId": "13b4f7fc-ada8-410f-8524-e477592afc26",
+      "cryptoName": "BTC",
+      "currency": "EUR",
+      "fee": "0.64",
+      "feeUnit": "fiat",
+      "operation": "Buy",
+      "price": "71900",
+      "quantity": "0.0003",
+      "tdate": "2025-04-07",
+      "toWallet": "b0aac093-93eb-44e3-ba4f-cc7c958b7b29",
+      "userId": "707ce97c-a0d1-7014-8b64-790ced916e88"
+    },
+    {
+      "cryptoId": "8761d526-cdd3-44d5-8a4d-7f26233f11fc",
+      "cryptoName": "DOGE",
+      "currency": "EUR",
+      "fee": "1.5",
+      "feeUnit": "fiat",
+      "fromWallet": "b0aac093-93eb-44e3-ba4f-cc7c958b7b29",
+      "note": "",
+      "operation": "Sell",
+      "price": "0.1",
+      "quantity": "60",
+      "side": null,
+      "tdate": "2026-04-18",
+      "toWallet": "",
+      "userId": "707ce97c-a0d1-7014-8b64-790ced916e88"
+    },
+    {
+      "cryptoId": "c3546499-262a-4967-8000-eac7e6e0d5b2",
+      "cryptoName": "DOGE",
+      "currency": "EUR",
+      "fee": "1.49",
+      "feeUnit": "fiat",
+      "fromWallet": "",
+      "note": "",
+      "operation": "Buy",
+      "price": "0.1451",
+      "quantity": "128",
+      "side": null,
+      "tdate": "2025-07-08",
+      "toWallet": "b0aac093-93eb-44e3-ba4f-cc7c958b7b29",
+      "userId": "707ce97c-a0d1-7014-8b64-790ced916e88"
+    },
+    {
+      "cryptoId": "c3c6f8b1-e394-4a56-b94d-08d69d4c6fd0",
+      "cryptoName": "XRP",
+      "currency": "EUR",
+      "fee": "20",
+      "feeUnit": "fiat",
+      "fromWallet": "84775a59-dba5-4328-9aac-d79e8faa2444",
+      "note": "",
+      "operation": "Sell",
+      "price": "1.208",
+      "quantity": "50",
+      "side": null,
+      "tdate": "2026-04-19",
+      "toWallet": "",
+      "userId": "707ce97c-a0d1-7014-8b64-790ced916e88"
+    },
+    {
+      "cryptoId": "7844ed77-0711-41b9-b183-4437c72b1c5c",
+      "cryptoName": "BTC",
+      "currency": "EUR",
+      "fee": "1.99",
+      "feeUnit": "fiat",
+      "operation": "Buy",
+      "price": "76759.20",
+      "quantity": "0.00062",
+      "tdate": "2026-01-23",
+      "toWallet": "84775a59-dba5-4328-9aac-d79e8faa2444",
+      "userId": "707ce97c-a0d1-7014-8b64-790ced916e88"
+    },
+    {
+      "cryptoId": "7d9868a2-cfcf-4007-892b-dd5e6b1f1525",
+      "cryptoName": "XRP",
+      "currency": "EUR",
+      "fee": "",
+      "feeUnit": "fiat",
+      "fromWallet": "",
+      "note": "",
+      "operation": "Buy",
+      "price": "0.2447",
+      "quantity": "110",
+      "side": null,
+      "tdate": "2021-09-24",
+      "toWallet": "84775a59-dba5-4328-9aac-d79e8faa2444",
+      "userId": "707ce97c-a0d1-7014-8b64-790ced916e88"
+    }
+  ],
+  "totals": [
+    {
+      "avg_buy_price": 92055.97120521739,
+      "avg_buy_price_display": "92055.971205217391",
+      "cryptoName": "BTC",
+      "currency": "USD",
+      "latest_price": 0.0,
+      "latest_price_display": "\u2014",
+      "pct_fill": 50.108034344566065,
+      "pct_fill_str": "50.11",
+      "price_multiplier": 0.0,
+      "price_pct": -100.0,
+      "price_pct_display": "-100.00%",
+      "total_fee": 3.102611,
+      "total_fee_display": "3.102611",
+      "total_qty": 0.00092,
+      "total_qty_display": "0.00092",
+      "total_value": 84.6914935088,
+      "total_value_buy": 84.6914935088,
+      "total_value_buy_display": "84.69",
+      "total_value_live": 0.0,
+      "total_value_live_display": "\u2014",
+      "total_value_sell": 0.0,
+      "value_change_amount": 0.0,
+      "value_change_amount_abs_display": "0",
+      "value_pct": -100.0,
+      "value_pct_display": "-100.00%"
+    },
+    {
+      "avg_buy_price": 0.1849069153125,
+      "avg_buy_price_display": "0.184906915313",
+      "cryptoName": "DOGE",
+      "currency": "USD",
+      "latest_price": 0.0,
+      "latest_price_display": "\u2014",
+      "pct_fill": 50.108034344566065,
+      "pct_fill_str": "50.11",
+      "price_multiplier": 0.0,
+      "price_pct": -100.0,
+      "price_pct_display": "-100.00%",
+      "total_fee": 3.527303,
+      "total_fee_display": "3.527303",
+      "total_qty": 68.0,
+      "total_qty_display": "68",
+      "total_value": 12.57367024125,
+      "total_value_buy": 23.66808516,
+      "total_value_buy_display": "23.67",
+      "total_value_live": 0.0,
+      "total_value_live_display": "\u2014",
+      "total_value_sell": 5.30865,
+      "value_change_amount": 0.0,
+      "value_change_amount_abs_display": "0",
+      "value_pct": -100.0,
+      "value_pct_display": "-100.00%"
+    },
+    {
+      "avg_buy_price": 0.28867259,
+      "avg_buy_price_display": "0.28867259",
+      "cryptoName": "XRP",
+      "currency": "USD",
+      "latest_price": 0.0,
+      "latest_price_display": "\u2014",
+      "pct_fill": 50.108034344566065,
+      "pct_fill_str": "50.11",
+      "price_multiplier": 0.0,
+      "price_pct": -100.0,
+      "price_pct_display": "-100.00%",
+      "total_fee": 23.594,
+      "total_fee_display": "23.594",
+      "total_qty": 60.0,
+      "total_qty_display": "60",
+      "total_value": 17.3203554,
+      "total_value_buy": 31.7539849,
+      "total_value_buy_display": "31.75",
+      "total_value_live": 0.0,
+      "total_value_live_display": "\u2014",
+      "total_value_sell": 47.65988,
+      "value_change_amount": 0.0,
+      "value_change_amount_abs_display": "0",
+      "value_pct": -100.0,
+      "value_pct_display": "-100.00%"
+    }
+  ],
+  "userId": "707ce97c-a0d1-7014-8b64-790ced916e88",
+  "walletHoldings": [
+    {
+      "holdings": [
+        {
+          "cryptoName": "XRP",
+          "qty": 60.0,
+          "qty_display": "60",
+          "value_live": null,
+          "value_live_display": "\u2014"
+        },
+        {
+          "cryptoName": "BTC",
+          "qty": 0.00062,
+          "qty_display": "0.00062",
+          "value_live": null,
+          "value_live_display": "\u2014"
+        }
+      ],
+      "total_value_live": null,
+      "total_value_live_display": "\u2014",
+      "walletId": "84775a59-dba5-4328-9aac-d79e8faa2444",
+      "walletName": "Crypto.com"
+    },
+    {
+      "holdings": [
+        {
+          "cryptoName": "DOGE",
+          "qty": 68.0,
+          "qty_display": "68",
+          "value_live": null,
+          "value_live_display": "\u2014"
+        },
+        {
+          "cryptoName": "BTC",
+          "qty": 0.0003,
+          "qty_display": "0.0003",
+          "value_live": null,
+          "value_live_display": "\u2014"
+        }
+      ],
+      "total_value_live": null,
+      "total_value_live_display": "\u2014",
+      "walletId": "b0aac093-93eb-44e3-ba4f-cc7c958b7b29",
+      "walletName": "Revolut"
+    }
+  ],
+  "wallets": [
+    {
+      "accountNumber": null,
+      "balance": null,
+      "color": "#E56C6C",
+      "currency": "USD",
+      "note": null,
+      "userId": "707ce97c-a0d1-7014-8b64-790ced916e88",
+      "walletId": "59a88d8a-74ce-44cc-9bbf-24b179367533",
+      "walletName": "eToro",
+      "walletType": "Stock"
+    },
+    {
+      "color": "#5277E5",
+      "currency": "EUR",
+      "userId": "707ce97c-a0d1-7014-8b64-790ced916e88",
+      "walletId": "90e57b89-7646-4e15-82c1-0a292eeb9a68",
+      "walletName": "Trading 212",
+      "walletType": "Stock"
+    },
+    {
+      "accountNumber": null,
+      "balance": null,
+      "color": "#9E9E9E",
+      "currency": "EUR",
+      "note": null,
+      "userId": "707ce97c-a0d1-7014-8b64-790ced916e88",
+      "walletId": "2e0193de-cec3-4174-9e49-16cfc8d98a6f",
+      "walletName": "Revolut",
+      "walletType": "Fiat"
+    },
+    {
+      "color": "#1BBB76",
+      "currency": "EUR",
+      "userId": "707ce97c-a0d1-7014-8b64-790ced916e88",
+      "walletId": "c7666544-a683-40a7-88a0-9f23c5e84cf8",
+      "walletName": "Wise",
+      "walletType": "Fiat"
+    },
+    {
+      "color": "#E5A4EA",
+      "currency": "EUR",
+      "userId": "707ce97c-a0d1-7014-8b64-790ced916e88",
+      "walletId": "84775a59-dba5-4328-9aac-d79e8faa2444",
+      "walletName": "Crypto.com",
+      "walletType": "Crypto"
+    },
+    {
+      "color": "#95EAE0",
+      "currency": "EUR",
+      "userId": "707ce97c-a0d1-7014-8b64-790ced916e88",
+      "walletId": "b0aac093-93eb-44e3-ba4f-cc7c958b7b29",
+      "walletName": "Revolut",
+      "walletType": "Crypto"
+    }
+  ]
+}

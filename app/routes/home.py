@@ -356,7 +356,6 @@ def dashboard_data():
                     price = to_decimal(tx.get("price", 0))
                     fee = to_decimal(tx.get("fee", 0))
                     operation = str(tx.get("operation") or tx.get("side") or "buy").lower()
-                    fee_unit = str(tx.get("feeUnit") or "").strip().lower()
                     fee_currency = _normalize_currency(tx.get("feeCurrency"), "")
 
                     to_wallet = tx.get("toWallet")
@@ -368,7 +367,7 @@ def dashboard_data():
                     # - To wallet receives (qty - fee) (net)
                     # Portfolio delta = (+net if toWallet else 0) - (qty if fromWallet else 0)
                     if operation == "transfer":
-                        fee_qty = fee if (fee_unit == "crypto" or fee_currency == "CRYPTO" or fee_unit == "") else Decimal(0)
+                        fee_qty = fee if fee_currency == "CRYPTO" else Decimal(0)
                         qty_total = qty
                         qty_net = qty_total - fee_qty
                         if qty_net < 0:
@@ -403,7 +402,7 @@ def dashboard_data():
                     fx_rate = _get_fx_rate(tx_currency, base_currency)
 
                     # Fee conversion: fiat feeCurrency or same-asset crypto fee.
-                    if fee_unit == "crypto" or fee_currency == "CRYPTO":
+                    if fee_currency == "CRYPTO":
                         fee_base = (fee * price) * fx_rate
                     else:
                         fee_ccy = _normalize_currency(fee_currency, tx_currency)

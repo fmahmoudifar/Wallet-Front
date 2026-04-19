@@ -179,6 +179,86 @@ def _scan_matching_keys(
     return keys
 
 
+def _discover_table_columns(client, table_name: str, sample_limit: int = 200) -> list[str]:
+    """Best-effort attribute discovery from a sample of table items.
+
+    DynamoDB is schemaless for non-key attributes, so we inspect a sample and
+    return discovered field names plus key fields.
+    """
+    discovered: set[str] = set()
+    scanned = 0
+    start_key = None
+
+    table_desc = _describe_table(client, table_name)
+    for k in _key_fields(table_desc):
+        discovered.add(k)
+
+    while scanned < sample_limit:
+        kwargs: dict[str, Any] = {
+            "TableName": table_name,
+            "Limit": min(100, sample_limit - scanned),
+        }
+        if start_key:
+            kwargs["ExclusiveStartKey"] = start_key
+
+        resp = client.scan(**kwargs)
+        items = resp.get("Items", [])
+        for item in items:
+            discovered.update(item.keys())
+
+        scanned += len(items)
+        start_key = resp.get("LastEvaluatedKey")
+        if not start_key:
+            break
+
+    return sorted(discovered, key=str.lower)
+
+
+def _scan_keys_with_attribute(
+    client,
+    table_name: str,
+    table_desc: dict[str, Any],
+    field_name: str,
+    max_items: int,
+) -> list[dict[str, Any]]:
+    """Return table keys for items where the given attribute exists."""
+    key_fields = _key_fields(table_desc)
+    expr_names: dict[str, str] = {"#f": field_name}
+    projection_aliases: list[str] = []
+    for i, name in enumerate(key_fields):
+        alias = f"#p{i}"
+        expr_names[alias] = name
+        projection_aliases.append(alias)
+
+    start_key = None
+    keys: list[dict[str, Any]] = []
+
+    while True:
+        kwargs: dict[str, Any] = {
+            "TableName": table_name,
+            "FilterExpression": "attribute_exists(#f)",
+            "ExpressionAttributeNames": expr_names,
+            "ProjectionExpression": ", ".join(projection_aliases),
+            "Limit": 250,
+        }
+        if start_key:
+            kwargs["ExclusiveStartKey"] = start_key
+
+        resp = client.scan(**kwargs)
+        for item in resp.get("Items", []):
+            key = {k: item[k] for k in key_fields if k in item}
+            if len(key) == len(key_fields):
+                keys.append(key)
+            if len(keys) >= max_items:
+                return keys
+
+        start_key = resp.get("LastEvaluatedKey")
+        if not start_key:
+            break
+
+    return keys
+
+
 def _update_non_key_field(
     client, table_name: str, key: dict[str, Any], field_name: str, new_value: str
 ) -> None:
@@ -188,6 +268,15 @@ def _update_non_key_field(
         UpdateExpression="SET #f = :new",
         ExpressionAttributeNames={"#f": field_name},
         ExpressionAttributeValues={":new": {"S": new_value}},
+    )
+
+
+def _remove_non_key_field(client, table_name: str, key: dict[str, Any], field_name: str) -> None:
+    client.update_item(
+        TableName=table_name,
+        Key=key,
+        UpdateExpression="REMOVE #f",
+        ExpressionAttributeNames={"#f": field_name},
     )
 
 
@@ -335,6 +424,125 @@ def userid_migrate():
         changed=changed,
         seed_user_ids=[],
         seed_selected_user="",
+        drop_tables=tables,
+        drop_selected_table=selected_table,
+        drop_candidate_columns=[],
+        drop_selected_column="",
+        drop_key_fields=key_fields,
+        drop_field_is_key=False,
+        drop_max_items=2000,
+        drop_mode="preview",
+        drop_sample_keys=[],
+        drop_matched=0,
+        drop_changed=0,
+    )
+
+
+@admin_tools_bp.route("/column-delete", methods=["GET", "POST"])
+def column_delete():
+    _require_allowed_admin_user()
+
+    client = _ddb_client()
+    tables = _list_tables(client)
+
+    drop_selected_table = (request.values.get("drop_table") or (tables[0] if tables else "")).strip()
+    drop_selected_column = (request.values.get("drop_column") or "").strip()
+    drop_mode = (request.values.get("drop_mode") or "preview").strip().lower()  # preview | apply
+
+    try:
+        drop_max_items = int(request.values.get("drop_max_items") or "2000")
+    except Exception:
+        drop_max_items = 2000
+    drop_max_items = max(1, min(drop_max_items, 20000))
+
+    drop_candidate_columns: list[str] = []
+    drop_key_fields: list[str] = []
+    drop_field_is_key = False
+    drop_sample_keys: list[str] = []
+    drop_matched = 0
+    drop_changed = 0
+    drop_table_desc: dict[str, Any] | None = None
+
+    if drop_selected_table:
+        drop_table_desc = _describe_table(client, drop_selected_table)
+        drop_key_fields = _key_fields(drop_table_desc)
+        drop_field_is_key = drop_selected_column in set(drop_key_fields)
+        drop_candidate_columns = _discover_table_columns(client, drop_selected_table)
+
+    if request.method == "POST":
+        if not drop_selected_table:
+            flash("No table selected for column delete.", "danger")
+        elif not drop_selected_column:
+            flash("Please select a column to delete.", "danger")
+        elif not drop_table_desc:
+            flash("Selected table could not be described.", "danger")
+        elif drop_selected_column in set(drop_key_fields):
+            flash(
+                f"Cannot delete key field '{drop_selected_column}'. Key attributes are required by DynamoDB.",
+                "danger",
+            )
+        else:
+            matches = _scan_keys_with_attribute(
+                client=client,
+                table_name=drop_selected_table,
+                table_desc=drop_table_desc,
+                field_name=drop_selected_column,
+                max_items=drop_max_items,
+            )
+            drop_matched = len(matches)
+            drop_sample_keys = [
+                ", ".join([f"{k}={_attrval_to_str(v)}" for k, v in key.items()]) for key in matches[:10]
+            ]
+
+            if drop_mode == "apply":
+                for key in matches:
+                    _remove_non_key_field(
+                        client=client,
+                        table_name=drop_selected_table,
+                        key=key,
+                        field_name=drop_selected_column,
+                    )
+                    drop_changed += 1
+
+                flash(
+                    f"Deleted column '{drop_selected_column}' from {drop_changed} item(s) in {drop_selected_table}.",
+                    "success",
+                )
+            else:
+                flash(
+                    f"Preview: {drop_matched} item(s) in {drop_selected_table} have column '{drop_selected_column}'.",
+                    "info",
+                )
+
+    return render_template(
+        "admin_tools.html",
+        # userid_migrate section defaults
+        tables=tables,
+        selected_table=drop_selected_table,
+        candidate_fields=[],
+        selected_field="userId",
+        key_fields=drop_key_fields,
+        field_is_key=False,
+        old_user_id="",
+        new_user_id="",
+        max_items=2000,
+        sample_keys=[],
+        changed=0,
+        # seed section defaults
+        seed_user_ids=[],
+        seed_selected_user="",
+        # column delete section state
+        drop_tables=tables,
+        drop_selected_table=drop_selected_table,
+        drop_candidate_columns=drop_candidate_columns,
+        drop_selected_column=drop_selected_column,
+        drop_key_fields=drop_key_fields,
+        drop_field_is_key=drop_field_is_key,
+        drop_max_items=drop_max_items,
+        drop_mode=drop_mode,
+        drop_sample_keys=drop_sample_keys,
+        drop_matched=drop_matched,
+        drop_changed=drop_changed,
     )
 
 
@@ -419,4 +627,16 @@ def seed_settings():
         # seed section
         seed_user_ids=seed_user_ids,
         seed_selected_user=seed_selected_user,
+        # column delete section defaults
+        drop_tables=[],
+        drop_selected_table="",
+        drop_candidate_columns=[],
+        drop_selected_column="",
+        drop_key_fields=[],
+        drop_field_is_key=False,
+        drop_max_items=2000,
+        drop_mode="preview",
+        drop_sample_keys=[],
+        drop_matched=0,
+        drop_changed=0,
     )

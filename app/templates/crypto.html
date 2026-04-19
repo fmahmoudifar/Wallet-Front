@@ -584,16 +584,69 @@
 
         const updateForm = document.getElementById('updateForm');
         if (updateForm) {
-            updateForm.addEventListener('submit', function(e){
+            const updateErrorBox = document.getElementById('updateFormError');
+
+            function clearUpdateError() {
+                if (!updateErrorBox) return;
+                updateErrorBox.style.display = 'none';
+                updateErrorBox.textContent = '';
+            }
+
+            function showUpdateError(msg) {
+                if (!updateErrorBox) {
+                    alert(msg || 'Failed to update transaction.');
+                    return;
+                }
+                updateErrorBox.textContent = msg || 'Failed to update transaction.';
+                updateErrorBox.style.display = '';
+            }
+
+            updateForm.addEventListener('submit', async function(e){
+                e.preventDefault();
                 if (!tryMatchAndSet(updateInput, updateHidden)) {
-                    e.preventDefault();
                     showError(updateInput, 'You must choose a coin from the list before submitting.');
                     updateInput.focus();
                     return false;
                 }
                 if (typeof validateTransfer === 'function' && !validateTransfer('update')) {
-                    e.preventDefault();
                     return false;
+                }
+
+                clearUpdateError();
+
+                const saveBtn = updateForm.querySelector('.btn-insert');
+                if (saveBtn) saveBtn.disabled = true;
+
+                try {
+                    const response = await fetch(updateForm.action, {
+                        method: 'POST',
+                        body: new FormData(updateForm),
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (response.ok) {
+                        window.location.href = '/crypto';
+                        return;
+                    }
+
+                    let message = 'Failed to update transaction.';
+                    try {
+                        const data = await response.json();
+                        message = (data && (data.error || data.Message || data.message)) || message;
+                    } catch (err) {
+                        try {
+                            const txt = await response.text();
+                            if (txt) message = txt;
+                        } catch (err2) {}
+                    }
+                    showUpdateError(message);
+                } catch (err) {
+                    showUpdateError('Network error while updating transaction.');
+                } finally {
+                    if (saveBtn) saveBtn.disabled = false;
                 }
             });
         }
@@ -606,7 +659,6 @@
         function syncCryptoOperationUI(prefix) {
             const p = prefix ? String(prefix) : '';
             const op = document.getElementById(p ? (p + 'Operation') : 'operation');
-            const feeUnit = document.getElementById(p ? (p + 'FeeUnit') : 'feeUnit');
             const feeCurrency = document.getElementById(p ? (p + 'FeeCurrency') : 'feeCurrency');
             const price = document.getElementById(p ? (p + 'Price') : 'price');
             const currency = document.getElementById(p ? (p + 'Currency') : 'currency');
@@ -623,21 +675,11 @@
             if (!op) return;
 
             const transferMode = isTransfer(op.value);
-            if (feeUnit && !feeCurrency) {
-                feeUnit.value = transferMode ? 'crypto' : 'fiat';
-            }
-
-            function syncFeeUnitFromFeeCurrency() {
-                if (!feeUnit || !feeCurrency) return;
-                const v = String(feeCurrency.value || '').trim().toUpperCase();
-                feeUnit.value = v === 'CRYPTO' ? 'crypto' : 'fiat';
-            }
 
             if (feeCurrency) {
                 if (!feeCurrency.dataset.userSelected) {
                     feeCurrency.value = String((currency && currency.value) || 'EUR').toUpperCase();
                 }
-                syncFeeUnitFromFeeCurrency();
             }
 
             if (feeLabel) {
@@ -665,10 +707,6 @@
                     delete currency.dataset.locked;
                     currency.required = true;
                 }
-            }
-
-            if (!transferMode && feeCurrency && String(feeCurrency.value || '').trim().toUpperCase() === 'CRYPTO') {
-                syncFeeUnitFromFeeCurrency();
             }
 
             if (priceLabel) {
@@ -707,8 +745,6 @@
         if (feeCcyCreate) {
             feeCcyCreate.addEventListener('change', function(){
                 feeCcyCreate.dataset.userSelected = '1';
-                const feeUnit = document.getElementById('feeUnit');
-                if (feeUnit) feeUnit.value = String(feeCcyCreate.value || '').trim().toUpperCase() === 'CRYPTO' ? 'crypto' : 'fiat';
             });
         }
         const opUpdate = document.getElementById('updateOperation');
@@ -729,8 +765,6 @@
         if (feeCcyUpdate) {
             feeCcyUpdate.addEventListener('change', function(){
                 feeCcyUpdate.dataset.userSelected = '1';
-                const feeUnit = document.getElementById('updateFeeUnit');
-                if (feeUnit) feeUnit.value = String(feeCcyUpdate.value || '').trim().toUpperCase() === 'CRYPTO' ? 'crypto' : 'fiat';
             });
         }
 
@@ -1458,7 +1492,6 @@
                     <option value="Transfer">Transfer</option>
                 </select>
             </div>
-            <input type="hidden" name="feeUnit" id="feeUnit" value="fiat" />
             <div>
                 <label for="quantity">Quantity:</label>
                 <input type="text" id="quantity" name="quantity" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" required>
@@ -1583,6 +1616,7 @@
         <form id="updateForm" action="/updateCrypto" method="POST">
             <input type="hidden" id="updateCryptoId" name="cryptoId">
             <input type="hidden" id="updateUserId" name="userId">
+            <div id="updateFormError" class="small-muted" style="display:none;color:#b42318;margin-bottom:10px;"></div>
             <div>
                 <label for="updateCryptoName">Crypto:</label>
                 <input type="text" id="updateCryptoSearch" autocomplete="off" required/>
@@ -1602,7 +1636,6 @@
                     <option value="Transfer">Transfer</option>
                 </select>
             </div>
-            <input type="hidden" name="feeUnit" id="updateFeeUnit" value="fiat" />
             <div>
                 <label for="updateQuantity">Quantity:</label>
                 <input type="text" id="updateQuantity" name="quantity" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">

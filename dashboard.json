@@ -1,0 +1,146 @@
+{
+  "baseCurrency": "USD",
+  "cryptoHoldings": [
+    {
+      "buyTotal": 84.6914935088,
+      "name": "BTC",
+      "paid": 84.6914935088,
+      "qty": 0.00092,
+      "revenue": 0.0
+    },
+    {
+      "buyTotal": 23.66808516,
+      "name": "DOGE",
+      "paid": 12.57367024125,
+      "qty": 68.0,
+      "revenue": 5.30865
+    },
+    {
+      "buyTotal": 31.7539849,
+      "name": "XRP",
+      "paid": 17.3203554,
+      "qty": 60.0,
+      "revenue": 47.65988
+    }
+  ],
+  "loanHomePositions": [
+    {
+      "counterparty": "David",
+      "currency": "EUR",
+      "outstanding": 500.0,
+      "principal": 600.0,
+      "progressPct": 16.666666666666668,
+      "repaid": 100.0,
+      "type": "borrow",
+      "typeLabel": "Borrow"
+    },
+    {
+      "counterparty": "Ali",
+      "currency": "EUR",
+      "outstanding": 400.0,
+      "principal": 400.0,
+      "progressPct": 0.0,
+      "repaid": 0.0,
+      "type": "lend",
+      "typeLabel": "Lend"
+    }
+  ],
+  "stockHoldings": [
+    {
+      "buyTotal": 96.54304204467866,
+      "paid": 96.54304204467866,
+      "qty": 1.21501917,
+      "revenue": 0.0,
+      "symbol": "SSLN.L"
+    },
+    {
+      "buyTotal": 21.50847863,
+      "paid": 21.50847863,
+      "qty": 0.327713,
+      "revenue": 0.0,
+      "symbol": "PYPL"
+    }
+  ],
+  "userId": "707ce97c-a0d1-7014-8b64-790ced916e88",
+  "walletCryptoQty": {
+    "84775a59-dba5-4328-9aac-d79e8faa2444": {
+      "BTC": 0.00062,
+      "XRP": 60.0
+    },
+    "b0aac093-93eb-44e3-ba4f-cc7c958b7b29": {
+      "BTC": 0.0003,
+      "DOGE": 68.0
+    }
+  },
+  "walletStockQty": {
+    "59a88d8a-74ce-44cc-9bbf-24b179367533": {
+      "SSLN.L": 0.5
+    },
+    "90e57b89-7646-4e15-82c1-0a292eeb9a68": {
+      "PYPL": 0.327713,
+      "SSLN.L": 0.71501917
+    }
+  },
+  "wallets": [
+    {
+      "cashBase": 0.0,
+      "cashWallet": 0.0,
+      "color": "#E56C6C",
+      "currency": "USD",
+      "fxBaseToWallet": 1.0,
+      "walletId": "59a88d8a-74ce-44cc-9bbf-24b179367533",
+      "walletName": "eToro",
+      "walletType": "Stock"
+    },
+    {
+      "cashBase": 0.0,
+      "cashWallet": 0.0,
+      "color": "#5277E5",
+      "currency": "EUR",
+      "fxBaseToWallet": 0.84767,
+      "walletId": "90e57b89-7646-4e15-82c1-0a292eeb9a68",
+      "walletName": "Trading 212",
+      "walletType": "Stock"
+    },
+    {
+      "cashBase": 0.0,
+      "cashWallet": 0.0,
+      "color": "#9E9E9E",
+      "currency": "EUR",
+      "fxBaseToWallet": 0.84767,
+      "walletId": "2e0193de-cec3-4174-9e49-16cfc8d98a6f",
+      "walletName": "Revolut",
+      "walletType": "Fiat"
+    },
+    {
+      "cashBase": 106.17,
+      "cashWallet": 90.0,
+      "color": "#1BBB76",
+      "currency": "EUR",
+      "fxBaseToWallet": 0.84767,
+      "walletId": "c7666544-a683-40a7-88a0-9f23c5e84cf8",
+      "walletName": "Wise",
+      "walletType": "Fiat"
+    },
+    {
+      "cashBase": 0.0,
+      "cashWallet": 0.0,
+      "color": "#E5A4EA",
+      "currency": "EUR",
+      "fxBaseToWallet": 0.84767,
+      "walletId": "84775a59-dba5-4328-9aac-d79e8faa2444",
+      "walletName": "Crypto.com",
+      "walletType": "Crypto"
+    },
+    {
+      "cashBase": 0.0,
+      "cashWallet": 0.0,
+      "color": "#95EAE0",
+      "currency": "EUR",
+      "fxBaseToWallet": 0.84767,
+      "walletId": "b0aac093-93eb-44e3-ba4f-cc7c958b7b29",
+      "walletName": "Revolut",
+      "walletType": "Crypto"
+    }
+  ]
+}

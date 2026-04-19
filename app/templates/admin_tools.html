@@ -29,7 +29,7 @@
                 </div>
             {% endif %}
 
-            <form method="post" class="row g-3">
+            <form method="post" action="/admin/userid-migrate" class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label">Table:</label>
                     <select class="form-select" name="table" onchange="this.form.submit()">
@@ -154,6 +154,76 @@
             <p class="text-muted">
                 <a href="/admin/seed-settings" class="btn btn-outline-secondary btn-sm">Load user list from Settings table</a>
             </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ── Delete Column From Table ─────────────────────────────────── -->
+    <div class="card shadow-sm mt-4" style="border-radius: 14px;">
+        <div class="card-body">
+            <h4 class="mb-2">Delete Column From Table</h4>
+            <p class="text-muted mb-3" style="max-width: 72ch;">
+                Remove one non-key column from all matching rows in a selected table.
+                Run <strong>Preview</strong> first, then <strong>Apply</strong>.
+                Key attributes cannot be deleted.
+            </p>
+
+            {% if drop_field_is_key %}
+                <div class="alert alert-warning" role="alert">
+                    Selected column <code>{{ drop_selected_column }}</code> is part of the table key for
+                    <code>{{ drop_selected_table }}</code> and cannot be removed.
+                </div>
+            {% endif %}
+
+            <form method="post" action="/admin/column-delete" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Table:</label>
+                    <select class="form-select" name="drop_table" onchange="this.form.submit()">
+                        {% for t in drop_tables %}
+                            <option value="{{ t }}" {% if t == drop_selected_table %}selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Column (attribute name):</label>
+                    <input class="form-control" name="drop_column" value="{{ drop_selected_column }}" list="dropColumns" placeholder="side" />
+                    <datalist id="dropColumns">
+                        {% for c in drop_candidate_columns %}
+                            <option value="{{ c }}">{% if c in drop_key_fields %}{{ c }} (KEY){% else %}{{ c }}{% endif %}</option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Max items (safety cap):</label>
+                    <input class="form-control" name="drop_max_items" value="{{ drop_max_items|default(2000) }}" />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Mode:</label>
+                    <select class="form-select" name="drop_mode">
+                        <option value="preview" {% if drop_mode == 'preview' %}selected{% endif %}>Preview (dry run)</option>
+                        <option value="apply" {% if drop_mode == 'apply' %}selected{% endif %}>Apply (delete column)</option>
+                    </select>
+                </div>
+
+                <div class="col-12 d-flex gap-2">
+                    <button class="btn btn-outline-secondary" type="submit">Run</button>
+                    <button class="btn btn-danger" type="submit" onclick="this.form.drop_mode.value='apply'">Apply delete</button>
+                </div>
+            </form>
+
+            {% if drop_sample_keys and drop_sample_keys|length > 0 %}
+                <hr class="my-4" />
+                <div class="small text-muted mb-2">
+                    Sample matching keys (first 10)
+                    {% if drop_matched is defined %}
+                        - total matches: {{ drop_matched }}
+                    {% endif %}
+                </div>
+                <pre class="p-3 bg-body-tertiary border rounded" style="max-height: 260px; overflow:auto;">{% for s in drop_sample_keys %}{{ s }}
+{% endfor %}</pre>
             {% endif %}
         </div>
     </div>

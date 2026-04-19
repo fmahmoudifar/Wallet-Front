@@ -182,6 +182,83 @@ def _format_number_trim(val, max_decimals: int) -> str:
     return s or "0"
 
 
+def _response_json_safe(resp):
+    try:
+        return resp.json()
+    except Exception:
+        return {}
+
+
+def _response_message(resp) -> str:
+    data = _response_json_safe(resp)
+    msg = data.get("Message") or data.get("message") or data.get("error")
+    if msg:
+        return str(msg)
+    try:
+        txt = (resp.text or "").strip()
+        return txt[:300] if txt else ""
+    except Exception:
+        return ""
+
+
+def _needs_legacy_crypto_payload(resp) -> bool:
+    msg = _response_message(resp).lower()
+    return (
+        "takes" in msg
+        and "positional arguments" in msg
+        and "were given" in msg
+        and ("modify_crypto" in msg or "create_crypto" in msg)
+    )
+
+
+def _post_crypto_with_compat(url: str, payload: dict, method: str = "post"):
+    req = requests.post if method == "post" else requests.patch
+
+    # First attempt: modern payload (feeCurrency).
+    response = req(url, json=payload, auth=aws_auth)
+    if response.status_code < 400 or not _needs_legacy_crypto_payload(response):
+        return response
+
+    fee_currency = _normalize_currency(payload.get("feeCurrency"), payload.get("currency"))
+
+    # Try multiple legacy payload shapes to match older API contracts.
+    candidates = []
+
+    def mk(drop_keys=None, add_fee_unit=False):
+        d = dict(payload)
+        for k in (drop_keys or []):
+            d.pop(k, None)
+        if add_fee_unit:
+            d["feeUnit"] = "crypto" if fee_currency == "CRYPTO" else "fiat"
+        return d
+
+    candidates.append(mk(["feeCurrency", "feeUnit"]))
+    candidates.append(mk(["feeCurrency"]))
+    candidates.append(mk(["feeCurrency", "feeUnit", "note"]))
+    candidates.append(mk(["feeCurrency", "note"]))
+    candidates.append(mk(["feeCurrency", "feeUnit", "userId"]))
+    candidates.append(mk(["feeCurrency", "userId"]))
+    candidates.append(mk(["feeCurrency", "feeUnit", "userId", "note"]))
+    candidates.append(mk(["feeCurrency", "userId", "note"]))
+    candidates.append(mk(["feeCurrency", "feeUnit"], add_fee_unit=True))
+
+    seen = set()
+    last_resp = response
+    for cand in candidates:
+        # Deduplicate identical payload shapes
+        sig = tuple(sorted(cand.keys()))
+        if sig in seen:
+            continue
+        seen.add(sig)
+
+        resp_try = req(url, json=cand, auth=aws_auth)
+        last_resp = resp_try
+        if resp_try.status_code < 400:
+            return resp_try
+
+    return last_resp
+
+
 # ===== CoinMarketCap API Functions =====
 
 def _cmc_get_crypto_info(symbol: str) -> dict:
@@ -898,7 +975,6 @@ def crypto_data():
                     price = to_decimal(tx.get("price", 0))
                     fee = to_decimal(tx.get("fee", 0))
                     operation = str(tx.get("operation") or tx.get("side") or "buy").lower()
-                    fee_unit = str(tx.get("feeUnit") or "").strip().lower()
                     fee_currency = _normalize_currency(tx.get("feeCurrency"), "")
                     ckey = norm_crypto_key(tx.get("cryptoName") or name)
 
@@ -911,9 +987,8 @@ def crypto_data():
                         from_wallet = _resolve_wallet_ref(tx.get("fromWallet"))
                         to_wallet = _resolve_wallet_ref(tx.get("toWallet"))
 
-                        # Transfer fee is expected to be a crypto quantity when feeUnit == 'crypto'.
-                        # If older records have feeUnit missing or set differently, treat fee as 0 for qty math.
-                        fee_qty = fee if (fee_unit == "crypto" or fee_currency == "CRYPTO" or fee_unit == "") else Decimal(0)
+                        # Transfer fee is treated as same-asset quantity only when feeCurrency is CRYPTO.
+                        fee_qty = fee if fee_currency == "CRYPTO" else Decimal(0)
                         qty_total = qty
                         qty_net = qty_total - fee_qty
                         if qty_net < 0:
@@ -956,8 +1031,8 @@ def crypto_data():
                     tx_currency = _normalize_currency(tx.get("currency"), base_currency)
                     fx_rate = _get_fx_rate(tx_currency, base_currency)
 
-                    # Fees can be fiat (feeCurrency set) or same-asset crypto (feeCurrency=CRYPTO / feeUnit=crypto).
-                    if fee_unit == "crypto" or fee_currency == "CRYPTO":
+                    # Fees can be fiat (feeCurrency set) or same-asset crypto (feeCurrency=CRYPTO).
+                    if fee_currency == "CRYPTO":
                         fee_base = (fee * price) * fx_rate
                     else:
                         fee_ccy = _normalize_currency(fee_currency, tx_currency)
@@ -1300,7 +1375,6 @@ def create_crypto():
         "fromWallet": request.form["fromWallet"],
         "toWallet": request.form["toWallet"],
         "operation": request.form.get("operation") or request.form.get("side"),
-        "feeUnit": request.form.get("feeUnit"),
         "quantity": request.form["quantity"],
         "price": request.form["price"],
         "currency": request.form["currency"],
@@ -1311,8 +1385,11 @@ def create_crypto():
 
     print(data)
     try:
-        response = requests.post(f"{API_URL}/crypto", json=data, auth=aws_auth)
-        print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {response.json()}")
+        response = _post_crypto_with_compat(f"{API_URL}/crypto", data, method="post")
+        print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {_response_json_safe(response)}")
+
+        if response.status_code >= 400:
+            return jsonify({"error": _response_message(response) or "Create crypto failed"}), response.status_code
 
         return redirect(url_for("crypto.crypto_page"))
     except Exception as e:
@@ -1336,7 +1413,6 @@ def update_crypto():
         "fromWallet": request.form["fromWallet"],
         "toWallet": request.form["toWallet"],
         "operation": request.form.get("operation") or request.form.get("side"),
-        "feeUnit": request.form.get("feeUnit"),
         "quantity": request.form["quantity"],
         "price": request.form["price"],
         "currency": request.form["currency"],
@@ -1347,8 +1423,11 @@ def update_crypto():
     print(f"🔄 [DEBUG] Updating crypto: {data}")
 
     try:
-        response = requests.patch(f"{API_URL}/crypto", json=data, auth=aws_auth)
-        print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {response.json()}")
+        response = _post_crypto_with_compat(f"{API_URL}/crypto", data, method="patch")
+        print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {_response_json_safe(response)}")
+
+        if response.status_code >= 400:
+            return jsonify({"error": _response_message(response) or "Update crypto failed"}), response.status_code
 
         return redirect(url_for("crypto.crypto_page"))
     except Exception as e:
