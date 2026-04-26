@@ -24,169 +24,153 @@
         })();
     </script>
     <script>
-    // Direct price fetching without caching - always get fresh prices
-    // But we store metadata (currency) for display purposes
-    window._priceMetadata = {}; // Store {type}:{symbol} => {currency, name}
-    
-    window.simpleFetch = {
-        async getPrice(type, symbol) {
-            try {
-                const endpoint = type === 'crypto' ? `/crypto/quote?symbol=${encodeURIComponent(symbol)}` : `/stock/quote?symbol=${encodeURIComponent(symbol)}`;
-                console.log(`[Price] Fetching ${endpoint}`);
-                const resp = await fetch(endpoint, { 
-                    headers: { 'Accept': 'application/json' },
-                    credentials: 'same-origin',
-                    method: 'GET'
-                });
-                console.log(`[Price] Response status: ${resp.status}`);
-                if (!resp.ok) {
-                    const errText = await resp.text();
-                    console.error(`[Price] Fetch failed ${type}:${symbol} - Status ${resp.status}`, errText);
-                    return null;
+    // localStorage-backed price + page-data cache (1 hour TTL).
+    // Both caches are invalidated whenever markTransactionChanged() is called
+    // (i.e. after any insert / update / delete of a transaction).
+    (function () {
+        const PRICE_TTL_MS = 60 * 60 * 1000;   // 1 hour
+        const PAGE_TTL_MS  = 60 * 60 * 1000;   // 1 hour
+        const PRICE_LS_KEY = 'walletPriceCache';
+        const PAGE_LS_KEY  = 'walletPageCache';
+        const TX_TS_KEY    = 'walletLastTransactionAt';
+
+        function _lsGet(key) {
+            try { return JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) { return {}; }
+        }
+        function _lsSet(key, val) {
+            try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+        }
+        function _txTs() {
+            try { return Number(localStorage.getItem(TX_TS_KEY) || '0'); } catch(e) { return 0; }
+        }
+        function _isFresh(entry, ttlMs) {
+            if (!entry || !entry.ts) return false;
+            const now = Date.now();
+            if (now - entry.ts > ttlMs) return false;   // expired
+            if (_txTs() > entry.ts) return false;        // invalidated by a transaction change
+            return true;
+        }
+
+        window._priceMetadata = {};
+        window._priceCacheLastRefresh = 0;
+
+        window.simpleFetch = {
+            async getPrice(type, symbol) {
+                const map = await this.getMany(type, [symbol]);
+                return (map && map[symbol] !== undefined) ? map[symbol] : null;
+            },
+            async get(type, symbol, opts) {
+                return this.getPrice(type, symbol);
+            },
+            async getMany(type, symbols, opts) {
+                if (!symbols || !symbols.length) return {};
+
+                const force = !!(opts && opts.force);
+                const cacheKey = type + ':' + symbols.slice().sort().join(',');
+                const store = _lsGet(PRICE_LS_KEY);
+                const entry = store[cacheKey];
+
+                if (!force && _isFresh(entry, PRICE_TTL_MS)) {
+                    console.log(`[Price] Cache hit for ${type} (${symbols.length} symbols)`);
+                    if (entry.metadata) Object.assign(window._priceMetadata, entry.metadata);
+                    if (entry.ts && entry.ts > window._priceCacheLastRefresh) {
+                        window._priceCacheLastRefresh = entry.ts;
+                    }
+                    return entry.data || {};
                 }
-                const data = await resp.json();
-                console.log(`[Price] Response data:`, data);
-                
-                // Store metadata for entry() calls
+
+                console.log(`[Price] Fetching bulk ${type} (${symbols.length} symbols):`, symbols.join(','));
+                try {
+                    const symbolsParam = symbols.join(',');
+                    const endpoint = type === 'crypto'
+                        ? `/crypto/quotes?symbols=${encodeURIComponent(symbolsParam)}`
+                        : `/stock/quotes?symbols=${encodeURIComponent(symbolsParam)}`;
+
+                    const resp = await fetch(endpoint, {
+                        headers: { 'Accept': 'application/json' },
+                        credentials: 'same-origin'
+                    });
+                    if (!resp.ok) {
+                        console.error(`[Price] Bulk fetch failed - Status ${resp.status}`);
+                        return (entry && entry.data) ? entry.data : {};
+                    }
+
+                    const data = await resp.json();
+                    const out = {};
+                    const meta = {};
+
+                    for (const [sym, priceData] of Object.entries(data)) {
+                        if (!priceData || typeof priceData !== 'object') { out[sym] = null; continue; }
+                        const metaKey = `${type}:${sym}`;
+                        const displayCurrency = type === 'stock' ? priceData.currencyBase : priceData.currency;
+                        const metaEntry = { currency: displayCurrency, name: priceData.name, currencyBase: priceData.currencyBase };
+                        window._priceMetadata[metaKey] = metaEntry;
+                        meta[metaKey] = metaEntry;
+                        if (type === 'crypto') {
+                            out[sym] = (typeof priceData.price === 'number') ? priceData.price : null;
+                        } else {
+                            out[sym] = (typeof priceData.priceBase === 'number') ? priceData.priceBase
+                                     : (typeof priceData.price === 'number' ? priceData.price : null);
+                        }
+                    }
+
+                    const now = Date.now();
+                    store[cacheKey] = { ts: now, data: out, metadata: meta };
+                    _lsSet(PRICE_LS_KEY, store);
+                    window._priceCacheLastRefresh = now;
+                    console.log(`[Price] Cached ${type} prices, expires in 1h`);
+                    return out;
+                } catch (e) {
+                    console.error(`[Price] Exception in bulk fetch for ${type}:`, e);
+                    return (entry && entry.data) ? entry.data : {};
+                }
+            },
+            entry(type, symbol) {
                 const metaKey = `${type}:${symbol}`;
-                // For stocks, priceBase is in currencyBase, so store that as the currency
-                // For crypto, price is in the quote currency, so store that
-                const displayCurrency = type === 'stock' ? data.currencyBase : data.currency;
-                window._priceMetadata[metaKey] = {
-                    currency: displayCurrency,
-                    name: data.name,
-                    currencyBase: data.currencyBase
-                };
-                
-                if (type === 'crypto') {
-                    const p = (data && typeof data.price === 'number') ? data.price : null;
-                    console.log(`[Price] ${type}:${symbol} = ${p} ${data.currency}`);
-                    return p;
+                return window._priceMetadata[metaKey] || null;
+            },
+            setBaseCurrency(bc) {},
+            lastRefresh() { return window._priceCacheLastRefresh || 0; },
+            ttlMs() { return PRICE_TTL_MS; }
+        };
+        window.priceCache = window.simpleFetch;
+
+        // Page-data cache (for /api/crypto-data, /api/stock-data, /api/dashboard-data)
+        window.pageDataCache = {
+            async get(name) {
+                const store = _lsGet(PAGE_LS_KEY);
+                const entry = store[name];
+                if (_isFresh(entry, PAGE_TTL_MS)) {
+                    console.log(`[PageCache] Hit for ${name}`);
+                    return entry.data;
                 }
-                // For stocks, use priceBase (converted to app currency) if available
-                const p = (data && typeof data.priceBase === 'number') ? data.priceBase : (data && typeof data.price === 'number' ? data.price : null);
-                console.log(`[Price] ${type}:${symbol} = ${p} ${data.currencyBase}`);
-                return p;
-            } catch (e) {
-                console.error(`[Price] Exception for ${type}:${symbol}`, e);
                 return null;
+            },
+            set(name, payload) {
+                const store = _lsGet(PAGE_LS_KEY);
+                store[name] = { ts: Date.now(), data: payload };
+                _lsSet(PAGE_LS_KEY, store);
+                console.log(`[PageCache] Stored ${name}, expires in 1h`);
+            },
+            invalidate(name) {
+                const store = _lsGet(PAGE_LS_KEY);
+                if (store[name]) { delete store[name]; _lsSet(PAGE_LS_KEY, store); }
+            },
+            clearAll() {
+                _lsSet(PAGE_LS_KEY, {});
+                _lsSet(PRICE_LS_KEY, {});
             }
-        },
-        async get(type, symbol, opts) {
-            return this.getPrice(type, symbol);
-        },
-        async getMany(type, symbols) {
-            if (!symbols || symbols.length === 0) {
-                console.log(`[Price] getMany called with empty symbols`);
-                return {};
-            }
-            
-            try {
-                const symbolsParam = symbols.join(',');
-                const endpoint = type === 'crypto' 
-                    ? `/crypto/quotes?symbols=${encodeURIComponent(symbolsParam)}`
-                    : `/stock/quotes?symbols=${encodeURIComponent(symbolsParam)}`;
-                
-                console.log(`[Price] Fetching bulk ${type} (${symbols.length} symbols):`, symbolsParam);
-                const resp = await fetch(endpoint, { 
-                    headers: { 'Accept': 'application/json' },
-                    credentials: 'same-origin',
-                    method: 'GET'
-                });
-                
-                console.log(`[Price] Bulk response status: ${resp.status}`);
-                if (!resp.ok) {
-                    const errText = await resp.text();
-                    console.error(`[Price] Bulk fetch failed - Status ${resp.status}`, errText);
-                    return {};
-                }
-                
-                const data = await resp.json();
-                console.log(`[Price] Bulk response data (${type}):`, data);
-                
-                // Store metadata and extract prices
-                const out = {};
-                let firstSymbolLogged = false;
-                for (const [sym, priceData] of Object.entries(data)) {
-                    // Log first symbol's full structure for debugging
-                    if (!firstSymbolLogged) {
-                        console.log(`[Price] First ${type} symbol (${sym}) full structure:`, priceData);
-                        firstSymbolLogged = true;
-                    }
-                    
-                    if (!priceData || typeof priceData !== 'object') {
-                        console.log(`[Price] ${sym}: priceData is null/not object`, priceData);
-                        out[sym] = null;
-                        continue;
-                    }
-                    
-                    const metaKey = `${type}:${sym}`;
-                    const displayCurrency = type === 'stock' ? priceData.currencyBase : priceData.currency;
-                    window._priceMetadata[metaKey] = {
-                        currency: displayCurrency,
-                        name: priceData.name,
-                        currencyBase: priceData.currencyBase
-                    };
-                    
-                    if (type === 'crypto') {
-                        const priceVal = priceData.price;
-                        const priceType = typeof priceVal;
-                        if (priceType !== 'number') {
-                            console.log(`[Price] ${sym}: price is ${priceType}, value:`, priceVal);
-                        }
-                        out[sym] = (typeof priceData.price === 'number') ? priceData.price : null;
-                    } else {
-                        // For stocks, use priceBase (in app currency) if available
-                        const priceVal = priceData.priceBase || priceData.price;
-                        const priceType = typeof priceVal;
-                        if (priceType !== 'number') {
-                            console.log(`[Price] ${sym}: priceBase/price is ${priceType}, value:`, priceVal);
-                        }
-                        out[sym] = (typeof priceData.priceBase === 'number') ? priceData.priceBase : (typeof priceData.price === 'number' ? priceData.price : null);
-                    }
-                }
-                
-                console.log(`[Price] Bulk processed results:`, out);
-                return out;
-            } catch (e) {
-                console.error(`[Price] Exception in bulk fetch for ${type}:`, e);
-                return {};
-            }
-        },
-        entry(type, symbol) {
-            // Return stored metadata for templates
-            const metaKey = `${type}:${symbol}`;
-            return window._priceMetadata[metaKey] || null;
-        },
-        setBaseCurrency(bc) {
-            // No-op
-        },
-        lastRefresh() {
-            return 0;
-        },
-        ttlMs() {
-            return 0;
-        }
-    };
-    window.priceCache = window.simpleFetch; // Compatibility alias
-    console.log('[Price] Price cache initialized');
-    </script>
-    <script>
-    // Direct page data fetching without caching - always get fresh data
-    window.pageDataCache = {
-        async get(name) {
-            return null; // Always fetch fresh
-        },
-        set(name, payload) {
-            // No-op - don't cache
-        },
-        invalidate(name) {
-            // No-op
-        },
-        clearAll() {
-            // No-op
-        }
-    };
+        };
+
+        // Call this after any transaction insert / update / delete so both caches
+        // are bypassed on the next page load.
+        window.markTransactionChanged = function() {
+            try { localStorage.setItem(TX_TS_KEY, String(Date.now())); } catch(e) {}
+            console.log('[Cache] Transaction changed — caches invalidated');
+        };
+
+        console.log('[Cache] localStorage price+page cache initialized');
+    })();
     </script>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">

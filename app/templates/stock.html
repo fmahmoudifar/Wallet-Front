@@ -1300,6 +1300,27 @@ document.addEventListener("DOMContentLoaded", function() {
     initStockAutocomplete('stockSearch', 'stockSearchList', 'stockName', { priceId: 'stockPrice', currencyId: 'stockCurrency' });
     initStockAutocomplete('updateStockSearch', 'updateStockSearchList', 'updateStockName', { priceId: 'updatePrice', currencyId: 'updateCurrency' });
 
+    // Mark caches as stale on any transaction mutation
+    var _stockCreateForm = document.querySelector('form[action="/stock"]');
+    if (_stockCreateForm) {
+        _stockCreateForm.addEventListener('submit', function() {
+            if (typeof window.markTransactionChanged === 'function') window.markTransactionChanged();
+        });
+    }
+    var _stockUpdateForm = document.getElementById('updateForm');
+    if (_stockUpdateForm) {
+        _stockUpdateForm.addEventListener('submit', function() {
+            if (typeof window.markTransactionChanged === 'function') window.markTransactionChanged();
+        });
+    }
+    var _stockDeleteForm = document.getElementById('deleteForm');
+    if (_stockDeleteForm && !_stockDeleteForm._txMarkAttached) {
+        _stockDeleteForm._txMarkAttached = true;
+        _stockDeleteForm.addEventListener('submit', function() {
+            if (typeof window.markTransactionChanged === 'function') window.markTransactionChanged();
+        });
+    }
+
     const createCurrency = document.getElementById('stockCurrency');
     const createFeeCurrency = document.getElementById('feeCurrency');
     if (createCurrency && createFeeCurrency) {
@@ -1356,20 +1377,28 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     window.loadStockPage = function(forceReload) {
-        // Always fetch fresh - no caching
-        return fetch('/api/stock-data')
-            .then(function(resp) {
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                return resp.json();
-            })
-            .then(function(data) {
-                _stockRenderFromData(data);
-            })
-            .catch(function(err) {
-                console.error('Stock data fetch failed:', err);
-                var loadingEl = document.getElementById('stockDataLoading');
-                if (loadingEl) loadingEl.innerHTML = '<div class="small-muted">Failed to load stock data</div>';
-            });
+        var cached = (!forceReload) ? window.pageDataCache.get('stock-data') : Promise.resolve(null);
+        return Promise.resolve(cached).then(function(cachedData) {
+            if (cachedData) {
+                console.log('[PageCache] Using cached stock-data');
+                _stockRenderFromData(cachedData);
+                return;
+            }
+            return fetch('/api/stock-data')
+                .then(function(resp) {
+                    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                    return resp.json();
+                })
+                .then(function(data) {
+                    window.pageDataCache.set('stock-data', data);
+                    _stockRenderFromData(data);
+                })
+                .catch(function(err) {
+                    console.error('Stock data fetch failed:', err);
+                    var loadingEl = document.getElementById('stockDataLoading');
+                    if (loadingEl) loadingEl.innerHTML = '<div class="small-muted">Failed to load stock data</div>';
+                });
+        });
     };
 
     var _stockRefreshBtn = document.getElementById('stockRefreshBtn');

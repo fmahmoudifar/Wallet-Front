@@ -219,20 +219,28 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadDashboard(forceReload) {
-    // Always fetch fresh - no caching
-    return fetch('/api/dashboard-data')
-        .then(function(response) {
-            if (!response.ok) throw new Error('HTTP ' + response.status);
-            return response.json();
-        })
-        .then(function(data) {
-            _dashboardData = data;
-            return hydratePricesAndRender(!!forceReload);
-        })
-        .catch(function(err) {
-            console.error('Dashboard data fetch failed:', err);
-            showErrorStates();
-        });
+    var cached = (!forceReload) ? window.pageDataCache.get('dashboard-data') : Promise.resolve(null);
+    return Promise.resolve(cached).then(function(cachedData) {
+        if (cachedData) {
+            console.log('[PageCache] Using cached dashboard-data');
+            _dashboardData = cachedData;
+            return hydratePricesAndRender(false);
+        }
+        return fetch('/api/dashboard-data')
+            .then(function(response) {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.json();
+            })
+            .then(function(data) {
+                window.pageDataCache.set('dashboard-data', data);
+                _dashboardData = data;
+                return hydratePricesAndRender(!!forceReload);
+            })
+            .catch(function(err) {
+                console.error('Dashboard data fetch failed:', err);
+                showErrorStates();
+            });
+    });
 }
 
 function collectSymbols(data) {
@@ -250,8 +258,9 @@ function hydratePricesAndRender(force) {
     updateLastRefreshLabel();
 
     // Fetch prices in background, update when they arrive
-    var cryptoPromise = syms.crypto.length ? window.priceCache.getMany('crypto', syms.crypto) : Promise.resolve({});
-    var stockPromise = syms.stock.length ? window.priceCache.getMany('stock', syms.stock) : Promise.resolve({});
+    var priceOpts = force ? { force: true } : undefined;
+    var cryptoPromise = syms.crypto.length ? window.priceCache.getMany('crypto', syms.crypto, priceOpts) : Promise.resolve({});
+    var stockPromise = syms.stock.length ? window.priceCache.getMany('stock', syms.stock, priceOpts) : Promise.resolve({});
 
     Promise.all([cryptoPromise, stockPromise]).then(function(res) {
         var cryptoPrices = res[0] || {};

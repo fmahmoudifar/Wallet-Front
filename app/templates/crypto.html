@@ -565,6 +565,15 @@
             });
         }
 
+        // Mark caches as stale when delete form submits
+        var _cryptoDeleteForm = document.getElementById('deleteForm');
+        if (_cryptoDeleteForm && !_cryptoDeleteForm._txMarkAttached) {
+            _cryptoDeleteForm._txMarkAttached = true;
+            _cryptoDeleteForm.addEventListener('submit', function() {
+                if (typeof window.markTransactionChanged === 'function') window.markTransactionChanged();
+            });
+        }
+
         // form submit guards
         const createForm = document.getElementById('createCryptoForm');
         if (createForm) {
@@ -579,6 +588,7 @@
                     e.preventDefault();
                     return false;
                 }
+                if (typeof window.markTransactionChanged === 'function') window.markTransactionChanged();
             });
         }
 
@@ -628,6 +638,7 @@
                     });
 
                     if (response.ok) {
+                        if (typeof window.markTransactionChanged === 'function') window.markTransactionChanged();
                         window.location.href = '/crypto';
                         return;
                     }
@@ -985,7 +996,7 @@
             _cryptoApplyWallets({}, bc);
             _cryptoUpdateRefreshLabel();
 
-            return window.priceCache.getMany('crypto', syms).then(function(priceMap) {
+            return window.priceCache.getMany('crypto', syms, force ? { force: true } : undefined).then(function(priceMap) {
                 priceMap = priceMap || {};
                 _cryptoApplyPortfolio(priceMap, bc);
                 _cryptoApplyWallets(priceMap, bc);
@@ -1037,22 +1048,31 @@
         }
 
         function loadCryptoPage(forceReload, forcePriceRefresh) {
-            // Always fetch fresh - no caching
-            return fetch('/api/crypto-data')
-                .then(function(resp) {
-                    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                    return resp.json();
-                })
-                .then(function(data) {
-                    _cryptoPageData = data;
-                    _cryptoRenderFromData(data);
-                    return hydrateCryptoPrices(!!forcePriceRefresh);
-                })
-                .catch(function(err) {
-                    console.error('Crypto data fetch failed:', err);
-                    var loadingEl = document.getElementById('cryptoDataLoading');
-                    if (loadingEl) loadingEl.innerHTML = '<div class="small-muted">Failed to load crypto data: ' + _escapeHtml(err.message || err) + '</div>';
-                });
+            var cached = (!forceReload) ? window.pageDataCache.get('crypto-data') : Promise.resolve(null);
+            return Promise.resolve(cached).then(function(cachedData) {
+                if (cachedData) {
+                    console.log('[PageCache] Using cached crypto-data');
+                    _cryptoPageData = cachedData;
+                    _cryptoRenderFromData(cachedData);
+                    return hydrateCryptoPrices(false);
+                }
+                return fetch('/api/crypto-data')
+                    .then(function(resp) {
+                        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                        return resp.json();
+                    })
+                    .then(function(data) {
+                        window.pageDataCache.set('crypto-data', data);
+                        _cryptoPageData = data;
+                        _cryptoRenderFromData(data);
+                        return hydrateCryptoPrices(!!forcePriceRefresh);
+                    })
+                    .catch(function(err) {
+                        console.error('Crypto data fetch failed:', err);
+                        var loadingEl = document.getElementById('cryptoDataLoading');
+                        if (loadingEl) loadingEl.innerHTML = '<div class="small-muted">Failed to load crypto data: ' + _escapeHtml(err.message || err) + '</div>';
+                    });
+            });
         }
 
         function refreshCryptoPrices(force) {

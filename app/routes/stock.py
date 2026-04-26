@@ -27,7 +27,7 @@ YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
 _YH_SEARCH_CACHE = {}
 _YH_SEARCH_TTL_SECONDS = 900
 _YH_QUOTE_CACHE = {}
-_YH_QUOTE_TTL_SECONDS = 120
+_YH_QUOTE_TTL_SECONDS = 3600  # 1 hour
 
 
 def _to_decimal(val) -> Decimal:

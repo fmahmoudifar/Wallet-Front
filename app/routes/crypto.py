@@ -15,7 +15,7 @@ crypto_bp = Blueprint("crypto", __name__)
 
 # CoinMarketCap cache (in-process) to reduce API calls and respect rate limits
 _CMC_QUOTE_CACHE = {}  # Caches full crypto data by symbol
-_CMC_QUOTE_TTL_SECONDS = 300  # 5 minutes
+_CMC_QUOTE_TTL_SECONDS = 3600  # 1 hour
 
 _BINANCE_PRICE_CACHE = {}
 _BINANCE_PRICE_TTL_SECONDS = 60
