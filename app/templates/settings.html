@@ -145,6 +145,12 @@
         }
         .btn-cat-remove:hover { background: #c0392b; }
         .set-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        .set-save-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+        }
         .set-note { font-size: 12px; color: var(--muted, #6b7280); margin-bottom: 12px; line-height: 1.6; }
         .set-color-group-label {
             font-size: 11px;
@@ -174,20 +180,13 @@
         } catch (e) {}
     }
 
-    function showSettingsFlash(msg, isError) {
-        let el = document.getElementById('settingsFlash');
-        if (!el) {
-            el = document.createElement('div');
-            el.id = 'settingsFlash';
-            el.style.cssText = 'position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9999;padding:8px 22px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.18);pointer-events:none;';
-            document.body.appendChild(el);
-        }
-        el.textContent = msg;
-        el.style.background = isError ? '#e06c75' : '#00b09a';
-        el.style.color = '#fff';
-        el.style.display = 'block';
-        clearTimeout(el._t);
-        el._t = setTimeout(() => { el.style.display = 'none'; }, 2500);
+    function showButtonSaveResult(btn, ok) {
+        if (!btn) return;
+        clearTimeout(btn._saveStateTimer);
+        btn.textContent = ok ? 'Saved' : 'Save failed';
+        btn._saveStateTimer = setTimeout(() => {
+            btn.textContent = 'Save';
+        }, 2500);
     }
 
     function toggleSection(id) {
@@ -249,10 +248,17 @@
         })
         .then(r => r.json())
         .then(d => {
-            if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
-            showSettingsFlash(d.ok ? 'Dashboard colors saved.' : 'Save failed.', !d.ok);
+            if (btn) {
+                btn.disabled = false;
+                showButtonSaveResult(btn, !!d.ok);
+            }
         })
-        .catch(() => { if (btn) { btn.disabled = false; btn.textContent = 'Save'; } showSettingsFlash('Save failed.', true); });
+        .catch(() => {
+            if (btn) {
+                btn.disabled = false;
+                showButtonSaveResult(btn, false);
+            }
+        });
     }
 
     function renderCategoryList(type, data) {
@@ -312,10 +318,17 @@
         })
         .then(r => r.json())
         .then(d => {
-            if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
-            showSettingsFlash(d.ok ? `${type === 'income' ? 'Income' : 'Expense'} categories saved.` : 'Save failed.', !d.ok);
+            if (btn) {
+                btn.disabled = false;
+                showButtonSaveResult(btn, !!d.ok);
+            }
         })
-        .catch(() => { if (btn) { btn.disabled = false; btn.textContent = 'Save'; } showSettingsFlash('Save failed.', true); });
+        .catch(() => {
+            if (btn) {
+                btn.disabled = false;
+                showButtonSaveResult(btn, false);
+            }
+        });
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -327,13 +340,39 @@
         ['Now','Paid','Repaid','Borrow','Lend','Loan'].forEach(k => {
             bindColorHex('color' + k + 'Picker', 'color' + k + 'Hex');
         });
+
+        const generalForm = document.getElementById('generalSettingsForm');
+        if (generalForm) {
+            generalForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const btn = document.getElementById('generalSaveBtn');
+                const formData = new FormData(generalForm);
+                if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+                fetch(generalForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                })
+                .then(function(resp) {
+                    if (!resp.ok) throw new Error('Save failed');
+                    if (themeEl) persistTheme(themeEl.value);
+                    showButtonSaveResult(btn, true);
+                })
+                .catch(function() {
+                    showButtonSaveResult(btn, false);
+                })
+                .finally(function() {
+                    if (btn) btn.disabled = false;
+                });
+            });
+        }
     });
 </script>
 
 <!-- ── General ─────────────────────────────────────────────────────────────── -->
 <div class="set-section block-new" style="margin-top:0;">
     <div class="form-container">
-        <form action="/updateSettings" method="POST">
+        <form id="generalSettingsForm" action="/updateSettings" method="POST">
             <input type="hidden" name="userId" value="{{ setting.userId if setting else '' }}">
             <div>
                 <label>Currency:</label>
@@ -350,8 +389,8 @@
                     <option value="Dark"  {% if setting and setting.theme == 'Dark'  %}selected{% endif %}>Dark</option>
                 </select>
             </div>
-            <div>
-                <button type="submit" class="btn-insert pct-positive">Save</button>
+            <div class="set-save-row">
+                <button id="generalSaveBtn" type="submit" class="btn-insert pct-positive">Save</button>
             </div>
         </form>
     </div>
