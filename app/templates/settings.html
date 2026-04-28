@@ -343,9 +343,12 @@
 
         const generalForm = document.getElementById('generalSettingsForm');
         if (generalForm) {
+            const currencyEl = generalForm.querySelector('select[name="currency"]');
+            let currentCurrency = currencyEl ? String(currencyEl.value || '') : '';
             generalForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 const btn = document.getElementById('generalSaveBtn');
+                const submittedCurrency = currencyEl ? String(currencyEl.value || '') : '';
                 const formData = new FormData(generalForm);
                 if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
                 fetch(generalForm.action, {
@@ -356,6 +359,14 @@
                 .then(function(resp) {
                     if (!resp.ok) throw new Error('Save failed');
                     if (themeEl) persistTheme(themeEl.value);
+                    if (submittedCurrency !== currentCurrency) {
+                        if (typeof window.markSettingsChanged === 'function') {
+                            window.markSettingsChanged();
+                        } else if (typeof window.markTransactionChanged === 'function') {
+                            window.markTransactionChanged();
+                        }
+                        currentCurrency = submittedCurrency;
+                    }
                     showButtonSaveResult(btn, true);
                 })
                 .catch(function() {

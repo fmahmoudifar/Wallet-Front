@@ -25,8 +25,7 @@
     </script>
     <script>
     // localStorage-backed price + page-data cache (1 hour TTL).
-    // Both caches are invalidated whenever markTransactionChanged() is called
-    // (i.e. after any insert / update / delete of a transaction).
+    // Caches are invalidated when transactions or currency settings change.
     (function () {
         const PRICE_TTL_MS = 60 * 60 * 1000;   // 1 hour
         const PAGE_TTL_MS  = 60 * 60 * 1000;   // 1 hour
@@ -162,10 +161,18 @@
             }
         };
 
-        // Call this after any transaction insert / update / delete so both caches
-        // are bypassed on the next page load.
-        window.markTransactionChanged = function() {
+        // Call this when settings that affect computed totals (like currency)
+        // change so cached page/price data is bypassed on next loads.
+        window.markSettingsChanged = function() {
             try { localStorage.setItem(TX_TS_KEY, String(Date.now())); } catch(e) {}
+            window._priceMetadata = {};
+            window._priceCacheLastRefresh = 0;
+            console.log('[Cache] Settings changed — caches invalidated');
+        };
+
+        // Call this after any transaction insert / update / delete.
+        window.markTransactionChanged = function() {
+            window.markSettingsChanged();
             console.log('[Cache] Transaction changed — caches invalidated');
         };
 
