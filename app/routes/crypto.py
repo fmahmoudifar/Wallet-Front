@@ -917,6 +917,7 @@ def crypto_data():
     # --- Compute totals per crypto using weighted average price method ---
     totals_map = {}
     wallet_crypto_qty = defaultdict(lambda: defaultdict(lambda: Decimal(0)))
+    wallet_crypto_cost = defaultdict(lambda: defaultdict(lambda: Decimal(0)))
     wallet_ids_seen = set()
     try:
         # Group transactions by crypto and sort by date to process chronologically
@@ -999,11 +1000,28 @@ def crypto_data():
                         if to_wallet:
                             wallet_ids_seen.add(to_wallet)
 
-                        # Track per-wallet holdings (wallet-level quantities)
+                        # Track per-wallet holdings (wallet-level quantities + cost basis)
+                        moved_cost = Decimal(0)
                         if from_wallet:
-                            wallet_crypto_qty[from_wallet][ckey] -= qty_total
+                            w_qty = wallet_crypto_qty[from_wallet][ckey]
+                            w_cost = wallet_crypto_cost[from_wallet][ckey]
+                            if w_qty > 0:
+                                removable_qty = min(qty_total, w_qty)
+                                avg_cost_per_unit = (w_cost / w_qty) if w_qty else Decimal(0)
+                                moved_cost = removable_qty * avg_cost_per_unit
+                                wallet_crypto_qty[from_wallet][ckey] -= removable_qty
+                                wallet_crypto_cost[from_wallet][ckey] -= moved_cost
+                                excess_qty = qty_total - removable_qty
+                                if excess_qty > 0:
+                                    wallet_crypto_qty[from_wallet][ckey] -= excess_qty
+                            else:
+                                wallet_crypto_qty[from_wallet][ckey] -= qty_total
+
                         if to_wallet:
                             wallet_crypto_qty[to_wallet][ckey] += qty_net
+                            if qty_total > 0 and moved_cost > 0 and qty_net > 0:
+                                moved_cost_net = moved_cost * (qty_net / qty_total)
+                                wallet_crypto_cost[to_wallet][ckey] += moved_cost_net
 
                         qty_in = qty_net if to_wallet else Decimal(0)
                         qty_out = qty_total if from_wallet else Decimal(0)
@@ -1060,6 +1078,7 @@ def crypto_data():
                         # If user didn't provide toWallet, fall back to fromWallet so wallet contents still updates.
                         if hold_wallet:
                             wallet_crypto_qty[hold_wallet][ckey] += qty
+                            wallet_crypto_cost[hold_wallet][ckey] += tx_value_base
 
                     elif operation == "sell":
                         # SELL: Use weighted average to calculate cost of sold portion
@@ -1102,7 +1121,19 @@ def crypto_data():
                             wallet_ids_seen.add(to_wallet)
                         # If user didn't provide fromWallet, fall back to toWallet so wallet contents still updates.
                         if hold_wallet:
-                            wallet_crypto_qty[hold_wallet][ckey] -= qty
+                            w_qty = wallet_crypto_qty[hold_wallet][ckey]
+                            w_cost = wallet_crypto_cost[hold_wallet][ckey]
+                            if w_qty > 0:
+                                removable_qty = min(qty, w_qty)
+                                avg_cost_per_unit = (w_cost / w_qty) if w_qty else Decimal(0)
+                                removed_cost = removable_qty * avg_cost_per_unit
+                                wallet_crypto_qty[hold_wallet][ckey] -= removable_qty
+                                wallet_crypto_cost[hold_wallet][ckey] -= removed_cost
+                                excess_qty = qty - removable_qty
+                                if excess_qty > 0:
+                                    wallet_crypto_qty[hold_wallet][ckey] -= excess_qty
+                            else:
+                                wallet_crypto_qty[hold_wallet][ckey] -= qty
 
                 except Exception as e:
                     print(f"Error processing transaction for {name}: {e} | Raw tx: {tx}")
@@ -1162,6 +1193,7 @@ def crypto_data():
                             "cryptoName": cname,
                             "qty": float(q),
                             "qty_display": _format_number_trim(q, 8),
+                            "cost_basis": float(wallet_crypto_cost.get(wid, {}).get(cname, Decimal(0)) or Decimal(0)),
                             "value_live": None,
                             "value_live_display": "\u2014",
                         }

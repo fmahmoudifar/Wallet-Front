@@ -308,12 +308,15 @@
                 + '</div>'
                 + '<div class="totals-meta crypto-wallets-list">'
                 + holdingsSorted.map(function(h) {
-                    return '<div class="crypto-wallets-row" data-holding-symbol="' + _escapeHtml(h.cryptoName) + '" data-holding-qty="' + (h.qty || 0) + '">'
+                    return '<div class="crypto-wallets-row" data-holding-symbol="' + _escapeHtml(h.cryptoName) + '" data-holding-qty="' + (h.qty || 0) + '" data-holding-cost="' + (h.cost_basis || 0) + '">'
                         + '<div class="crypto-wallets-left">'
-                        + '<span class="crypto-wallets-symbol">' + _escapeHtml(h.cryptoName) + '</span>'
-                        + '<span class="crypto-wallets-qty small-muted">' + _escapeHtml(h.qty_display) + '</span>'
+                        + '<span class="crypto-wallets-symbol" data-holding-name>' + _escapeHtml(h.cryptoName) + '</span>'
+                        + '<span class="crypto-wallets-qty">' + _escapeHtml(h.qty_display) + '</span>'
                         + '</div>'
-                        + '<div class="crypto-wallets-right small-muted" data-holding-value>\u2014 ' + _escapeHtml(bc) + '</div>'
+                        + '<div class="crypto-wallets-right">'
+                        + '<div class="wallet-contents-value" data-holding-value>\u2014 ' + _escapeHtml(bc) + '</div>'
+                        + '<div class="wallet-contents-gl" data-holding-gl>\u2014</div>'
+                        + '</div>'
                         + '</div>';
                 }).join('')
                 + '</div></div>';
@@ -973,12 +976,29 @@
                 rows.forEach(function(row) {
                     var sym = row.getAttribute('data-holding-symbol');
                     var qty = parseFloat(row.getAttribute('data-holding-qty')) || 0;
+                    var cost = parseFloat(row.getAttribute('data-holding-cost')) || 0;
                     var price = priceMap[sym];
                     var valEl = row.querySelector('[data-holding-value]');
+                    var glEl = row.querySelector('[data-holding-gl]');
                     if (price != null) {
                         var val = price * qty;
                         walletTotal += val;
                         if (valEl) valEl.textContent = _formatNumber(val, 2) + ' ' + bc;
+                        if (glEl) {
+                            var gl = val - cost;
+                            var pct = cost > 0 ? (gl / cost) * 100 : null;
+                            var pctText = pct === null ? 'N/A' : ((pct >= 0 ? '+' : '') + _formatNumber(pct, 2) + '%');
+                            glEl.textContent = (gl >= 0 ? '+' : '') + _formatNumber(gl, 2) + ' ' + bc + ' (' + pctText + ')';
+                            glEl.classList.remove('pct-positive', 'pct-negative', 'pct-neutral');
+                            glEl.classList.add(gl >= 0 ? 'pct-positive' : 'pct-negative');
+                        }
+                    } else {
+                        if (valEl) valEl.textContent = '\u2014 ' + bc;
+                        if (glEl) {
+                            glEl.textContent = '\u2014 (N/A)';
+                            glEl.classList.remove('pct-positive', 'pct-negative');
+                            glEl.classList.add('pct-neutral');
+                        }
                     }
                 });
                 var totalBadge = card.querySelector('[data-wallet-total]');
@@ -1460,7 +1480,7 @@
 
 <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-bottom:10px;">
     <span id="cryptoLastRefresh" class="small-muted" style="font-size:12px;"></span>
-    <button type="button" id="cryptoRefreshBtn" class="btn btn-sm btn-outline-secondary" title="Fetch latest prices">
+    <button type="button" id="cryptoRefreshBtn" class="btn btn-sm btn-outline-secondary refresh-prices-btn" title="Fetch latest prices">
         <span id="cryptoRefreshLabel">Refresh prices</span>
     </button>
 </div>

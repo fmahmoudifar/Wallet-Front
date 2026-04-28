@@ -668,6 +668,33 @@ form {
     gap: 10px;
 }
 
+/* Slightly stronger refresh button contrast in both themes. */
+.refresh-prices-btn {
+    color: var(--text) !important;
+    border-color: rgba(107,114,128,0.48) !important;
+    background: rgba(107,114,128,0.08) !important;
+}
+
+.refresh-prices-btn:hover,
+.refresh-prices-btn:focus {
+    color: var(--text) !important;
+    border-color: rgba(107,114,128,0.66) !important;
+    background: rgba(107,114,128,0.16) !important;
+}
+
+html[data-theme="dark"] .refresh-prices-btn {
+    color: var(--text) !important;
+    border-color: rgba(156,163,175,0.58) !important;
+    background: rgba(156,163,175,0.16) !important;
+}
+
+html[data-theme="dark"] .refresh-prices-btn:hover,
+html[data-theme="dark"] .refresh-prices-btn:focus {
+    color: var(--text) !important;
+    border-color: rgba(229,231,235,0.72) !important;
+    background: rgba(229,231,235,0.22) !important;
+}
+
 :root {
     --input-desktop-width: 360px;
     /* Gray for all titles */
@@ -1071,55 +1098,76 @@ button.pct-positive:hover {
 .wallet-contents-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
+    padding: 4px 0 0;
 }
 
 .crypto-wallets-row,
 .wallet-contents-row {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 12px;
-    border-radius: 14px;
+    padding: 7px 10px;
+    border-radius: 8px;
     background: var(--surface-2);
-    border: 1px solid var(--border);
-    transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-
-.crypto-wallets-row:hover,
-.wallet-contents-row:hover {
-    background: var(--surface);
-    transform: translateY(-1px);
+    font-size: 0.9rem;
 }
 
 .crypto-wallets-left,
 .wallet-contents-left {
     display: flex;
-    align-items: baseline;
-    gap: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
     min-width: 0;
+    flex: 1 1 auto;
 }
 
 .crypto-wallets-symbol,
 .wallet-contents-symbol {
-    font-weight: 800;
+    font-weight: 700;
     color: var(--text);
     white-space: nowrap;
-    max-width: 12ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .crypto-wallets-qty,
 .wallet-contents-qty {
+    font-size: 0.85rem;
+    color: var(--muted);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .crypto-wallets-right,
 .wallet-contents-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
     text-align: right;
+    flex: 0 0 auto;
+}
+
+.wallet-contents-value {
+    font-weight: 500;
+    color: var(--text);
     white-space: nowrap;
+}
+
+.wallet-contents-gl {
+    font-size: 0.8rem;
+    white-space: nowrap;
+    color: var(--muted);
+}
+.wallet-contents-gl.pct-positive {
+    background: transparent;
+    color: #4cb464;
+}
+.wallet-contents-gl.pct-negative {
+    background: transparent;
+    color: #e05252;
 }
 
 .wallet-contents-total-badge {

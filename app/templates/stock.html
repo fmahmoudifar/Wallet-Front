@@ -288,43 +288,76 @@
             return isFinite(n) ? n : 0;
         }
 
-        // walletId -> (symbol -> qty)
-        const qtyByWallet = new Map();
-        function addQty(walletId, symbol, delta) {
+        const holdingsByWallet = new Map();
+
+        function getHolding(walletId, symbol) {
             const wId = String(walletId || '').trim();
             const sym = String(symbol || '').trim().toUpperCase();
-            if (!wId || !sym) return;
-            if (!qtyByWallet.has(wId)) qtyByWallet.set(wId, new Map());
-            const m = qtyByWallet.get(wId);
-            m.set(sym, (m.get(sym) || 0) + delta);
+            if (!wId || !sym) return null;
+            if (!holdingsByWallet.has(wId)) holdingsByWallet.set(wId, new Map());
+            const symMap = holdingsByWallet.get(wId);
+            if (!symMap.has(sym)) symMap.set(sym, { qty: 0, cost: 0 });
+            return symMap.get(sym);
         }
 
-        // Holdings logic based on transaction semantics:
-        // - Buy: shares land in toWallet
-        // - Sell: shares leave fromWallet
-        // - Transfer: shares move from fromWallet to toWallet
+        function addQtyCost(walletId, symbol, qtyDelta, costDelta) {
+            const h = getHolding(walletId, symbol);
+            if (!h) return;
+            h.qty += qtyDelta;
+            h.cost += costDelta;
+        }
+
+        function removeAtAvgCost(walletId, symbol, qtyOut) {
+            const h = getHolding(walletId, symbol);
+            if (!h || !(qtyOut > 0)) return 0;
+
+            if (h.qty > 0) {
+                const removable = Math.min(qtyOut, h.qty);
+                const avgCost = h.cost / h.qty;
+                const removedCost = removable * avgCost;
+                h.qty -= removable;
+                h.cost -= removedCost;
+                const excess = qtyOut - removable;
+                if (excess > 0) h.qty -= excess;
+                return removedCost;
+            }
+
+            h.qty -= qtyOut;
+            return 0;
+        }
+
         stocks.forEach(tx => {
             const symbol = String(tx.stockName || '').trim().toUpperCase();
-            const op = String(tx.operation || tx.side || '').trim().toLowerCase();
+            const op = String(tx.operation || tx.side || '').trim().toLowerCase() || 'buy';
             const qty = toNum(tx.quantity);
-            if (!symbol || !qty) return;
+            if (!symbol || !(qty > 0)) return;
+
+            const txPriceBase = tx.priceBase != null ? toNum(tx.priceBase) : toNum(tx.price);
+            const txFeeBase = tx.feeBase != null ? toNum(tx.feeBase) : toNum(tx.fee);
+            const txCostBase = (qty * txPriceBase) + txFeeBase;
 
             if (op === 'buy') {
-                addQty(tx.toWallet, symbol, qty);
+                const holdWallet = String(tx.toWallet || tx.fromWallet || '').trim();
+                if (!holdWallet) return;
+                addQtyCost(holdWallet, symbol, qty, txCostBase);
             } else if (op === 'sell') {
-                addQty(tx.fromWallet, symbol, -qty);
+                const holdWallet = String(tx.fromWallet || tx.toWallet || '').trim();
+                if (!holdWallet) return;
+                removeAtAvgCost(holdWallet, symbol, qty);
             } else if (op === 'transfer') {
-                addQty(tx.fromWallet, symbol, -qty);
-                addQty(tx.toWallet, symbol, qty);
+                const fromWallet = String(tx.fromWallet || '').trim();
+                const toWallet = String(tx.toWallet || '').trim();
+                const movedCost = fromWallet ? removeAtAvgCost(fromWallet, symbol, qty) : 0;
+                if (toWallet) addQtyCost(toWallet, symbol, qty, movedCost);
             }
         });
 
         const walletCards = [];
-        for (const [walletId, symMap] of qtyByWallet.entries()) {
+        for (const [walletId, symMap] of holdingsByWallet.entries()) {
             const rows = [];
-            for (const [sym, qty] of symMap.entries()) {
-                if (!(qty > 1e-12)) continue;
-                rows.push({ sym, qty });
+            for (const [sym, h] of symMap.entries()) {
+                if (!(h.qty > 1e-12)) continue;
+                rows.push({ sym, qty: h.qty, cost: h.cost });
             }
             if (!rows.length) continue;
             rows.sort((a, b) => a.sym.localeCompare(b.sym));
@@ -341,25 +374,26 @@
         if (emptyMsg) emptyMsg.style.display = 'none';
 
         container.innerHTML = walletCards.map(w => {
-            // Basic attribute escaping to keep HTML valid.
             const walletIdAttr = escapeHtml(w.walletId);
             return `
                 <div class="totals-card" data-stock-wallet-id="${walletIdAttr}">
                     <div class="totals-header">
                         <div style="font-size:1rem;font-weight:800;color:var(--title-accent);">${escapeHtml(w.walletName)}</div>
-                        <div class="wallet-contents-total-badge" data-stock-wallet-total>—</div>
+                        <div class="wallet-contents-total-badge" data-stock-wallet-total>— ${escapeHtml(baseCurrency)}</div>
                     </div>
                     <div class="wallet-contents-list">
                         ${w.rows.map(r => {
                             const sym = escapeHtml(r.sym);
-                            const qty = r.qty;
                             return `
-                                <div class="wallet-contents-row" data-stock-wallet-symbol="${sym}" data-stock-wallet-qty="${qty}" data-stock-wallet-wallet="${walletIdAttr}">
+                                <div class="wallet-contents-row" data-stock-wallet-symbol="${sym}" data-stock-wallet-qty="${r.qty}" data-stock-wallet-cost="${r.cost}" data-stock-wallet-wallet="${walletIdAttr}">
                                     <div class="wallet-contents-left">
-                                        <div class="wallet-contents-symbol">${sym}</div>
-                                        <div class="wallet-contents-qty small-muted">${formatNumber(qty, 6)}</div>
+                                        <span class="wallet-contents-symbol" data-stock-wallet-name>${sym}</span>
+                                        <span class="wallet-contents-qty">${formatNumber(r.qty, 6)}</span>
                                     </div>
-                                    <div class="wallet-contents-right small-muted" data-stock-wallet-value>—</div>
+                                    <div class="wallet-contents-right">
+                                        <div class="wallet-contents-value" data-stock-wallet-value>— ${escapeHtml(baseCurrency)}</div>
+                                        <div class="wallet-contents-gl" data-stock-wallet-gl>—</div>
+                                    </div>
                                 </div>
                             `;
                         }).join('')}
@@ -401,20 +435,34 @@
             for (const [sym, symRows] of rowsBySymbol.entries()) {
                 const price = priceMap[sym];
                 const entry = pc ? pc.entry('stock', sym) : null;
-                const curCode = (entry && entry.currency) ? entry.currency : (baseCurrency || '');
                 for (const row of symRows) {
                     const qty = parseFloat(row.getAttribute('data-stock-wallet-qty') || '0') || 0;
+                    const cost = parseFloat(row.getAttribute('data-stock-wallet-cost') || '0') || 0;
                     const walletId = String(row.getAttribute('data-stock-wallet-wallet') || '').trim();
                     const valEl = row.querySelector('[data-stock-wallet-value]');
+                    const glEl = row.querySelector('[data-stock-wallet-gl]');
+                    const cur = baseCurrency ? ` ${baseCurrency}` : '';
 
                     if (price == null) {
-                        if (valEl) valEl.textContent = '—';
+                        if (valEl) valEl.textContent = `—${cur}`;
+                        if (glEl) {
+                            glEl.textContent = '— (N/A)';
+                            glEl.classList.remove('pct-positive', 'pct-negative');
+                            glEl.classList.add('pct-neutral');
+                        }
                         continue;
                     }
 
                     const valueNow = qty * price;
-                    const cur = curCode ? ` ${curCode}` : '';
+                    const gl = valueNow - cost;
+                    const glPct = cost > 0 ? (gl / cost) * 100 : null;
+                    const glPctText = glPct == null ? 'N/A' : `${glPct >= 0 ? '+' : ''}${formatNumber(glPct, 2)}%`;
                     if (valEl) valEl.textContent = `${formatNumber(valueNow, 2)}${cur}`;
+                    if (glEl) {
+                        glEl.textContent = `${gl >= 0 ? '+' : ''}${formatNumber(gl, 2)}${cur} (${glPctText})`;
+                        glEl.classList.remove('pct-positive', 'pct-negative', 'pct-neutral');
+                        glEl.classList.add(gl >= 0 ? 'pct-positive' : 'pct-negative');
+                    }
 
                     totalsByWallet.set(walletId, (totalsByWallet.get(walletId) || 0) + valueNow);
                 }
@@ -426,7 +474,7 @@
                 const totalEl = card.querySelector('[data-stock-wallet-total]');
                 const total = totalsByWallet.get(walletId);
                 const cur = baseCurrency ? ` ${baseCurrency}` : '';
-                if (totalEl) totalEl.textContent = (typeof total === 'number') ? `${formatNumber(total, 2)}${cur}` : '—';
+                if (totalEl) totalEl.textContent = (typeof total === 'number') ? `${formatNumber(total, 2)}${cur}` : `—${cur}`;
             });
             _stockUpdateRefreshLabel();
         }
@@ -1442,7 +1490,7 @@ function stockWalletsDiv() { showStockWallets(); }
 
 <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-bottom:10px;">
     <span id="stockLastRefresh" class="small-muted" style="font-size:12px;"></span>
-    <button type="button" id="stockRefreshBtn" class="btn btn-sm btn-outline-secondary" title="Fetch latest prices">
+    <button type="button" id="stockRefreshBtn" class="btn btn-sm btn-outline-secondary refresh-prices-btn" title="Fetch latest prices">
         <span id="stockRefreshLabel">Refresh prices</span>
     </button>
 </div>
