@@ -3,4 +3,4 @@ Date,Type,Action,Counterparty,Position,Amount,Currency,From Wallet,To Wallet,Fee
 2026-04-17,borrow,repay,David,David | EUR | 2026-04-17,100,EUR,Wise,,10,,first
 2026-04-17,borrow,new,David,David | EUR | 2026-04-17,600,EUR,,Wise,0,,
 2026-01-17,loan,new,Swedbank,Swedbank | EUR | 2026-01-17,1000,EUR,,Revolut,0,,
-2026-04-15,lend,new,Ali,Ali | EUR | 2026-04-15,400,EUR,Wise,,0,,
+2026-04-15,lend,new,Jon,Jon | EUR | 2026-04-15,400,EUR,Wise,,0,,
