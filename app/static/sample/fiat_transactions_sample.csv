@@ -1,0 +1,6 @@
+Date,Transaction Type,From Wallet,To Wallet,Amount,Currency,Fee,Category,Note
+15/04/2026,Income,,Wise,500,EUR,,"Salary, Wage",
+18/04/2026,Expense,Swedbank,,200,EUR,,Investments,
+24/04/2026,Expense,Swedbank,,101,EUR,1,Entertainment,
+15/05/2026,FX Transfer,Wise,Revolut,10,EUR,0.36,,
+17/05/2026,Transfer,Wise,Swedbank,100,EUR,0.36,,test

@@ -6,6 +6,7 @@
 {% block content %}
 
 <h1 class="page-title"></h1>
+<div id="sampleFilesMap" data-map='{{ sample_files|tojson }}' style="display:none;"></div>
 
 {% set result = session.pop('import_result', None) %}
 {% if result %}
@@ -122,6 +123,13 @@
 
 <script>
 (function() {
+    const sampleFilesEl = document.getElementById('sampleFilesMap');
+    let SAMPLE_FILES = {};
+    try {
+        SAMPLE_FILES = JSON.parse((sampleFilesEl && sampleFilesEl.dataset && sampleFilesEl.dataset.map) || '{}');
+    } catch (e) {
+        SAMPLE_FILES = {};
+    }
     const COLUMNS = {
         fiat:   ["Date", "Transaction Type", "From Wallet", "To Wallet", "Amount", "Received Amount", "Currency", "Fee", "Category", "Note"],
         crypto: ["Date", "Crypto", "Operation", "Quantity", "Price", "Currency", "Fee", "Fee Currency", "From Wallet", "To Wallet", "Note"],
@@ -147,6 +155,26 @@
     const importAsset = document.getElementById('importAsset');
     const importRef = document.getElementById('importColumnsRef');
     const importText = document.getElementById('importColumnsText');
+    const sampleLink = document.getElementById('sampleLink');
+
+    function updateSampleLink(assetKey) {
+        const href = SAMPLE_FILES[assetKey] || '';
+        if (!sampleLink) return;
+        if (href) {
+            sampleLink.href = href;
+            sampleLink.classList.remove('disabled');
+            sampleLink.style.pointerEvents = '';
+            sampleLink.style.opacity = '';
+            sampleLink.setAttribute('aria-disabled', 'false');
+        } else {
+            sampleLink.href = '#';
+            sampleLink.classList.add('disabled');
+            sampleLink.style.pointerEvents = 'none';
+            sampleLink.style.opacity = '0.45';
+            sampleLink.setAttribute('aria-disabled', 'true');
+        }
+    }
+
     importAsset.addEventListener('change', function() {
         const cols = COLUMNS[this.value];
         if (cols) {
@@ -155,7 +183,10 @@
         } else {
             importRef.style.display = 'none';
         }
+        updateSampleLink(this.value);
     });
+
+    updateSampleLink(importAsset.value);
 })();
 
 function handleExport(e) {
@@ -196,7 +227,13 @@ function handleImportFile(input) {
 function handleSampleDownload() {
     const asset = document.getElementById('importAsset').value;
     if (!asset) { alert('Please select an asset type first.'); return false; }
-    window.location.href = '/sample/' + encodeURIComponent(asset);
+    const link = document.getElementById('sampleLink');
+    const href = (link && link.getAttribute('href')) || '';
+    if (!href || href === '#') {
+        alert('No sample template is available for this asset yet.');
+        return false;
+    }
+    window.location.href = href;
     return false;
 }
 </script>

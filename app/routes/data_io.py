@@ -2,9 +2,10 @@ import csv
 import io
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 import requests
-from flask import Blueprint, Response, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, redirect, render_template, request, send_from_directory, session, url_for
 
 from app.services.user_scope import filter_records_by_user
 from config import API_URL, aws_auth
@@ -191,7 +192,16 @@ def data_page():
     if not user:
         return render_template("home.html")
     _ensure_user_settings_row(user.get("username"))
-    return render_template("data_io.html")
+
+    sample_dir = Path(__file__).resolve().parent.parent / "static" / "sample"
+    sample_files = {}
+    for asset_key in ASSET_CONFIG.keys():
+        # Match files like "fiat_*.csv", "crypto_*.csv", etc.
+        candidates = sorted(sample_dir.glob(f"{asset_key}*.csv")) if sample_dir.exists() else []
+        if candidates:
+            sample_files[asset_key] = f"/sample/{asset_key}"
+
+    return render_template("data_io.html", sample_files=sample_files)
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +290,19 @@ def sample_csv(asset_type):
     cfg = ASSET_CONFIG.get(asset_type)
     if not cfg:
         return Response("Invalid asset type", status=400)
+
+    # Prefer user-managed static sample files and force download via attachment header.
+    sample_dir = Path(__file__).resolve().parent.parent / "static" / "sample"
+    candidates = sorted(sample_dir.glob(f"{asset_type}*.csv")) if sample_dir.exists() else []
+    if candidates:
+        filename = candidates[0].name
+        return send_from_directory(
+            str(sample_dir),
+            filename,
+            as_attachment=True,
+            download_name=filename,
+            mimetype="text/csv",
+        )
 
     columns = cfg["columns"]
     headers = [label for _, label in columns]
