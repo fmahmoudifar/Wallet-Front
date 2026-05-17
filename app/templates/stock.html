@@ -639,6 +639,43 @@
         });
     }
 
+    function _normalizeStockSide(v) {
+        return String(v || '').trim().toLowerCase();
+    }
+
+    function _applyStockWalletRules(sideEl, fromEl, toEl) {
+        if (!sideEl || !fromEl || !toEl) return;
+        const side = _normalizeStockSide(sideEl.value);
+
+        fromEl.required = (side === 'sell');
+        toEl.required = (side === 'buy');
+
+        fromEl.setCustomValidity('');
+        toEl.setCustomValidity('');
+    }
+
+    function _validateStockWalletRules(sideEl, fromEl, toEl) {
+        if (!sideEl || !fromEl || !toEl) return true;
+
+        _applyStockWalletRules(sideEl, fromEl, toEl);
+        const side = _normalizeStockSide(sideEl.value);
+        const fromVal = String(fromEl.value || '').trim();
+        const toVal = String(toEl.value || '').trim();
+
+        if (side === 'buy' && !toVal) {
+            toEl.setCustomValidity('To Wallet is required for Buy transactions.');
+            toEl.reportValidity();
+            return false;
+        }
+        if (side === 'sell' && !fromVal) {
+            fromEl.setCustomValidity('From Wallet is required for Sell transactions.');
+            fromEl.reportValidity();
+            return false;
+        }
+
+        return true;
+    }
+
     // Crypto-like autocomplete powered by backend stock search/quote endpoints.
     // - User can type symbol or name
     // - Dropdown suggests "SYMBOL - Company Name"
@@ -923,6 +960,11 @@
                         try { input.focus(); } catch (_) {}
                         return;
                     }
+                    const isUpdate = form.id === 'updateForm';
+                    const sideEl = document.getElementById(isUpdate ? 'updateOperation' : 'operation');
+                    const fromEl = document.getElementById(isUpdate ? 'updateFromWallet' : 'fromWallet');
+                    const toEl = document.getElementById(isUpdate ? 'updateToWallet' : 'toWallet');
+                    if (!_validateStockWalletRules(sideEl, fromEl, toEl)) return;
                     clearError(input);
                     form.submit();
                 })();
@@ -1013,6 +1055,11 @@
             const opEl = document.getElementById("updateOperation");
             if (opEl) opEl.value = operation || '';
         }
+        _applyStockWalletRules(
+            document.getElementById('updateOperation'),
+            document.getElementById('updateFromWallet'),
+            document.getElementById('updateToWallet')
+        );
         document.getElementById("updateQuantity").value = quantity;
         document.getElementById("updatePrice").value = price;
         document.getElementById("updateCurrency").value = currency;
@@ -1387,6 +1434,28 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
+    const createOperation = document.getElementById('operation');
+    const createFromWallet = document.getElementById('fromWallet');
+    const createToWallet = document.getElementById('toWallet');
+    if (createOperation && createFromWallet && createToWallet) {
+        const syncCreateRules = function() {
+            _applyStockWalletRules(createOperation, createFromWallet, createToWallet);
+        };
+        createOperation.addEventListener('change', syncCreateRules);
+        syncCreateRules();
+    }
+
+    const updateOperation = document.getElementById('updateOperation');
+    const updateFromWallet = document.getElementById('updateFromWallet');
+    const updateToWallet = document.getElementById('updateToWallet');
+    if (updateOperation && updateFromWallet && updateToWallet) {
+        const syncUpdateRules = function() {
+            _applyStockWalletRules(updateOperation, updateFromWallet, updateToWallet);
+        };
+        updateOperation.addEventListener('change', syncUpdateRules);
+        syncUpdateRules();
+    }
+
     // Wire filter events
     ['stockFilterStart','stockFilterEnd','stockFilterSymbol','stockFilterNote','stockFilterFromWallet','stockFilterToWallet'].forEach(function(id) {
         var el = document.getElementById(id);
@@ -1541,7 +1610,7 @@ function stockWalletsDiv() { showStockWallets(); }
         </div>
         <div>
         <label for="toWallet">To Wallet:</label>
-        <select name="toWallet" id="toWallet" required>
+        <select name="toWallet" id="toWallet">
             <option value="">-- Select Wallet --</option>
         </select>
         </div>
@@ -1684,7 +1753,7 @@ function stockWalletsDiv() { showStockWallets(); }
             </div>
             <div>
                 <label>To Wallet:</label>
-                <select id="updateToWallet" name="toWallet" required>
+                <select id="updateToWallet" name="toWallet">
                     <option value="">-- Select Wallet --</option>
                 </select>
             </div>

@@ -22,6 +22,7 @@ FIAT_COLUMNS = [
     ("fromWallet", "From Wallet"),
     ("toWallet", "To Wallet"),
     ("amount", "Amount"),
+    ("receivedAmount", "Received Amount"),
     ("currency", "Currency"),
     ("fee", "Fee"),
     ("mainCat", "Category"),
@@ -36,8 +37,10 @@ CRYPTO_COLUMNS = [
     ("price", "Price"),
     ("currency", "Currency"),
     ("fee", "Fee"),
+    ("feeCurrency", "Fee Currency"),
     ("fromWallet", "From Wallet"),
     ("toWallet", "To Wallet"),
+    ("note", "Note"),
 ]
 
 STOCK_COLUMNS = [
@@ -48,6 +51,7 @@ STOCK_COLUMNS = [
     ("price", "Price"),
     ("currency", "Currency"),
     ("fee", "Fee"),
+    ("feeCurrency", "Fee Currency"),
     ("fromWallet", "From Wallet"),
     ("toWallet", "To Wallet"),
     ("note", "Note"),
@@ -106,16 +110,16 @@ ASSET_CONFIG = {
 # Sample rows for downloadable templates
 SAMPLE_ROWS = {
     "fiat": [
-        {"Date": "2025-01-15", "Transaction Type": "income", "From Wallet": "", "To Wallet": "My Bank", "Amount": "3500", "Currency": "EUR", "Fee": "0", "Category": "Salary", "Note": "January salary"},
-        {"Date": "2025-01-20", "Transaction Type": "expense", "From Wallet": "My Bank", "To Wallet": "", "Amount": "120", "Currency": "EUR", "Fee": "0", "Category": "Utilities", "Note": "Electric bill"},
+        {"Date": "2025-01-15", "Transaction Type": "income", "From Wallet": "", "To Wallet": "My Bank", "Amount": "3500", "Received Amount": "3500", "Currency": "EUR", "Fee": "0", "Category": "Salary", "Note": "January salary"},
+        {"Date": "2025-01-20", "Transaction Type": "expense", "From Wallet": "My Bank", "To Wallet": "", "Amount": "120", "Received Amount": "120", "Currency": "EUR", "Fee": "0", "Category": "Utilities", "Note": "Electric bill"},
     ],
     "crypto": [
-        {"Date": "2025-01-10", "Crypto": "Bitcoin", "Operation": "buy", "Quantity": "0.05", "Price": "42000", "Currency": "USD", "Fee": "1.5", "From Wallet": "Bank Account", "To Wallet": "Binance"},
-        {"Date": "2025-02-01", "Crypto": "Ethereum", "Operation": "buy", "Quantity": "1.2", "Price": "2300", "Currency": "USD", "Fee": "0.8", "From Wallet": "Bank Account", "To Wallet": "Binance"},
+        {"Date": "2025-01-10", "Crypto": "Bitcoin", "Operation": "buy", "Quantity": "0.05", "Price": "42000", "Currency": "USD", "Fee": "1.5", "Fee Currency": "USD", "From Wallet": "Bank Account", "To Wallet": "Binance", "Note": "Initial BTC buy"},
+        {"Date": "2025-02-01", "Crypto": "Ethereum", "Operation": "buy", "Quantity": "1.2", "Price": "2300", "Currency": "USD", "Fee": "0.8", "Fee Currency": "USD", "From Wallet": "Bank Account", "To Wallet": "Binance", "Note": "DCA entry"},
     ],
     "stock": [
-        {"Date": "2025-01-05", "Symbol": "AAPL", "Side": "buy", "Quantity": "10", "Price": "185.50", "Currency": "USD", "Fee": "1", "From Wallet": "Bank Account", "To Wallet": "IBKR", "Note": "Apple shares"},
-        {"Date": "2025-02-10", "Symbol": "MSFT", "Side": "buy", "Quantity": "5", "Price": "420.00", "Currency": "USD", "Fee": "1", "From Wallet": "Bank Account", "To Wallet": "IBKR", "Note": "Microsoft shares"},
+        {"Date": "2025-01-05", "Symbol": "AAPL", "Side": "buy", "Quantity": "10", "Price": "185.50", "Currency": "USD", "Fee": "1", "Fee Currency": "USD", "From Wallet": "Bank Account", "To Wallet": "IBKR", "Note": "Apple shares"},
+        {"Date": "2025-02-10", "Symbol": "MSFT", "Side": "buy", "Quantity": "5", "Price": "420.00", "Currency": "USD", "Fee": "1", "Fee Currency": "USD", "From Wallet": "Bank Account", "To Wallet": "IBKR", "Note": "Microsoft shares"},
     ],
     "loans": [
         {"Date": "2025-01-01", "Type": "borrow", "Action": "new", "Counterparty": "ABC Bank", "Position": "ABC Bank | EUR | 2025-01-01", "Amount": "10000", "Currency": "EUR", "From Wallet": "", "To Wallet": "My Bank", "Fee": "50", "Due Date": "2026-01-01", "Note": "Personal loan"},

@@ -66,6 +66,49 @@ def _require_user():
     return user
 
 
+def _response_json_safe(resp):
+    try:
+        return resp.json()
+    except Exception:
+        return {}
+
+
+def _response_message(resp) -> str:
+    data = _response_json_safe(resp)
+    msg = data.get("Message") or data.get("message") or data.get("error")
+    if msg:
+        return str(msg)
+    try:
+        txt = (resp.text or "").strip()
+        return txt[:300] if txt else ""
+    except Exception:
+        return ""
+
+
+def _needs_legacy_stock_payload(resp) -> bool:
+    msg = _response_message(resp).lower()
+    return (
+        "takes" in msg
+        and "positional arguments" in msg
+        and "were given" in msg
+        and ("modify_stock" in msg or "create_stock" in msg)
+    )
+
+
+def _send_stock_with_compat(url: str, payload: dict, method: str = "post"):
+    req = requests.post if method == "post" else requests.patch
+
+    # First attempt: modern payload (includes feeCurrency).
+    response = req(url, json=payload, auth=aws_auth)
+    if response.status_code < 400 or not _needs_legacy_stock_payload(response):
+        return response
+
+    # Legacy API shape fallback: retry without feeCurrency.
+    legacy_payload = dict(payload)
+    legacy_payload.pop("feeCurrency", None)
+    return req(url, json=legacy_payload, auth=aws_auth)
+
+
 
 def _yh_get(url: str, params: dict):
     headers = {"Accept": "application/json", "User-Agent": "Wallet-Front/1.0"}
@@ -562,8 +605,8 @@ def create_stock():
 
     print(data)
     try:
-        response = requests.post(f"{API_URL}/stock", json=data, auth=aws_auth)
-        print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {response.json()}")
+        response = _send_stock_with_compat(f"{API_URL}/stock", data, method="post")
+        print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {_response_json_safe(response)}")
 
         return redirect(url_for("stock.stock_page"))
     except Exception as e:
@@ -597,8 +640,8 @@ def update_stock():
     print(f"🔄 [DEBUG] Updating stock: {data}")
 
     try:
-        response = requests.patch(f"{API_URL}/stock", json=data, auth=aws_auth)
-        print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {response.json()}")
+        response = _send_stock_with_compat(f"{API_URL}/stock", data, method="patch")
+        print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {_response_json_safe(response)}")
 
         return redirect(url_for("stock.stock_page"))
     except Exception as e:
