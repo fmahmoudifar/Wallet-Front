@@ -1,0 +1,16 @@
+{
+  "name": "Wallet Front",
+  "short_name": "Wallet",
+  "icons": [
+    {
+      "src": "/static/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "theme_color": "#2f3338",
+  "background_color": "#2f3338",
+  "display": "standalone",
+  "start_url": "/"
+}
