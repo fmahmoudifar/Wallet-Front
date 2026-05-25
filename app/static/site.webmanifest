@@ -1,6 +1,6 @@
 {
-  "name": "Wallet Front",
-  "short_name": "Wallet",
+  "name": "Wallets Portfolio",
+  "short_name": "Wallets Portfolio",
   "icons": [
     {
       "src": "/static/favicon.svg",
