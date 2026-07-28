@@ -1742,11 +1742,13 @@ button.pct-positive:hover {
 .block-new h2:not(.center-text), .block-update h2:not(.center-text) { font-size: 1.1rem; margin-bottom: 6px; }
 
 .block-new .form-container form input[type="text"],
+.block-new .form-container form input[type="email"],
 .block-new .form-container form input[type="password"],
 .block-new .form-container form input[type="number"],
 .block-new .form-container form input[type="date"],
 .block-new .form-container form select,
 .block-update .form-container form input[type="text"],
+.block-update .form-container form input[type="email"],
 .block-update .form-container form input[type="password"],
 .block-update .form-container form input[type="number"],
 .block-update .form-container form input[type="date"],
@@ -1829,11 +1831,13 @@ button.pct-positive:hover {
     .block-new .form-container form, .block-update .form-container form { justify-content: center; grid-template-columns: 1fr; padding: 0; width: 100%; max-width: 100%; margin: 0 auto; }
     .block-new .form-container form > div label, .block-update .form-container form > div label { width: auto; text-align: left; font-size: 13px; }
     .block-new .form-container form input[type="text"],
+    .block-new .form-container form input[type="email"],
     .block-new .form-container form input[type="password"],
     .block-new .form-container form input[type="number"],
     .block-new .form-container form input[type="date"],
     .block-new .form-container form select,
     .block-update .form-container form input[type="text"],
+    .block-update .form-container form input[type="email"],
     .block-update .form-container form input[type="password"],
     .block-update .form-container form input[type="number"],
     .block-update .form-container form input[type="date"],

@@ -46,9 +46,13 @@
                 <input id="subject" name="subject" type="text" required value="{{ form_data.subject }}">
             </div>
             {% if captcha_required %}
-            <div>
-                <label for="captcha_answer">Captcha: {{ captcha_question }}</label>
-                <input id="captcha_answer" name="captcha_answer" type="text" required value="{{ form_data.captcha }}" autocomplete="off" inputmode="numeric">
+            <div class="contact-captcha-field">
+                <label>Verification:</label>
+                {% if turnstile_site_key %}
+                <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="auto"></div>
+                {% else %}
+                <div class="small-muted">Captcha is not configured yet.</div>
+                {% endif %}
             </div>
             {% endif %}
             <div class="contact-message-field">
@@ -63,4 +67,7 @@
         </form>
     </div>
 </div>
+{% if captcha_required and turnstile_site_key %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
 {% endblock %}

@@ -1,9 +1,12 @@
 import smtplib
 from email.message import EmailMessage
-from email.utils import formataddr
+from email.utils import formataddr, parseaddr
+import json
 import os
-import random
+import re
 from pathlib import Path
+from urllib import parse as urlparse
+from urllib import request as urlrequest
 
 from flask import Blueprint, render_template, request, session
 from dotenv import dotenv_values
@@ -15,8 +18,7 @@ from config import (
 contact_bp = Blueprint("contact", __name__)
 
 _ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
-_CONTACT_CAPTCHA_ANSWER_KEY = "_contact_captcha_answer"
-_CONTACT_CAPTCHA_QUESTION_KEY = "_contact_captcha_question"
+_TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
 
 def _session_user_email() -> str:
@@ -36,33 +38,40 @@ def _captcha_required() -> bool:
     return not _is_logged_in()
 
 
-def _new_contact_captcha() -> str:
-    left = random.randint(1, 9)
-    right = random.randint(1, 9)
-    question = f"What is {left} + {right}?"
-    session[_CONTACT_CAPTCHA_QUESTION_KEY] = question
-    session[_CONTACT_CAPTCHA_ANSWER_KEY] = str(left + right)
-    return question
+def _verify_turnstile(token: str, secret_key: str, remote_ip: str | None = None) -> bool:
+    payload = {
+        "secret": str(secret_key or "").strip(),
+        "response": str(token or "").strip(),
+    }
+    if remote_ip:
+        payload["remoteip"] = str(remote_ip).strip()
 
+    body = urlparse.urlencode(payload).encode("utf-8")
+    req = urlrequest.Request(_TURNSTILE_VERIFY_URL, data=body, method="POST")
+    req.add_header("Content-Type", "application/x-www-form-urlencoded")
 
-def _current_contact_captcha() -> str:
-    question = str(session.get(_CONTACT_CAPTCHA_QUESTION_KEY) or "").strip()
-    answer = str(session.get(_CONTACT_CAPTCHA_ANSWER_KEY) or "").strip()
-    if not question or not answer:
-        return _new_contact_captcha()
-    return question
-
-
-def _verify_contact_captcha(user_input: str) -> bool:
-    expected = str(session.get(_CONTACT_CAPTCHA_ANSWER_KEY) or "").strip()
-    provided = str(user_input or "").strip()
-    if not expected:
+    try:
+        with urlrequest.urlopen(req, timeout=10) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            data = json.loads(raw)
+    except Exception:
         return False
-    ok = provided == expected
-    if ok:
-        session.pop(_CONTACT_CAPTCHA_ANSWER_KEY, None)
-        session.pop(_CONTACT_CAPTCHA_QUESTION_KEY, None)
-    return ok
+
+    return bool(data.get("success") is True)
+
+
+def _is_valid_email(value: str) -> bool:
+    email = str(value or "").strip()
+    if not email or len(email) > 254:
+        return False
+
+    # parseaddr strips display names and malformed wrappers.
+    _, parsed = parseaddr(email)
+    if parsed != email:
+        return False
+
+    pattern = r"(?i)^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9-]+(?:\.[A-Z0-9-]+)+$"
+    return re.fullmatch(pattern, email) is not None
 
 
 def _is_truthy(value: str | None) -> bool:
@@ -96,6 +105,8 @@ def _runtime_mail_settings() -> dict:
     contact_to_email = _get("CONTACT_TO_EMAIL", CONTACT_TO_EMAIL)
     smtp_use_tls = _is_truthy(_get("SMTP_USE_TLS", "1"))
     smtp_use_ssl = _is_truthy(_get("SMTP_USE_SSL", "0"))
+    turnstile_site_key = _get("TURNSTILE_SITE_KEY")
+    turnstile_secret_key = _get("TURNSTILE_SECRET_KEY")
 
     # Gmail app passwords are often copied as 4-char groups with spaces.
     # Normalize only for Gmail SMTP to avoid accidental auth failures.
@@ -111,6 +122,8 @@ def _runtime_mail_settings() -> dict:
         "contact_to_email": contact_to_email,
         "smtp_use_tls": smtp_use_tls,
         "smtp_use_ssl": smtp_use_ssl,
+        "turnstile_site_key": turnstile_site_key,
+        "turnstile_secret_key": turnstile_secret_key,
     }
 
 
@@ -179,8 +192,10 @@ def _send_contact_email(name: str, user_email: str, subject: str, topic: str, me
 @contact_bp.route("/contact", methods=["GET", "POST"])
 def contact_page():
     user_email_default = _session_user_email()
+    settings = _runtime_mail_settings()
     captcha_required = _captcha_required()
-    captcha_question = _current_contact_captcha() if captcha_required else ""
+    turnstile_site_key = settings["turnstile_site_key"]
+    turnstile_secret_key = settings["turnstile_secret_key"]
     status = None
     error = None
     form_data = {
@@ -189,7 +204,6 @@ def contact_page():
         "topic": "Issue",
         "subject": "",
         "message": "",
-        "captcha": "",
     }
 
     if request.method == "POST":
@@ -198,20 +212,20 @@ def contact_page():
         form_data["topic"] = (request.form.get("topic") or "Issue").strip() or "Issue"
         form_data["subject"] = (request.form.get("subject") or "").strip()
         form_data["message"] = (request.form.get("message") or "").strip()
-        form_data["captcha"] = (request.form.get("captcha_answer") or "").strip()
+        turnstile_token = (request.form.get("cf-turnstile-response") or "").strip()
 
         if not form_data["name"]:
             error = "Please enter your name."
-        elif not form_data["email"] or "@" not in form_data["email"]:
+        elif not _is_valid_email(form_data["email"]):
             error = "Please enter a valid email address."
         elif not form_data["subject"]:
             error = "Please enter a subject."
         elif not form_data["message"]:
             error = "Please enter your message."
-        elif captcha_required and not _verify_contact_captcha(form_data["captcha"]):
+        elif captcha_required and (not turnstile_site_key or not turnstile_secret_key):
+            error = "Captcha is not configured. Please contact support."
+        elif captcha_required and not _verify_turnstile(turnstile_token, turnstile_secret_key, request.remote_addr):
             error = "Captcha validation failed. Please try again."
-            form_data["captcha"] = ""
-            captcha_question = _new_contact_captcha()
         else:
             try:
                 _send_contact_email(
@@ -224,9 +238,6 @@ def contact_page():
                 status = "Your message has been sent. Thank you for your feedback."
                 form_data["subject"] = ""
                 form_data["message"] = ""
-                form_data["captcha"] = ""
-                if captcha_required:
-                    captcha_question = _new_contact_captcha()
             except Exception as exc:
                 error = f"Failed to send message: {exc}"
 
@@ -236,5 +247,5 @@ def contact_page():
         error=error,
         form_data=form_data,
         captcha_required=captcha_required,
-        captcha_question=captcha_question,
+        turnstile_site_key=turnstile_site_key,
     )
