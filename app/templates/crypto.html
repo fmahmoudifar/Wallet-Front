@@ -239,6 +239,64 @@
         try { return new Intl.NumberFormat(undefined, opts).format(v); } catch (e) { return String(v); }
     }
 
+    function _formatOverviewValue(value) {
+        var v = Number(value);
+        if (!isFinite(v)) return '0';
+        try {
+            return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(v);
+        } catch (e) {
+            return String(v);
+        }
+    }
+
+    function _truncateTo(value, digits) {
+        var factor = Math.pow(10, digits);
+        if (!isFinite(factor) || factor === 0) return value;
+        return value < 0 ? Math.ceil(value * factor) / factor : Math.floor(value * factor) / factor;
+    }
+
+    function _formatOverviewUnitPrice(value) {
+        var v = Number(value);
+        if (!isFinite(v)) return '0';
+
+        var abs = Math.abs(v);
+        var digits = 2;
+        if (abs > 0 && abs < 1) {
+            var leadingZeros = Math.max(0, Math.ceil(-Math.log10(abs)) - 1);
+            digits = Math.min(12, leadingZeros + 2);
+        }
+
+        var truncated = _truncateTo(v, digits);
+        try {
+            return new Intl.NumberFormat(undefined, {
+                maximumFractionDigits: digits
+            }).format(truncated);
+        } catch (e) {
+            return String(truncated);
+        }
+    }
+
+    function _formatOverviewQuantity(value) {
+        var v = Number(value);
+        if (!isFinite(v)) return '0';
+
+        var abs = Math.abs(v);
+        var digits = 4;
+        if (abs > 0 && abs < 1) {
+            var leadingZeros = Math.max(0, Math.ceil(-Math.log10(abs)) - 1);
+            digits = Math.min(12, leadingZeros + 4);
+        }
+
+        var truncated = _truncateTo(v, digits);
+        try {
+            return new Intl.NumberFormat(undefined, {
+                maximumFractionDigits: digits
+            }).format(truncated);
+        } catch (e) {
+            return String(truncated);
+        }
+    }
+
     function _buildCryptoTotals(totals, baseCurrency) {
         var grid = document.getElementById('cryptoTotalsGrid');
         var emptyMsg = document.getElementById('cryptoTotalsEmpty');
@@ -268,10 +326,10 @@
                 + '<div class="totals-meta">'
                 + '<div class="totals-row"><span class="totals-label small-muted">Total Quantity:</span><span class="totals-value">' + _escapeHtml(t.total_qty_display || '') + '</span></div>'
                 + '<div class="totals-row"><span class="totals-label small-muted">Total Value Now:</span><span class="totals-value" data-crypto-now>\u2014</span></div>'
-                + '<div class="totals-row"><span class="totals-label small-muted">Cost Basis:</span><span class="totals-value">' + _escapeHtml(_formatNumber(t.total_value || 0, 2)) + cur + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Cost Basis:</span><span class="totals-value">' + _escapeHtml(_formatOverviewValue(t.total_value || 0)) + cur + '</span></div>'
                 + '<div class="totals-row"><span class="totals-label small-muted">Unit price now:</span><span class="totals-value" data-crypto-live>\u2014</span></div>'
-                + '<div class="totals-row"><span class="totals-label small-muted">Avg Buy Price:</span><span class="totals-value">' + _escapeHtml(t.avg_buy_price_display || '') + cur + '</span></div>'
-                + '<div class="totals-row"><span class="totals-label small-muted">Fees paid:</span><span class="totals-value">' + _escapeHtml(t.total_fee_display || '') + cur + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Avg Buy Price:</span><span class="totals-value">' + (t.avg_buy_price == null ? '\u2014' : _escapeHtml(_formatOverviewUnitPrice(t.avg_buy_price))) + cur + '</span></div>'
+                + '<div class="totals-row"><span class="totals-label small-muted">Fees paid:</span><span class="totals-value">' + ((Number(t.total_fee || 0) > 0) ? _escapeHtml(_formatOverviewUnitPrice(t.total_fee)) : '\u2014') + cur + '</span></div>'
                 + '<div class="totals-row"><span class="totals-label small-muted">Realized P/L:</span><span class="totals-value" data-crypto-realized>\u2014 (N/A)</span></div>'
                 + '<div class="totals-row"><span class="totals-label small-muted">Unrealized P/L:</span><span class="totals-value" data-crypto-unrealized>\u2014 (N/A)</span></div>'
                 + '<div class="totals-row"><span class="totals-label small-muted">Total Gain / Loss:</span><span class="totals-value" style="font-weight:bold;" data-crypto-gl>\u2014 (N/A)</span></div>'
@@ -311,7 +369,7 @@
                     return '<div class="crypto-wallets-row" data-holding-symbol="' + _escapeHtml(h.cryptoName) + '" data-holding-qty="' + (h.qty || 0) + '" data-holding-cost="' + (h.cost_basis || 0) + '">'
                         + '<div class="crypto-wallets-left">'
                         + '<span class="crypto-wallets-symbol" data-holding-name>' + _escapeHtml(h.cryptoName) + '</span>'
-                        + '<span class="crypto-wallets-qty">' + _escapeHtml(h.qty_display) + '</span>'
+                        + '<span class="crypto-wallets-qty">' + _escapeHtml(String(h.qty != null ? h.qty : (h.qty_display || 0))) + '</span>'
                         + '</div>'
                         + '<div class="crypto-wallets-right">'
                         + '<div class="wallet-contents-value" data-holding-value>\u2014 ' + _escapeHtml(bc) + '</div>'
@@ -939,13 +997,13 @@
                     var entry = priceCache.entry('crypto', symbol);
                     if (entry && entry.name) nameEl.textContent = entry.name;
                 }
-                if (nowEl) nowEl.textContent = _formatNumber(totalNow, 2) + ' ' + bc;
-                if (liveEl) liveEl.textContent = _formatNumber(price, 6) + ' ' + bc;
+                if (nowEl) nowEl.textContent = _formatOverviewValue(totalNow) + ' ' + bc;
+                if (liveEl) liveEl.textContent = _formatOverviewUnitPrice(price) + ' ' + bc;
                 if (realizedEl) {
                     var rp = (realizedPct === null)
                         ? 'N/A'
                         : ((realizedPct >= 0 ? '+' : '') + _formatNumber(realizedPct, 2) + '%');
-                    realizedEl.textContent = (realized >= 0 ? '+' : '') + _formatNumber(realized, 2) + ' ' + bc + ' (' + rp + ')';
+                    realizedEl.textContent = (realized >= 0 ? '+' : '') + _formatOverviewValue(realized) + ' ' + bc + ' (' + rp + ')';
                     realizedEl.classList.remove('pct-positive', 'pct-negative', 'pct-neutral');
                     realizedEl.classList.add(realized >= 0 ? 'pct-positive' : 'pct-negative');
                 }
@@ -953,7 +1011,7 @@
                     var up = (unrealizedPct === null)
                         ? 'N/A'
                         : ((unrealizedPct >= 0 ? '+' : '') + _formatNumber(unrealizedPct, 2) + '%');
-                    unrealizedEl.textContent = (unrealized >= 0 ? '+' : '') + _formatNumber(unrealized, 2) + ' ' + bc + ' (' + up + ')';
+                    unrealizedEl.textContent = (unrealized >= 0 ? '+' : '') + _formatOverviewValue(unrealized) + ' ' + bc + ' (' + up + ')';
                     unrealizedEl.classList.remove('pct-positive', 'pct-negative', 'pct-neutral');
                     unrealizedEl.classList.add(unrealized >= 0 ? 'pct-positive' : 'pct-negative');
                 }
@@ -961,7 +1019,7 @@
                     var tp = (totalPct === null)
                         ? 'N/A'
                         : ((totalPct >= 0 ? '+' : '') + _formatNumber(totalPct, 2) + '%');
-                    glEl.textContent = (gl >= 0 ? '+' : '') + _formatNumber(gl, 2) + ' ' + bc + ' (' + tp + ')';
+                    glEl.textContent = (gl >= 0 ? '+' : '') + _formatOverviewValue(gl) + ' ' + bc + ' (' + tp + ')';
                     glEl.classList.remove('pct-positive', 'pct-negative', 'pct-neutral');
                     glEl.classList.add(gl >= 0 ? 'pct-positive' : 'pct-negative');
                 }
@@ -983,12 +1041,12 @@
                     if (price != null) {
                         var val = price * qty;
                         walletTotal += val;
-                        if (valEl) valEl.textContent = _formatNumber(val, 2) + ' ' + bc;
+                        if (valEl) valEl.textContent = _formatOverviewUnitPrice(val) + ' ' + bc;
                         if (glEl) {
                             var gl = val - cost;
                             var pct = cost > 0 ? (gl / cost) * 100 : null;
                             var pctText = pct === null ? 'N/A' : ((pct >= 0 ? '+' : '') + _formatNumber(pct, 2) + '%');
-                            glEl.textContent = (gl >= 0 ? '+' : '') + _formatNumber(gl, 2) + ' ' + bc + ' (' + pctText + ')';
+                            glEl.textContent = (gl >= 0 ? '+' : '') + _formatOverviewValue(gl) + ' ' + bc + ' (' + pctText + ')';
                             glEl.classList.remove('pct-positive', 'pct-negative', 'pct-neutral');
                             glEl.classList.add(gl >= 0 ? 'pct-positive' : 'pct-negative');
                         }

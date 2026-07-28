@@ -55,6 +55,64 @@
         }
     }
 
+    function formatOverviewValue(value) {
+        const v = Number(value);
+        if (!isFinite(v)) return '0';
+        try {
+            return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(v);
+        } catch (e) {
+            return String(v);
+        }
+    }
+
+    function truncateTo(value, digits) {
+        const factor = Math.pow(10, digits);
+        if (!isFinite(factor) || factor === 0) return value;
+        return value < 0 ? Math.ceil(value * factor) / factor : Math.floor(value * factor) / factor;
+    }
+
+    function formatOverviewUnitPrice(value) {
+        const v = Number(value);
+        if (!isFinite(v)) return '0';
+
+        const abs = Math.abs(v);
+        let digits = 2;
+        if (abs > 0 && abs < 1) {
+            const leadingZeros = Math.max(0, Math.ceil(-Math.log10(abs)) - 1);
+            digits = Math.min(12, leadingZeros + 2);
+        }
+
+        const truncated = truncateTo(v, digits);
+        try {
+            return new Intl.NumberFormat(undefined, {
+                maximumFractionDigits: digits,
+            }).format(truncated);
+        } catch (e) {
+            return String(truncated);
+        }
+    }
+
+    function formatOverviewQuantity(value) {
+        const v = Number(value);
+        if (!isFinite(v)) return '0';
+
+        const abs = Math.abs(v);
+        let digits = 4;
+        if (abs > 0 && abs < 1) {
+            const leadingZeros = Math.max(0, Math.ceil(-Math.log10(abs)) - 1);
+            digits = Math.min(12, leadingZeros + 4);
+        }
+
+        const truncated = truncateTo(v, digits);
+        try {
+            return new Intl.NumberFormat(undefined, {
+                maximumFractionDigits: digits,
+            }).format(truncated);
+        } catch (e) {
+            return String(truncated);
+        }
+    }
+
     function escapeHtml(value) {
         const s = String(value ?? '');
         return s.replace(/[&<>"']/g, ch => {
@@ -206,7 +264,7 @@
                         </div>
                         <div class="totals-row">
                             <span class="totals-label small-muted">Cost Basis:</span>
-                            <span class="totals-value">${formatNumber(g.totalCost, 2)}${cur}</span>
+                            <span class="totals-value">${formatOverviewValue(g.totalCost)}${cur}</span>
                         </div>
                         <div class="totals-row">
                             <span class="totals-label small-muted">Unit price now:</span>
@@ -214,11 +272,11 @@
                         </div>
                         <div class="totals-row">
                             <span class="totals-label small-muted">Avg Buy Price:</span>
-                            <span class="totals-value">${formatNumber(avgBuy, 4)}${cur}</span>
+                            <span class="totals-value">${formatOverviewUnitPrice(avgBuy)}${cur}</span>
                         </div>
                         <div class="totals-row">
                             <span class="totals-label small-muted">Fees paid:</span>
-                            <span class="totals-value">${formatNumber(g.totalFee, 2)}${cur}</span>
+                            <span class="totals-value">${formatOverviewUnitPrice(g.totalFee)}${cur}</span>
                         </div>
                         <div class="totals-row">
                             <span class="totals-label small-muted">Realized P/L:</span>
@@ -388,7 +446,7 @@
                                 <div class="wallet-contents-row" data-stock-wallet-symbol="${sym}" data-stock-wallet-qty="${r.qty}" data-stock-wallet-cost="${r.cost}" data-stock-wallet-wallet="${walletIdAttr}">
                                     <div class="wallet-contents-left">
                                         <span class="wallet-contents-symbol" data-stock-wallet-name>${sym}</span>
-                                        <span class="wallet-contents-qty">${formatNumber(r.qty, 6)}</span>
+                                        <span class="wallet-contents-qty">${escapeHtml(String(r.qty))}</span>
                                     </div>
                                     <div class="wallet-contents-right">
                                         <div class="wallet-contents-value" data-stock-wallet-value>— ${escapeHtml(baseCurrency)}</div>
@@ -457,9 +515,9 @@
                     const gl = valueNow - cost;
                     const glPct = cost > 0 ? (gl / cost) * 100 : null;
                     const glPctText = glPct == null ? 'N/A' : `${glPct >= 0 ? '+' : ''}${formatNumber(glPct, 2)}%`;
-                    if (valEl) valEl.textContent = `${formatNumber(valueNow, 2)}${cur}`;
+                    if (valEl) valEl.textContent = `${formatOverviewUnitPrice(valueNow)}${cur}`;
                     if (glEl) {
-                        glEl.textContent = `${gl >= 0 ? '+' : ''}${formatNumber(gl, 2)}${cur} (${glPctText})`;
+                        glEl.textContent = `${gl >= 0 ? '+' : ''}${formatOverviewValue(gl)}${cur} (${glPctText})`;
                         glEl.classList.remove('pct-positive', 'pct-negative', 'pct-neutral');
                         glEl.classList.add(gl >= 0 ? 'pct-positive' : 'pct-negative');
                     }
@@ -558,7 +616,7 @@
                     const rp = realizedPct == null
                         ? 'N/A'
                         : `${realizedPct >= 0 ? '+' : ''}${formatNumber(realizedPct, 2)}%`;
-                    realizedEl.textContent = `${signR}${formatNumber(realized, 2)}${cur} (${rp})`;
+                    realizedEl.textContent = `${signR}${formatOverviewValue(realized)}${cur} (${rp})`;
                     realizedEl.classList.remove('pct-positive','pct-negative','pct-neutral');
                     realizedEl.classList.add(realized >= 0 ? 'pct-positive' : 'pct-negative');
                 }
@@ -577,14 +635,14 @@
                 const unrealizedPct = cost ? (unrealized / cost) * 100 : null;
                 const totalPct = cost ? (gl / cost) * 100 : null;
 
-                if (liveEl) liveEl.textContent = `${formatNumber(price, 4)}${cur}`;
-                if (nowEl) nowEl.textContent = `${formatNumber(valueNow, 2)}${cur}`;
+                if (liveEl) liveEl.textContent = `${formatOverviewUnitPrice(price)}${cur}`;
+                if (nowEl) nowEl.textContent = `${formatOverviewValue(valueNow)}${cur}`;
                 if (unrealizedEl) {
                     const signU = unrealized >= 0 ? '+' : '';
                     const up = unrealizedPct == null
                         ? 'N/A'
                         : `${unrealizedPct >= 0 ? '+' : ''}${formatNumber(unrealizedPct, 2)}%`;
-                    unrealizedEl.textContent = `${signU}${formatNumber(unrealized, 2)}${cur} (${up})`;
+                    unrealizedEl.textContent = `${signU}${formatOverviewValue(unrealized)}${cur} (${up})`;
                     unrealizedEl.classList.remove('pct-positive','pct-negative','pct-neutral');
                     unrealizedEl.classList.add(unrealized >= 0 ? 'pct-positive' : 'pct-negative');
                 }
@@ -593,7 +651,7 @@
                     const tp = totalPct == null
                         ? 'N/A'
                         : `${totalPct >= 0 ? '+' : ''}${formatNumber(totalPct, 2)}%`;
-                    glEl.textContent = `${sign}${formatNumber(gl, 2)}${cur} (${tp})`;
+                    glEl.textContent = `${sign}${formatOverviewValue(gl)}${cur} (${tp})`;
                     glEl.classList.remove('pct-positive','pct-negative','pct-neutral');
                     glEl.classList.add(gl >= 0 ? 'pct-positive' : 'pct-negative');
                 }
