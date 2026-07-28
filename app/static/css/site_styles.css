@@ -877,6 +877,7 @@ html[data-theme="dark"] .pct-bar {
 }
 
 html[data-theme="dark"] input[type="text"],
+html[data-theme="dark"] input[type="email"],
 html[data-theme="dark"] input[type="number"],
 html[data-theme="dark"] input[type="date"],
 html[data-theme="dark"] select {
@@ -907,6 +908,7 @@ html[data-theme="dark"] input::placeholder {
 }
 
 html[data-theme="dark"] input[type="text"]:focus,
+html[data-theme="dark"] input[type="email"]:focus,
 html[data-theme="dark"] input[type="number"]:focus,
 html[data-theme="dark"] input[type="date"]:focus,
 html[data-theme="dark"] select:focus {
@@ -927,6 +929,7 @@ html[data-theme="dark"] .autocomplete-items div.autocomplete-active {
 }
 
 input[type="text"],
+input[type="email"],
 input[type="password"],
 input[type="number"],
 input[type="date"],

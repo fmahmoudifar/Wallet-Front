@@ -19,6 +19,8 @@ contact_bp = Blueprint("contact", __name__)
 
 _ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 _TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+_TURNSTILE_TEST_SITE_KEY = "1x00000000000000000000AA"
+_TURNSTILE_TEST_SECRET_KEY = "1x0000000000000000000000000000000AA"
 
 
 def _session_user_email() -> str:
@@ -107,6 +109,13 @@ def _runtime_mail_settings() -> dict:
     smtp_use_ssl = _is_truthy(_get("SMTP_USE_SSL", "0"))
     turnstile_site_key = _get("TURNSTILE_SITE_KEY")
     turnstile_secret_key = _get("TURNSTILE_SECRET_KEY")
+
+    # In local/dev environments, default to Cloudflare Turnstile test keys
+    # so captcha can be exercised without provisioning real keys first.
+    is_dev_env = _is_truthy(_get("LOCAL_DEV")) or _is_truthy(_get("CODESPACES"))
+    if is_dev_env and (not turnstile_site_key or not turnstile_secret_key):
+        turnstile_site_key = _TURNSTILE_TEST_SITE_KEY
+        turnstile_secret_key = _TURNSTILE_TEST_SECRET_KEY
 
     # Gmail app passwords are often copied as 4-char groups with spaces.
     # Normalize only for Gmail SMTP to avoid accidental auth failures.
