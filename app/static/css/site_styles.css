@@ -1806,6 +1806,11 @@ button.pct-positive:hover {
     grid-column: 1 / -1;
 }
 
+/* Contact page: make message box use full form width on desktop grid */
+#contactSection .form-container form .contact-message-field {
+    grid-column: 1 / -1;
+}
+
 .block-new .form-container form > div:last-child button,
 .block-update .form-container form > div:last-child button {
     flex: 1;

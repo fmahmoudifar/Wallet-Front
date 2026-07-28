@@ -37,3 +37,13 @@ URL = (
     or os.getenv("BASE_URL")
     or "https://www.walletsportfolio.com"
 ).strip()
+
+# Contact / support email settings
+CONTACT_TO_EMAIL = (os.getenv("CONTACT_TO_EMAIL") or "info@walletsportfolio.com").strip()
+SMTP_HOST = (os.getenv("SMTP_HOST") or "").strip()
+SMTP_PORT = int((os.getenv("SMTP_PORT") or "587").strip() or "587")
+SMTP_USERNAME = (os.getenv("SMTP_USERNAME") or "").strip()
+SMTP_PASSWORD = (os.getenv("SMTP_PASSWORD") or "").strip()
+SMTP_USE_TLS = (os.getenv("SMTP_USE_TLS") or "1").strip().lower() in {"1", "true", "yes", "y", "on"}
+SMTP_USE_SSL = (os.getenv("SMTP_USE_SSL") or "0").strip().lower() in {"1", "true", "yes", "y", "on"}
+MAIL_FROM_EMAIL = (os.getenv("MAIL_FROM_EMAIL") or SMTP_USERNAME or "").strip()

@@ -396,6 +396,15 @@
                                 <span>Settings</span>
                             </span>
                         </a>
+                        <a class="app-nav-link" href="/contact" {% if request.path.startswith('/contact') %}aria-current="page"{% endif %}>
+                            <span class="app-nav-link-left">
+                                <svg class="app-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                                    <path d="m4 7 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <span>Contact Us</span>
+                            </span>
+                        </a>
                     {% if is_admin %}
                         <a class="app-nav-link" href="/admin/userid-migrate" {% if request.path.startswith('/admin') %}aria-current="page"{% endif %}>
                             <span class="app-nav-link-left">
@@ -598,6 +607,13 @@
                         <path d="M16.5 11h.01" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
                     </svg>
                     <span>Wallets</span>
+                </a>
+                <a class="app-more-item" href="/contact">
+                    <svg class="app-more-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="m4 7 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Contact Us</span>
                 </a>
                 <a class="app-more-item app-more-logout" href="/logout">
                     <svg class="app-more-icon" viewBox="0 0 24 24" aria-hidden="true">

@@ -5,6 +5,7 @@ from flask import Flask, redirect, request, session, url_for
 from app.routes.admin_tools import admin_tools_bp
 from app.routes.auth import auth_bp
 from app.routes.crypto import crypto_bp
+from app.routes.contact import contact_bp
 from app.routes.data_io import data_io_bp
 from app.routes.fiat import fiat_bp
 from app.routes.home import home_bp
@@ -119,6 +120,7 @@ def create_app():
     app.register_blueprint(wallet_bp)
     app.register_blueprint(fiat_bp)
     app.register_blueprint(crypto_bp)
+    app.register_blueprint(contact_bp)
     app.register_blueprint(stock_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(loans_bp)
