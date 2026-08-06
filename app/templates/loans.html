@@ -1096,33 +1096,38 @@
     }
     window.applyLoansTypeActionRules = applyLoansTypeActionRules;
 
-    // Utilities for history filtering/pagination/month grouping (mirrors Crypto)
+    // Utilities for history filtering/pagination/day grouping (mirrors Crypto)
     function parseLocalDateTime(val) {
         if (!val) return null;
         try { return new Date(val); } catch(e) { return null; }
     }
     function parseTxDate(val) {
         if (!val) return null;
-        let s = String(val);
+        let s = String(val).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+            const localDateOnly = new Date(`${s}T00:00:00`);
+            return isNaN(localDateOnly) ? null : localDateOnly;
+        }
         let d = new Date(s);
         if (isNaN(d)) d = new Date(s.replace(' ', 'T'));
         return isNaN(d) ? null : d;
     }
-    function monthKeyFromDate(d) {
+    function dayKeyFromDate(d) {
         if (!d || isNaN(d)) return 'unknown';
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
-        return `${y}-${m}`;
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
     }
-    function monthLabelFromDate(d) {
+    function dayLabelFromDate(d) {
         if (!d || isNaN(d)) return 'Unknown date';
         try {
-            return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         } catch (e) {
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
     }
-    function buildLoansMonthGroups() {
+    function buildLoansDayGroups() {
         const list = document.getElementById('loansList');
         if (!list) return;
         list.querySelectorAll('li.crypto-group-header').forEach(h => h.remove());
@@ -1131,13 +1136,13 @@
         let currentKey = null;
         txItems.forEach(li => {
             const d = parseTxDate(li.getAttribute('data-tdate'));
-            const key = monthKeyFromDate(d);
+            const key = dayKeyFromDate(d);
             li.setAttribute('data-group', key);
             if (key !== currentKey) {
                 const header = document.createElement('li');
                 header.className = 'crypto-group-header';
                 header.setAttribute('data-group', key);
-                header.textContent = monthLabelFromDate(d);
+                header.textContent = dayLabelFromDate(d);
                 list.insertBefore(header, li);
                 currentKey = key;
             }
@@ -1162,7 +1167,7 @@
         const list = document.getElementById('loansList');
         if (!list) return;
         const hasHeaders = !!list.querySelector('li.crypto-group-header');
-        if (force || !hasHeaders) buildLoansMonthGroups();
+        if (force || !hasHeaders) buildLoansDayGroups();
         syncLoansGroupHeaders();
     }
 

@@ -841,6 +841,7 @@ html[data-theme="dark"] #stockList .crypto-history-sub {
 /* Dark mode: date/month headers in history should not look like cards */
 html[data-theme="dark"] #cryptoList li.crypto-group-header,
 html[data-theme="dark"] #stockList li.crypto-group-header,
+html[data-theme="dark"] #loansList li.crypto-group-header,
 html[data-theme="dark"] #transList li.crypto-group-header {
     background: transparent !important;
     border-color: transparent !important;
@@ -849,6 +850,7 @@ html[data-theme="dark"] #transList li.crypto-group-header {
 
 html[data-theme="dark"] #cryptoList li.crypto-group-header:hover,
 html[data-theme="dark"] #stockList li.crypto-group-header:hover,
+html[data-theme="dark"] #loansList li.crypto-group-header:hover,
 html[data-theme="dark"] #transList li.crypto-group-header:hover {
     background: transparent !important;
 }

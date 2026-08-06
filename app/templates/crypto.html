@@ -409,6 +409,11 @@
             if (fromName && toName) walletLine = fromName + ' -> ' + toName;
             else if (fromName || toName) walletLine = fromName || toName;
             var isTransfer = op.toLowerCase() === 'transfer';
+            var qtyNum = Number(String(c.quantity || 0).replace(',', '.'));
+            var priceNum = Number(String(c.price || 0).replace(',', '.'));
+            var feeNum = Number(String(c.fee || 0).replace(',', '.'));
+            var totalNum = (isFinite(qtyNum) ? qtyNum : 0) * (isFinite(priceNum) ? priceNum : 0) + (isFinite(feeNum) ? feeNum : 0);
+            var totalText = _formatNumber(totalNum, 2) + (c.currency ? ' ' + _escapeHtml(c.currency) : '');
 
             return '<li data-id="' + _escapeHtml(c.cryptoId || '') + '" data-tdate="' + _escapeHtml(c.tdate || '') + '" data-crypto="' + _escapeHtml(c.cryptoName || '') + '" data-operation="' + _escapeHtml(op) + '" data-qty="' + _escapeHtml(c.quantity || '') + '" data-fee="' + _escapeHtml(c.fee || 0) + '" data-note="' + _escapeHtml(note) + '" data-from="' + _escapeHtml(c.fromWallet || '') + '" data-to="' + _escapeHtml(c.toWallet || '') + '">'
                 + '<div class="crypto-history-row">'
@@ -419,7 +424,7 @@
                 + '</div>'
                 + '<div class="crypto-history-right">'
                 + '<div class="crypto-history-amount">' + _escapeHtml(c.quantity || '') + '</div>'
-                + (!isTransfer ? '<div class="crypto-history-sub">' + _escapeHtml(c.price || '') + (c.currency ? ' ' + _escapeHtml(c.currency) : '') + '</div>' : '')
+                + (!isTransfer ? '<div class="crypto-history-sub">' + totalText + '</div>' : '')
                 + (note ? '<div class="crypto-history-sub">' + _escapeHtml(note) + '</div>' : '')
                 + '</div>'
                 + '<div class="crypto-history-actions">'

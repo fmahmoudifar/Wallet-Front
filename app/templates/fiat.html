@@ -1495,23 +1495,24 @@
         }
     }
 
-    function monthKeyFromDate(d) {
+    function dayKeyFromDate(d) {
         if (!d || isNaN(d)) return 'unknown';
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
-        return `${y}-${m}`;
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
     }
 
-    function monthLabelFromDate(d) {
+    function dayLabelFromDate(d) {
         if (!d || isNaN(d)) return 'Unknown date';
         try {
-            return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         } catch (e) {
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
     }
 
-    function buildTransMonthGroups() {
+    function buildTransDayGroups() {
         const list = document.getElementById('transList');
         if (!list) return;
 
@@ -1523,14 +1524,14 @@
         let currentKey = null;
         txItems.forEach(li => {
             const d = parseTxDate(li.getAttribute('data-tdate'));
-            const key = monthKeyFromDate(d);
+            const key = dayKeyFromDate(d);
             li.setAttribute('data-group', key);
 
             if (key !== currentKey) {
                 const header = document.createElement('li');
                 header.className = 'crypto-group-header';
                 header.setAttribute('data-group', key);
-                header.textContent = monthLabelFromDate(d);
+                header.textContent = dayLabelFromDate(d);
                 list.insertBefore(header, li);
                 currentKey = key;
             }
@@ -1560,7 +1561,7 @@
         if (!list) return;
         const hasHeaders = !!list.querySelector('li.crypto-group-header');
         if (force || !hasHeaders) {
-            buildTransMonthGroups();
+            buildTransDayGroups();
         }
         syncTransGroupHeaders();
     }

@@ -1188,6 +1188,10 @@
 
     function parseTxDate(dateStr) {
         // Most tx dates are ISO-like without timezone; parse as local.
+        if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr).trim())) {
+            const localDateOnly = new Date(`${String(dateStr).trim()}T00:00:00`);
+            return isNaN(localDateOnly) ? null : localDateOnly;
+        }
         const d = parseLocalDateTime(dateStr);
         if (d) return d;
         if (!dateStr) return null;
@@ -1195,23 +1199,24 @@
         return isNaN(fallback) ? null : fallback;
     }
 
-    function monthKeyFromDate(d) {
+    function dayKeyFromDate(d) {
         if (!d || isNaN(d)) return 'unknown';
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
-        return `${y}-${m}`;
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
     }
 
-    function monthLabelFromDate(d) {
+    function dayLabelFromDate(d) {
         if (!d || isNaN(d)) return 'Unknown date';
         try {
-            return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         } catch (e) {
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
     }
 
-    function buildStockMonthGroups() {
+    function buildStockDayGroups() {
         const list = document.getElementById('stockList');
         if (!list) return;
 
@@ -1225,14 +1230,14 @@
         let currentKey = null;
         txItems.forEach(li => {
             const d = parseTxDate(li.getAttribute('data-tdate'));
-            const key = monthKeyFromDate(d);
+            const key = dayKeyFromDate(d);
             li.setAttribute('data-group', key);
 
             if (key !== currentKey) {
                 const header = document.createElement('li');
                 header.className = 'crypto-group-header';
                 header.setAttribute('data-group', key);
-                header.textContent = monthLabelFromDate(d);
+                header.textContent = dayLabelFromDate(d);
                 list.insertBefore(header, li);
                 currentKey = key;
             }
@@ -1262,7 +1267,7 @@
         if (!list) return;
         const hasHeaders = !!list.querySelector('li.crypto-group-header');
         if (force || !hasHeaders) {
-            buildStockMonthGroups();
+            buildStockDayGroups();
         }
         syncStockGroupHeaders();
     }
@@ -1270,7 +1275,7 @@
     function applyStockFilters() {
         const list = document.getElementById('stockList');
         if (!list) return;
-        // Ensure month/year grouping headers exist, but only filter real tx items
+        // Ensure day grouping headers exist, but only filter real tx items.
         ensureStockGroupsBuilt(false);
         const items = Array.from(list.querySelectorAll('li[data-tdate]'));
 
@@ -1392,6 +1397,13 @@
         var emptyMsg = document.getElementById('stockListEmpty');
         if (!list) return;
 
+        function toNumber(v) {
+            if (v == null) return 0;
+            var s = String(v).trim().replace(/\s+/g, '').replace(',', '.');
+            var n = Number(s);
+            return isFinite(n) ? n : 0;
+        }
+
         var walletNameById = {};
         (wallets || []).forEach(function(w) {
             if (w.walletId) walletNameById[w.walletId] = w.walletName || w.walletId;
@@ -1418,6 +1430,11 @@
             var walletLine = '';
             if (fromName && toName) walletLine = fromName + ' - ' + toName;
             else if (fromName || toName) walletLine = fromName || toName;
+            var qtyNum = toNumber(s.quantity);
+            var priceNum = toNumber(s.price);
+            var feeNum = toNumber(s.fee || 0);
+            var totalNum = (qtyNum * priceNum) + feeNum;
+            var totalText = formatNumber(totalNum, 2) + (s.currency ? ' ' + escapeHtml(s.currency) : '');
 
             return '<li data-id="' + escapeHtml(s.stockId || '') + '" data-userid="' + escapeHtml(s.userId || '') + '" data-tdate="' + escapeHtml(s.tdate || '') + '" data-stock="' + escapeHtml(s.stockName || '') + '" data-operation="' + escapeHtml(op) + '" data-qty="' + escapeHtml(s.quantity || '') + '" data-price="' + escapeHtml(s.price || '') + '" data-currency="' + escapeHtml(s.currency || '') + '" data-fee="' + escapeHtml(s.fee || 0) + '" data-feecurrency="' + escapeHtml(s.feeCurrency || s.currency || '') + '" data-note="' + escapeHtml(note) + '" data-from="' + escapeHtml(s.fromWallet || '') + '" data-to="' + escapeHtml(s.toWallet || '') + '">'
                 + '<div class="crypto-history-row">'
@@ -1428,7 +1445,7 @@
                 + '</div>'
                 + '<div class="crypto-history-right">'
                 + '<div class="crypto-history-amount">' + escapeHtml(s.quantity || '') + '</div>'
-                + '<div class="crypto-history-sub">' + escapeHtml(s.price || '') + (s.currency ? ' ' + escapeHtml(s.currency) : '') + '</div>'
+                + '<div class="crypto-history-sub">' + totalText + '</div>'
                 + (note ? '<div class="crypto-history-sub">' + escapeHtml(note) + '</div>' : '')
                 + '</div>'
                 + '<div class="crypto-history-actions">'
