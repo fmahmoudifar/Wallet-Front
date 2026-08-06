@@ -1320,8 +1320,13 @@
     }
     function parseTxDate(val) {
         if (!val) return null;
+        // Keep date-only values in local time to avoid timezone day shifts.
+        let s = String(val).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+            const localDateOnly = new Date(`${s}T00:00:00`);
+            return isNaN(localDateOnly) ? null : localDateOnly;
+        }
         // Attempt ISO, then fallback by replacing space with T
-        let s = String(val);
         let d = new Date(s);
         if (isNaN(d)) {
             d = new Date(s.replace(' ', 'T'));
@@ -1329,23 +1334,24 @@
         return isNaN(d) ? null : d;
     }
 
-    function monthKeyFromDate(d) {
+    function dayKeyFromDate(d) {
         if (!d || isNaN(d)) return 'unknown';
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
-        return `${y}-${m}`;
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
     }
 
-    function monthLabelFromDate(d) {
+    function dayLabelFromDate(d) {
         if (!d || isNaN(d)) return 'Unknown date';
         try {
-            return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         } catch (e) {
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
     }
 
-    function buildCryptoMonthGroups() {
+    function buildCryptoDayGroups() {
         const list = document.getElementById('cryptoList');
         if (!list) return;
 
@@ -1359,14 +1365,14 @@
         let currentKey = null;
         txItems.forEach(li => {
             const d = parseTxDate(li.getAttribute('data-tdate'));
-            const key = monthKeyFromDate(d);
+            const key = dayKeyFromDate(d);
             li.setAttribute('data-group', key);
 
             if (key !== currentKey) {
                 const header = document.createElement('li');
                 header.className = 'crypto-group-header';
                 header.setAttribute('data-group', key);
-                header.textContent = monthLabelFromDate(d);
+                header.textContent = dayLabelFromDate(d);
                 list.insertBefore(header, li);
                 currentKey = key;
             }
@@ -1396,7 +1402,7 @@
         if (!list) return;
         const hasHeaders = !!list.querySelector('li.crypto-group-header');
         if (force || !hasHeaders) {
-            buildCryptoMonthGroups();
+            buildCryptoDayGroups();
         }
         syncCryptoGroupHeaders();
     }
@@ -1404,7 +1410,7 @@
     function applyCryptoFilters() {
         const list = document.getElementById('cryptoList');
         if (!list) return;
-        // Ensure month/year grouping headers exist, but only filter real tx items
+        // Ensure day grouping headers exist, but only filter real tx items.
         ensureCryptoGroupsBuilt(false);
         const items = Array.from(list.querySelectorAll('li[data-tdate]'));
         const startVal = document.getElementById('filterStart')?.value || '';
