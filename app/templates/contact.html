@@ -18,8 +18,8 @@
 
         <div class="totals-card" style="padding: 12px 16px; margin-bottom: 14px; font-size: 12px; line-height: 1.6; text-align: left;">
             <div class="small-muted">
-                Use this form to report issues or send feedback.<br>
-                Messages are sent to info@walletsportfolio.com.
+                Use this form to report issues or send feedback.{% if session.get('user') %}<br>
+                Messages are sent to info@walletsportfolio.com.{% endif %}
             </div>
         </div>
 
