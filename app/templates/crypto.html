@@ -948,12 +948,14 @@
         const fEnd = document.getElementById('filterEnd');
         const fCrypto = document.getElementById('filterCrypto');
         const fNote = document.getElementById('filterNote');
+        const fOp = document.getElementById('filterOperation');
         const fFrom = document.getElementById('filterFromWallet');
         const fTo = document.getElementById('filterToWallet');
         ['input','change'].forEach(evt => {
             if (fStart) fStart.addEventListener(evt, applyCryptoFilters);
             if (fEnd) fEnd.addEventListener(evt, applyCryptoFilters);
             if (fCrypto) fCrypto.addEventListener(evt, applyCryptoFilters);
+            if (fOp) fOp.addEventListener(evt, applyCryptoFilters);
             if (fNote) fNote.addEventListener(evt, applyCryptoFilters);
             if (fFrom) fFrom.addEventListener(evt, applyCryptoFilters);
             if (fTo) fTo.addEventListener(evt, applyCryptoFilters);
@@ -1421,6 +1423,7 @@
         const startVal = document.getElementById('filterStart')?.value || '';
         const endVal = document.getElementById('filterEnd')?.value || '';
         const cryptoVal = (document.getElementById('filterCrypto')?.value || '').trim().toLowerCase();
+        const opVal = (document.getElementById('filterOperation')?.value || '').trim().toLowerCase();
         const noteVal = (document.getElementById('filterNote')?.value || '').trim().toLowerCase();
         const fromVal = document.getElementById('filterFromWallet')?.value || '';
         const toVal = document.getElementById('filterToWallet')?.value || '';
@@ -1456,6 +1459,10 @@
                 if (String(toAttr) !== String(toVal)) show = false;
             }
 
+            if (show && opVal) {
+                const opAttr = (li.getAttribute('data-operation') || '').toLowerCase();
+                if (opAttr !== opVal) show = false;
+            }
             if (show && noteVal) {
                 const noteAttr = (li.getAttribute('data-note') || '').toLowerCase();
                 if (!noteAttr.includes(noteVal)) show = false;
@@ -1499,7 +1506,7 @@
     }
 
     function resetCryptoFilters() {
-        ['filterStart','filterEnd','filterCrypto','filterNote','filterFromWallet','filterToWallet'].forEach(id => {
+        ['filterStart','filterEnd','filterCrypto','filterOperation','filterNote','filterFromWallet','filterToWallet'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
 
@@ -1687,6 +1694,15 @@
             <div>
                 <label for="filterCrypto">Crypto:</label>
                 <input type="text" id="filterCrypto" name="crypto" placeholder="Symbol" autocomplete="off" />
+            </div>
+            <div>
+                <label for="filterOperation">Operation:</label>
+                <select id="filterOperation" name="operation">
+                    <option value="">-- All --</option>
+                    <option value="Buy">Buy</option>
+                    <option value="Sell">Sell</option>
+                    <option value="Transfer">Transfer</option>
+                </select>
             </div>
             <div>
                 <label for="filterNote">Note:</label>

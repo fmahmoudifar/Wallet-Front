@@ -1282,6 +1282,7 @@
         const startVal = document.getElementById('stockFilterStart')?.value || '';
         const endVal = document.getElementById('stockFilterEnd')?.value || '';
         const stockVal = (document.getElementById('stockFilterSymbol')?.value || '').trim().toLowerCase();
+        const sideVal = (document.getElementById('stockFilterSide')?.value || '').trim().toLowerCase();
         const noteVal = (document.getElementById('stockFilterNote')?.value || '').trim().toLowerCase();
         const fromVal = String(document.getElementById('stockFilterFromWallet')?.value || '').trim();
         const toVal = String(document.getElementById('stockFilterToWallet')?.value || '').trim();
@@ -1302,6 +1303,10 @@
             if (show && stockVal) {
                 const sym = (li.getAttribute('data-stock') || '').toLowerCase();
                 if (!sym.includes(stockVal)) show = false;
+            }
+            if (show && sideVal) {
+                const opAttr = (li.getAttribute('data-operation') || '').toLowerCase();
+                if (opAttr !== sideVal) show = false;
             }
             if (show && noteVal) {
                 const noteAttr = (li.getAttribute('data-note') || '').toLowerCase();
@@ -1351,7 +1356,7 @@
     }
 
     function resetStockFilters() {
-        ['stockFilterStart','stockFilterEnd','stockFilterSymbol','stockFilterNote','stockFilterFromWallet','stockFilterToWallet'].forEach(id => {
+        ['stockFilterStart','stockFilterEnd','stockFilterSymbol','stockFilterSide','stockFilterNote','stockFilterFromWallet','stockFilterToWallet'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             el.value = '';
@@ -1532,7 +1537,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // Wire filter events
-    ['stockFilterStart','stockFilterEnd','stockFilterSymbol','stockFilterNote','stockFilterFromWallet','stockFilterToWallet'].forEach(function(id) {
+    ['stockFilterStart','stockFilterEnd','stockFilterSymbol','stockFilterSide','stockFilterNote','stockFilterFromWallet','stockFilterToWallet'].forEach(function(id) {
         var el = document.getElementById(id);
         if (!el) return;
         ['input','change'].forEach(function(evt) {
@@ -1772,6 +1777,14 @@ function stockWalletsDiv() { showStockWallets(); }
             <div>
                 <label for="stockFilterSymbol">Stock:</label>
                 <input type="text" id="stockFilterSymbol" name="stock" placeholder="Symbol" autocomplete="off" />
+            </div>
+            <div>
+                <label for="stockFilterSide">Side:</label>
+                <select id="stockFilterSide" name="side">
+                    <option value="">-- All --</option>
+                    <option value="Buy">Buy</option>
+                    <option value="Sell">Sell</option>
+                </select>
             </div>
             <div>
                 <label for="stockFilterNote">Note:</label>

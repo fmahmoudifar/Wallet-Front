@@ -1934,7 +1934,8 @@ button.pct-positive:hover {
 }
 
 .history-filters .filters-actions .btn-clear {
-    min-width: 120px;
+    width: 100%;
+    max-width: 140px;
     height: 40px;
     border-radius: 10px;
     padding: 8px 16px;
@@ -2037,9 +2038,31 @@ button.pct-positive:hover {
         row-gap: 14px;
     }
 
-    /* Loans: 10 items → 5 per row */
+    /* Fiat tablet: row 1 = From Date, To Date, Type, Category; row 2 = Note, From Wallet, To Wallet, Clear */
+    #filters .filters-grid {
+        grid-template-columns: 1.25fr 1.25fr 1.1fr 1.1fr;
+    }
+
+    /* Stock tablet: row 1 = From Date, To Date, Stock, Note; row 2 = From Wallet, To Wallet, Clear */
+    #stockFilters .filters-grid {
+        grid-template-columns: 1.25fr 1.25fr 1.1fr 1.1fr;
+    }
+
+    /* Loans: always 5 per row → 2 rows (5+5) on both tablet and desktop */
     #loansFilters .filters-grid {
         grid-template-columns: 1.25fr 1.25fr 1fr 1fr 1fr;
+    }
+}
+
+@media (min-width: 1200px) {
+    /* Fiat desktop: all 8 items in one row */
+    #filters .filters-grid {
+        grid-template-columns: 1.25fr 1.25fr 1.1fr 1.1fr 1fr 1fr 1fr auto;
+    }
+
+    /* Stock desktop: all 8 items in one row */
+    #stockFilters .filters-grid {
+        grid-template-columns: 1.25fr 1.25fr 1.1fr 1fr 1.1fr 1fr 1fr auto;
     }
 }
 

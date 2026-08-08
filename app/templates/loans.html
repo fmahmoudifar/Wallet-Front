@@ -329,10 +329,14 @@
                     <option value="">-- All --</option>
                 </select>
             </div>
-            <div style="position:relative">
+            <div>
                 <label for="filterParty">Counterparty(Person):</label>
-                <input type="text" id="filterParty" name="party" placeholder="Contains..." autocomplete="off" />
-                <div id="filterPartyList" class="autocomplete-list" style="position:absolute;top:100%;left:0;z-index:10"></div>
+                <select id="filterParty" name="party">
+                    <option value="">-- All --</option>
+                    {% for name in counterparties|sort(case_sensitive=false) %}
+                    <option value="{{ name }}">{{ name }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="filters-actions">
                 <button type="button" class="btn-clear" onclick="resetLoansFilters()">Clear</button>
@@ -819,12 +823,7 @@
         initCounterpartyAutocomplete('updateLoansCounterparty', 'updateLoansCounterpartyList', names, function() {
             refreshLoansPositionOptions('update', true);
         });
-        initCounterpartyAutocomplete('filterParty', 'filterPartyList', names, function() {
-            if (typeof applyLoansFilters === 'function') {
-                window.loansCurrentPage = 1;
-                applyLoansFilters();
-            }
-        });
+
     });
 
     function setLoansNavVisibility(activeView) {
@@ -1208,7 +1207,7 @@
             }
             if (show && partyVal) {
                 const p = (li.getAttribute('data-party') || '').toLowerCase();
-                if (!p.includes(partyVal)) show = false;
+                if (p !== partyVal) show = false;
             }
             if (show && noteVal) {
                 const n = (li.getAttribute('data-note') || '').toLowerCase();
