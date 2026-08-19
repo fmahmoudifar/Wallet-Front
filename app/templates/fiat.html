@@ -29,6 +29,7 @@
         if (!typeSel) return;
         const t = (typeSel.value || '').toLowerCase();
         const isFx = (t === 'fx transfer');
+        const isTemplateForm = prefix === 'tpl';
 
         const showFrom = (t === 'expense' || t === 'transfer' || isFx);
         const showTo = (t === 'income' || t === 'transfer' || isFx);
@@ -86,8 +87,8 @@
         // Update amount label for FX Transfer to clarify it's the source amount
         if (amountLabel) amountLabel.textContent = isFx ? 'Amount (from wallet):' : 'Amount:';
 
-        if (fromSel) fromSel.required = (t === 'expense' || t === 'transfer' || isFx);
-        if (toSel) toSel.required = (t === 'income' || t === 'transfer' || isFx);
+        if (fromSel) fromSel.required = !isTemplateForm && (t === 'expense' || t === 'transfer' || isFx);
+        if (toSel) toSel.required = !isTemplateForm && (t === 'income' || t === 'transfer' || isFx);
         if (recvEl) recvEl.required = isFx;
         if (currencySel) currencySel.required = !isFx;
 
@@ -119,7 +120,7 @@
         }
     }
 
-    function editTransaction(transId, userId, transType, mainCat, tdate, fromWallet, toWallet, amount, currency, fee, note, receivedAmount) {
+    function editTransaction(transId, userId, transType, mainCat, tdate, fromWallet, toWallet, amount, currency, fee, note, receivedAmount, isTemplate) {
         document.getElementById("updateTransId").value = transId;
         document.getElementById("updateUserId").value = userId;
         {
@@ -201,8 +202,16 @@
         document.getElementById("updateFee").value = fee;
         document.getElementById("updateReceivedAmount").value = receivedAmount || '';
         document.getElementById("updateNote").value = note;
+        {
+            const hidden = document.getElementById("updateIsTemplate");
+            const isTpl = String(isTemplate || '').trim().toLowerCase();
+            const yes = (isTpl === 'y' || isTpl === 'yes' || isTpl === 'true' || isTpl === '1');
+            if (hidden) hidden.value = yes ? 'Y' : 'N';
+        }
         document.getElementById("updateTransDiv").style.display = "block";
         document.getElementById("transListDiv").style.display = "none";
+        const tplDiv = document.getElementById("fiatTemplatesDiv");
+        if (tplDiv) tplDiv.style.display = "none";
         const dashDiv = document.getElementById("fiatDashboardDiv");
         if (dashDiv) dashDiv.style.display = "none";
         const catDashDiv = document.getElementById("fiatCategoryDashboardDiv");
@@ -226,6 +235,22 @@
         '{{ wallet.walletId }}': '{{ wallet.currency|default("") }}'{% if not loop.last %},{% endif %}
         {% endfor %}
     };
+
+    const walletNameMap = {
+        {% for wallet in wallets %}
+        '{{ wallet.walletId }}': '{{ wallet.walletName|default(wallet.walletId)|replace("'", "\\'") }}'{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    function isTemplateValue(val) {
+        const v = String(val || '').trim().toLowerCase();
+        return v === 'y' || v === 'yes' || v === 'true' || v === '1';
+    }
+
+    function isTemplateItem(li) {
+        if (!li) return false;
+        return isTemplateValue(li.getAttribute('data-istemplate'));
+    }
 
     function updateFxLabels(prefix) {
         const typeSel = document.getElementById(prefix ? `${prefix}TransType` : 'transType');
@@ -290,6 +315,25 @@
             if (typeof applyTransFilters === 'function') {
                 applyTransFilters();
             }
+            if (typeof renderFiatTemplates === 'function') {
+                renderFiatTemplates();
+            }
+        }
+
+        const tplType = document.getElementById('tplTransType');
+        if (tplType) {
+            tplType.addEventListener('change', function () { syncTransTypeUI('tpl'); updateFxLabels('tpl'); });
+            syncTransTypeUI('tpl');
+        }
+
+        const tplFrom = document.getElementById('tplFromWallet');
+        const tplTo = document.getElementById('tplToWallet');
+        if (tplFrom) tplFrom.addEventListener('change', function () { syncTransTypeUI('tpl'); updateFxLabels('tpl'); });
+        if (tplTo) tplTo.addEventListener('change', function () { syncTransTypeUI('tpl'); updateFxLabels('tpl'); });
+
+        const tplForm = document.getElementById('templateForm');
+        if (tplForm) {
+            tplForm.addEventListener('submit', prepareTemplateSubmit);
         }
 
         // Dashboard date filter -> charts
@@ -354,10 +398,273 @@
         });
     });
 
+    function resolveTemplateDate(year, monthIndex, dayOfMonth) {
+        const y = Number(year);
+        const m = Number(monthIndex);
+        const d = Number(dayOfMonth);
+        if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d) || d < 1) return null;
+
+        const lastDay = new Date(y, m + 1, 0).getDate();
+        return new Date(y, m, Math.min(d, lastDay), 0, 0, 0);
+    }
+
+    function showTemplateForm() {
+        const panel = document.getElementById('templateFormPanel');
+        const listPanel = document.getElementById('templateListPanel');
+        const form = document.getElementById('templateForm');
+        const title = document.getElementById('templateFormTitle');
+        const mode = document.getElementById('tplMode');
+        if (listPanel) listPanel.style.display = 'none';
+        if (panel) panel.style.display = '';
+        if (form) form.reset();
+        if (title) title.textContent = 'New Template';
+        if (mode) mode.value = 'create';
+
+        const transId = document.getElementById('tplTransId');
+        const hiddenDate = document.getElementById('tplTdateHidden');
+        const day = document.getElementById('tplDayOfMonth');
+
+        if (transId) transId.value = '';
+        if (hiddenDate) hiddenDate.value = '';
+        if (day) day.value = '';
+
+        syncTemplateFormActions('create');
+
+        syncTransTypeUI('tpl');
+        updateFxLabels('tpl');
+    }
+    window.showTemplateForm = showTemplateForm;
+
+    function syncTemplateFormActions(mode, transId) {
+        const clearBtn = document.getElementById('tplClearBtn');
+        const deleteBtn = document.getElementById('tplDeleteBtn');
+        const deleteForm = document.getElementById('templateDeleteForm');
+        const isEdit = String(mode || '').toLowerCase() === 'update' && String(transId || '').trim();
+
+        if (clearBtn) clearBtn.style.display = isEdit ? 'none' : '';
+        if (deleteBtn) deleteBtn.style.display = isEdit ? '' : 'none';
+        if (deleteForm) {
+            deleteForm.action = isEdit ? `/deleteFiat/${transId}/{{ userId }}` : '';
+        }
+    }
+    window.syncTemplateFormActions = syncTemplateFormActions;
+
+    function cancelTemplateForm() {
+        const panel = document.getElementById('templateFormPanel');
+        const listPanel = document.getElementById('templateListPanel');
+        if (panel) panel.style.display = 'none';
+        if (listPanel) listPanel.style.display = '';
+    }
+    window.cancelTemplateForm = cancelTemplateForm;
+
+    function editTemplate(li) {
+        if (!li) return;
+        showTemplateForm();
+
+        const title = document.getElementById('templateFormTitle');
+        const mode = document.getElementById('tplMode');
+        const transId = document.getElementById('tplTransId');
+        if (title) title.textContent = 'Edit';
+        if (mode) mode.value = 'update';
+        if (transId) transId.value = li.getAttribute('data-id') || '';
+        syncTemplateFormActions('update', li.getAttribute('data-id') || '');
+
+        const dayAttr = li.getAttribute('data-template-day');
+
+        const setValue = (id, val) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.value = val == null ? '' : String(val);
+        };
+
+        setValue('tplTransType', li.getAttribute('data-type') || '');
+        syncTransTypeUI('tpl');
+        setValue('tplMainCat', li.getAttribute('data-cat') || '');
+        setValue('tplFromWallet', li.getAttribute('data-from') || '');
+        setValue('tplToWallet', li.getAttribute('data-to') || '');
+        setValue('tplAmount', li.getAttribute('data-amount') || '');
+        setValue('tplCurrency', li.getAttribute('data-currency') || 'EUR');
+        setValue('tplFee', li.getAttribute('data-fee') || '');
+        setValue('tplReceivedAmount', li.getAttribute('data-received') || '');
+        setValue('tplNote', li.getAttribute('data-note') || '');
+        setValue('tplDayOfMonth', dayAttr || '');
+
+        updateFxLabels('tpl');
+    }
+    window.editTemplate = editTemplate;
+
+    function prepareTemplateSubmit(e) {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
+
+        const form = document.getElementById('templateForm');
+        if (!form) return false;
+
+        const mode = (document.getElementById('tplMode')?.value || 'create').toLowerCase();
+        const transId = document.getElementById('tplTransId');
+        const tdateHidden = document.getElementById('tplTdateHidden');
+        const dayInput = String(document.getElementById('tplDayOfMonth')?.value || '').trim();
+
+        const now = new Date();
+        const dt = dayInput
+            ? resolveTemplateDate(now.getFullYear(), now.getMonth(), Number(dayInput))
+            : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        if (!dt) {
+            alert('Selected day is not valid.');
+            return false;
+        }
+
+        if (tdateHidden) tdateHidden.value = formatLocalDateTime(dt);
+        form.action = mode === 'update' ? '/updateFiat' : '/fiat';
+
+        if (mode === 'update' && (!transId || !String(transId.value || '').trim())) {
+            alert('Missing template transaction ID for update.');
+            return false;
+        }
+
+        form.submit();
+        return false;
+    }
+    window.prepareTemplateSubmit = prepareTemplateSubmit;
+
+    function renderFiatTemplates() {
+        const list = document.getElementById('transList');
+        const out = document.getElementById('templateList');
+        const totalEl = document.getElementById('templateCount');
+        const incomeEl = document.getElementById('templateIncomeCount');
+        const expenseEl = document.getElementById('templateExpenseCount');
+        const amountEl = document.getElementById('templatePlannedAmount');
+        const baseCurrency = document.getElementById('fiatBaseCurrency')?.value || 'EUR';
+
+        if (!out) return;
+        out.innerHTML = '';
+
+        const items = list ? Array.from(list.querySelectorAll('li[data-tdate]')).filter(isTemplateItem) : [];
+        let incomeCount = 0;
+        let expenseCount = 0;
+        let plannedTotal = 0;
+
+        items.forEach(li => {
+            const type = String(li.getAttribute('data-type') || '').trim();
+            const typeLc = type.toLowerCase();
+            if (typeLc === 'income') incomeCount += 1;
+            if (typeLc === 'expense') expenseCount += 1;
+
+            const amount = parseFloat(String(li.getAttribute('data-amount-setting') || li.getAttribute('data-amount') || '0')) || 0;
+            plannedTotal += amount;
+
+            const fromId = String(li.getAttribute('data-from') || '');
+            const toId = String(li.getAttribute('data-to') || '');
+            const fromName = walletNameMap[fromId] || fromId || '';
+            const toName = walletNameMap[toId] || toId || '';
+            const walletsLabel = fromName && toName ? `${fromName} -> ${toName}` : (fromName || toName || '');
+            const walletsMarkup = walletsLabel ? `<div class="crypto-history-sub">${walletsLabel}</div>` : '';
+
+            const dayAttr = String(li.getAttribute('data-template-day') || '').trim();
+            const dayMarkup = dayAttr ? `<div class="crypto-history-sub">Day ${dayAttr}</div>` : '';
+
+            const row = document.createElement('li');
+
+            const historyRow = document.createElement('div');
+            historyRow.className = 'crypto-history-row';
+
+            const left = document.createElement('div');
+            left.className = 'crypto-history-left';
+            left.innerHTML = `
+                <div class="crypto-history-title">${type || 'Template'}</div>
+                <div class="crypto-history-sub">${String(li.getAttribute('data-cat') || '-')}</div>
+                ${walletsMarkup}
+                ${dayMarkup}
+            `;
+
+            const right = document.createElement('div');
+            right.className = 'crypto-history-right';
+            right.innerHTML = `
+                <div class="crypto-history-amount">${String(li.getAttribute('data-amount') || '0')} ${String(li.getAttribute('data-currency') || baseCurrency)}</div>
+                ${li.getAttribute('data-note') ? `<div class="crypto-history-sub">${String(li.getAttribute('data-note') || '')}</div>` : ''}
+            `;
+
+            const actions = document.createElement('div');
+            actions.className = 'crypto-history-actions';
+
+            const useBtn = document.createElement('button');
+            useBtn.type = 'button';
+            useBtn.className = 'btn-insert';
+            useBtn.textContent = 'Create';
+            useBtn.onclick = function () { createFromTemplate(li); };
+
+            const editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.className = 'btn-clear';
+            editBtn.style.marginLeft = '6px';
+            editBtn.textContent = 'Edit';
+            editBtn.onclick = function () { editTemplate(li); };
+
+            actions.appendChild(useBtn);
+            actions.appendChild(editBtn);
+
+            historyRow.appendChild(left);
+            historyRow.appendChild(right);
+            historyRow.appendChild(actions);
+            row.appendChild(historyRow);
+            out.appendChild(row);
+        });
+
+        if (!items.length) {
+            const empty = document.createElement('div');
+            empty.className = 'small-muted';
+            empty.textContent = 'No transaction templates yet.';
+            out.appendChild(empty);
+        }
+
+        if (totalEl) totalEl.textContent = String(items.length);
+        if (incomeEl) incomeEl.textContent = String(incomeCount);
+        if (expenseEl) expenseEl.textContent = String(expenseCount);
+        if (amountEl) amountEl.textContent = `${plannedTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+    }
+    window.renderFiatTemplates = renderFiatTemplates;
+
+    function createFromTemplate(li) {
+        if (!li) return;
+        newTransDiv();
+
+        const tType = document.getElementById('transType');
+        const fromWallet = document.getElementById('fromWallet');
+        const toWallet = document.getElementById('toWallet');
+        const amount = document.querySelector('#newTrans input[name="amount"]');
+        const mainCat = document.getElementById('mainCat');
+        const currency = document.getElementById('currency');
+        const fee = document.getElementById('fee');
+        const received = document.getElementById('receivedAmount');
+        const note = document.querySelector('#newTrans input[name="note"]');
+        const tdate = document.getElementById('tdate');
+        if (tType) tType.value = li.getAttribute('data-type') || '';
+        syncTransTypeUI('');
+
+        if (mainCat) mainCat.value = li.getAttribute('data-cat') || '';
+        if (fromWallet) fromWallet.value = li.getAttribute('data-from') || '';
+        if (toWallet) toWallet.value = li.getAttribute('data-to') || '';
+        if (amount) amount.value = li.getAttribute('data-amount') || '';
+        if (currency) currency.value = li.getAttribute('data-currency') || currency.value;
+        if (fee) fee.value = li.getAttribute('data-fee') || '';
+        if (received) received.value = li.getAttribute('data-received') || '';
+        if (note) note.value = li.getAttribute('data-note') || '';
+
+        const dayAttr = Number(li.getAttribute('data-template-day') || '0');
+        const fallbackDate = parseTxDate(li.getAttribute('data-tdate'));
+        const dom = dayAttr > 0 ? dayAttr : (fallbackDate ? fallbackDate.getDate() : new Date().getDate());
+        const now = new Date();
+        const computed = resolveTemplateDate(now.getFullYear(), now.getMonth(), dom);
+        if (tdate) tdate.value = computed ? formatLocalDateTime(computed) : formatLocalDateTime(new Date());
+
+        updateFxLabels('');
+    }
+    window.createFromTemplate = createFromTemplate;
+
     function newTransDiv() {
         const div = document.getElementById("newTrans");
         const list = document.getElementById("transListDiv");
         const update = document.getElementById("updateTransDiv");
+        const templates = document.getElementById("fiatTemplatesDiv");
         const dash = document.getElementById("fiatDashboardDiv");
         const catDash = document.getElementById("fiatCategoryDashboardDiv");
         const title = document.getElementById('transPageTitle');
@@ -370,6 +677,7 @@
 
         div.style.display = "block";
         if (list) list.style.display = "none";
+        if (templates) templates.style.display = "none";
         if (dash) dash.style.display = "none";
         if (catDash) catDash.style.display = "none";
         if (update) update.style.display = "none";
@@ -382,6 +690,7 @@
         const div = document.getElementById("transListDiv");
         const newDiv = document.getElementById("newTrans");
         const updateDiv = document.getElementById("updateTransDiv");
+        const templates = document.getElementById("fiatTemplatesDiv");
         const dash = document.getElementById("fiatDashboardDiv");
         const catDash = document.getElementById("fiatCategoryDashboardDiv");
         const title = document.getElementById('transPageTitle');
@@ -394,6 +703,7 @@
 
         if (newDiv) newDiv.style.display = "none";
         if (updateDiv) updateDiv.style.display = "none";
+        if (templates) templates.style.display = "none";
         if (dash) dash.style.display = "none";
         if (catDash) catDash.style.display = "none";
         if (div) div.style.display = "block";
@@ -405,6 +715,7 @@
     function showFiatDashboard() {
         const dash = document.getElementById("fiatDashboardDiv");
         const catDash = document.getElementById("fiatCategoryDashboardDiv");
+        const templates = document.getElementById("fiatTemplatesDiv");
         const list = document.getElementById("transListDiv");
         const newDiv = document.getElementById("newTrans");
         const updateDiv = document.getElementById("updateTransDiv");
@@ -412,6 +723,7 @@
 
         if (dash) dash.style.display = "block";
         if (catDash) catDash.style.display = "none";
+        if (templates) templates.style.display = "none";
         if (list) list.style.display = "none";
         if (newDiv) newDiv.style.display = "none";
         if (updateDiv) updateDiv.style.display = "none";
@@ -431,6 +743,7 @@
     function showFiatCategoryTrends() {
         const dash = document.getElementById("fiatDashboardDiv");
         const catDash = document.getElementById("fiatCategoryDashboardDiv");
+        const templates = document.getElementById("fiatTemplatesDiv");
         const list = document.getElementById("transListDiv");
         const newDiv = document.getElementById("newTrans");
         const updateDiv = document.getElementById("updateTransDiv");
@@ -438,6 +751,7 @@
 
         if (dash) dash.style.display = "none";
         if (catDash) catDash.style.display = "block";
+        if (templates) templates.style.display = "none";
         if (list) list.style.display = "none";
         if (newDiv) newDiv.style.display = "none";
         if (updateDiv) updateDiv.style.display = "none";
@@ -452,6 +766,28 @@
         }
     }
     window.showFiatCategoryTrends = showFiatCategoryTrends;
+
+    function showFiatTemplates() {
+        const dash = document.getElementById("fiatDashboardDiv");
+        const catDash = document.getElementById("fiatCategoryDashboardDiv");
+        const templates = document.getElementById("fiatTemplatesDiv");
+        const list = document.getElementById("transListDiv");
+        const newDiv = document.getElementById("newTrans");
+        const updateDiv = document.getElementById("updateTransDiv");
+        const title = document.getElementById('transPageTitle');
+
+        if (dash) dash.style.display = "none";
+        if (catDash) catDash.style.display = "none";
+        if (templates) templates.style.display = "block";
+        if (list) list.style.display = "none";
+        if (newDiv) newDiv.style.display = "none";
+        if (updateDiv) updateDiv.style.display = "none";
+        if (title) title.innerText = 'Transaction Templates';
+        setFiatNavVisibility('templates');
+        cancelTemplateForm();
+        renderFiatTemplates();
+    }
+    window.showFiatTemplates = showFiatTemplates;
 
     function setFiatNavVisibility(activeView) {
         const btns = Array.from(document.querySelectorAll('[data-fiat-nav]'));
@@ -532,6 +868,7 @@
         if (list) {
             const items = Array.from(list.querySelectorAll('li[data-tdate]'));
             items.forEach(li => {
+                if (isTemplateItem(li)) return;
                 const dt = parseTxDate(li.getAttribute('data-tdate'));
                 if (dt && !Number.isNaN(dt.getTime())) {
                     years.add(dt.getFullYear());
@@ -713,6 +1050,7 @@
         if (list) {
             const txItems = Array.from(list.querySelectorAll('li[data-tdate]'));
             txItems.forEach(li => {
+                if (isTemplateItem(li)) return;
                 const d = parseTxDate(li.getAttribute('data-tdate'));
                 if (!d || isNaN(d)) return;
                 years.add(d.getFullYear());
@@ -814,6 +1152,7 @@
         if (list) {
             const items = Array.from(list.querySelectorAll('li[data-tdate]'));
             items.forEach(li => {
+                if (isTemplateItem(li)) return;
                 const tdate = parseTxDate(li.getAttribute('data-tdate'));
                 if ((startDt || endDt) && !tdate) return;
                 if (startDt && tdate && tdate < startDt) return;
@@ -917,6 +1256,7 @@
         const catCmp = selectedCat.toLowerCase();
         const items = Array.from(list.querySelectorAll('li[data-tdate]'));
         items.forEach(li => {
+            if (isTemplateItem(li)) return;
             const tdate = parseTxDate(li.getAttribute('data-tdate'));
             if (!tdate) return;
             if (tdate < startDt || tdate > endDt) return;
@@ -1137,6 +1477,7 @@
         let expenseTotal = 0;
 
         items.forEach(li => {
+            if (isTemplateItem(li)) return;
             const tdate = parseTxDate(li.getAttribute('data-tdate'));
             if ((startDt || endDt) && !tdate) return;
             if (startDt && tdate && tdate < startDt) return;
@@ -1589,6 +1930,7 @@
         if (window.transCurrentPage == null) window.transCurrentPage = 1;
 
         function itemMatches(li) {
+            if (isTemplateItem(li)) return false;
             let show = true;
             const tdate = parseTxDate(li.getAttribute('data-tdate'));
             if (startDt && tdate && tdate < startDt) show = false;
@@ -1694,6 +2036,10 @@
     <button type="button" class="app-subnav-link" data-fiat-nav="history" onclick="transHistoryDiv()">
         <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>History</span>
+    </button>
+    <button type="button" class="app-subnav-link" data-fiat-nav="templates" onclick="showFiatTemplates()">
+        <svg class="app-subnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h10l4 4v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M15 4v4h4"/><path d="M8 13h8M8 17h6" stroke-linecap="round"/></svg>
+        <span>Templates</span>
     </button>
 </div>
 
@@ -1827,6 +2173,130 @@
     </div>
 </div>
 
+<div id="fiatTemplatesDiv" class="form-container" style="display:none;">
+    <div class="totals-grid fiat-dashboard-grid" style="margin-top:12px;">
+        <div class="totals-card fiat-dashboard-card">
+            <div class="small-muted">Templates</div>
+            <div class="totals-value" id="templateCount">0</div>
+        </div>
+        <div class="totals-card fiat-dashboard-card">
+            <div class="small-muted">Income Templates</div>
+            <div class="totals-value" id="templateIncomeCount">0</div>
+        </div>
+        <div class="totals-card fiat-dashboard-card">
+            <div class="small-muted">Expense Templates</div>
+            <div class="totals-value" id="templateExpenseCount">0</div>
+        </div>
+        <div class="totals-card fiat-dashboard-card">
+            <div class="small-muted">Planned Total</div>
+            <div class="totals-value" id="templatePlannedAmount">0</div>
+        </div>
+    </div>
+
+    <div id="templateListPanel" style="margin-top:12px;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+            <button type="button" class="btn-insert" onclick="showTemplateForm()">New Template</button>
+        </div>
+        <ul id="templateList" style="padding-left:0; margin:0;"></ul>
+    </div>
+
+    <div id="templateFormPanel" class="block-new" style="display:none; margin-top:12px;">
+        <h2 id="templateFormTitle" class="center-text" style="display:none;">New Template</h2>
+        <div class="form-container">
+        <div class="totals-card" style="padding: 12px 16px; margin-bottom: 14px; font-size: 12px; line-height: 1.6; text-align: left;">
+            <div class="small-muted">
+                <strong>Day of Month:</strong> Optional. Leave it empty to use the saved template date's day.<br>
+                <strong>Use last day:</strong> If the day does not exist in a month (e.g. 31 in February), the last day of that month is used automatically.
+            </div>
+        </div>
+        <form id="templateForm" action="/fiat" method="POST">
+            <input type="hidden" id="tplMode" value="create">
+            <input type="hidden" id="tplTransId" name="transId">
+            <input type="hidden" id="tplTdateHidden" name="tdate">
+            <input type="hidden" name="isTemplate" value="Y">
+
+            <div>
+                <label for="tplTransType">Transaction Type:</label>
+                <select id="tplTransType" name="transType" required>
+                    <option value="">-- Select --</option>
+                    <option value="Income">Income</option>
+                    <option value="Expense">Expense</option>
+                    <option value="Transfer">Transfer</option>
+                    <option value="FX Transfer">FX Transfer</option>
+                </select>
+            </div>
+            <div id="tplMainCatRow">
+                <label for="tplMainCat">Category:</label>
+                <select id="tplMainCat" name="mainCat" required>
+                    <option value="">-- Select --</option>
+                </select>
+            </div>
+            <div>
+                <label for="tplDayOfMonth">Day of Month:</label>
+                <input type="number" id="tplDayOfMonth" name="templateDayOfMonth" min="1" max="31">
+            </div>
+            <div id="tplFromWalletRow">
+                <label for="tplFromWallet">From Wallet:</label>
+                <select name="fromWallet" id="tplFromWallet">
+                    <option value="">-- Select Wallet --</option>
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div id="tplToWalletRow">
+                <label for="tplToWallet">To Wallet:</label>
+                <select name="toWallet" id="tplToWallet">
+                    <option value="">-- Select Wallet --</option>
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="tplAmount" id="tplAmountLabel">Amount:</label>
+                <input type="text" id="tplAmount" name="amount" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" required>
+            </div>
+            <div id="tplReceivedAmountRow" style="display: none;">
+                <label for="tplReceivedAmount" id="tplReceivedAmountLabel">Received Amount:</label>
+                <input type="text" id="tplReceivedAmount" name="receivedAmount" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
+            </div>
+            <div id="tplCurrencyRow">
+                <label for="tplCurrency">Currency:</label>
+                {% set _tpl_ccy = base_currency|default('EUR')|upper %}
+                <select id="tplCurrency" name="currency" required>
+                    <option value="EUR" {% if _tpl_ccy == 'EUR' %}selected{% endif %}>EUR</option>
+                    <option value="USD" {% if _tpl_ccy == 'USD' %}selected{% endif %}>USD</option>
+                    <option value="GBP" {% if _tpl_ccy == 'GBP' %}selected{% endif %}>GBP</option>
+                    <option value="CHF" {% if _tpl_ccy == 'CHF' %}selected{% endif %}>CHF</option>
+                    <option value="CAD" {% if _tpl_ccy == 'CAD' %}selected{% endif %}>CAD</option>
+                    <option value="AUD" {% if _tpl_ccy == 'AUD' %}selected{% endif %}>AUD</option>
+                    <option value="JPY" {% if _tpl_ccy == 'JPY' %}selected{% endif %}>JPY</option>
+                    <option value="SEK" {% if _tpl_ccy == 'SEK' %}selected{% endif %}>SEK</option>
+                    <option value="NOK" {% if _tpl_ccy == 'NOK' %}selected{% endif %}>NOK</option>
+                    <option value="DKK" {% if _tpl_ccy == 'DKK' %}selected{% endif %}>DKK</option>
+                </select>
+            </div>
+            <div id="tplFeeRow">
+                <label for="tplFee">Fee:</label>
+                <input type="text" id="tplFee" name="fee" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*">
+            </div>
+            <div>
+                <label for="tplNote">Note:</label>
+                <input type="text" id="tplNote" name="note">
+            </div>
+            <div>
+                <button type="submit" class="btn-insert pct-positive">Save Template</button>
+                <button type="reset" id="tplClearBtn" class="btn-clear">Clear</button>
+                <button type="submit" id="tplDeleteBtn" form="templateDeleteForm" class="btn-delete" style="display:none;" onclick="return confirm('Are you sure you want to delete this template?')">Delete</button>
+                <button type="button" class="btn-cancel" onclick="cancelTemplateForm()">Cancel</button>
+            </div>
+        </form>
+        <form id="templateDeleteForm" method="POST"></form>
+        </div>
+    </div>
+</div>
+
 <div id="newTrans" class="block-new" style="display: none;">
     <h2 class="center-text" style="display:none;">Add New Transaction</h2>
     <div class="form-container">
@@ -1839,6 +2309,7 @@
             </div>
         </div>
         <form action="/fiat" method="POST">
+    <input type="hidden" name="isTemplate" value="N">
     <div>
     <label for="transType">Transaction Type:</label>
     <select id="transType" name="transType" required>
@@ -1994,7 +2465,7 @@
 {% endfor %}
 <ul id="transList">
     {% for transaction in transactions %}
-        <li data-id="{{ transaction.transId }}" data-tdate="{{ transaction.tdate }}" data-type="{{ transaction.transType|default('') }}" data-cat="{{ transaction.mainCat|default('') }}" data-note="{{ transaction.note|default('') }}" data-from="{{ transaction.fromWallet|default('') }}" data-to="{{ transaction.toWallet|default('') }}" data-currency="{{ transaction.currency|default('') }}" data-amount="{{ transaction.amount|default(0) }}" data-amount-setting="{{ transaction.amountSetting|default(transaction.amount|default(0)) }}">
+        <li data-id="{{ transaction.transId }}" data-tdate="{{ transaction.tdate }}" data-type="{{ transaction.transType|default('') }}" data-cat="{{ transaction.mainCat|default('') }}" data-note="{{ transaction.note|default('') }}" data-from="{{ transaction.fromWallet|default('') }}" data-to="{{ transaction.toWallet|default('') }}" data-currency="{{ transaction.currency|default('') }}" data-amount="{{ transaction.amount|default(0) }}" data-fee="{{ transaction.fee|default('') }}" data-received="{{ transaction.receivedAmount|default('', true) }}" data-istemplate="{{ transaction.isTemplate|default('N') }}" data-template-day="{{ transaction.templateDayOfMonth|default('') }}" data-amount-setting="{{ transaction.amountSetting|default(transaction.amount|default(0)) }}">
             <div class="crypto-history-row">
                 <div class="crypto-history-left">
                     <div class="crypto-history-title">{{ transaction.transType }}</div>
@@ -2017,7 +2488,7 @@
                 </div>
 
                 <div class="crypto-history-actions">
-                    <button class="btn-insert" onclick="editTransaction('{{ transaction.transId }}','{{ transaction.userId }}','{{ transaction.transType }}','{{ transaction.mainCat }}','{{ transaction.tdate }}','{{ transaction.fromWallet }}','{{ transaction.toWallet }}','{{ transaction.amount }}','{{ transaction.currency }}','{{ transaction.fee }}','{{ transaction.note }}','{{ transaction.receivedAmount|default('', true) }}')">Show / Edit</button>
+                    <button class="btn-insert" onclick='editTransaction({{ transaction.transId|tojson }}, {{ transaction.userId|tojson }}, {{ transaction.transType|tojson }}, {{ transaction.mainCat|tojson }}, {{ transaction.tdate|tojson }}, {{ transaction.fromWallet|tojson }}, {{ transaction.toWallet|tojson }}, {{ transaction.amount|tojson }}, {{ transaction.currency|tojson }}, {{ transaction.fee|tojson }}, {{ transaction.note|tojson }}, {{ transaction.receivedAmount|default('', true)|tojson }}, {{ transaction.isTemplate|default('N')|tojson }})'>Show / Edit</button>
                 </div>
             </div>
         </li>
@@ -2036,6 +2507,7 @@
         <form id="updateForm" action="/updateFiat" method="POST">
             <input type="hidden" id="updateTransId" name="transId">
             <input type="hidden" id="updateUserId" name="userId">
+            <input type="hidden" id="updateIsTemplate" name="isTemplate" value="N">
             <div>
                 <label>Transaction Type:</label>
                 <select id="updateTransType" name="transType" required>

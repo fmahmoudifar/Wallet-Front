@@ -778,6 +778,12 @@ html[data-theme="dark"] #transList li {
     box-shadow: 0 6px 18px var(--shadow);
 }
 
+html[data-theme="dark"] #templateList li {
+    background: var(--surface);
+    border-color: var(--border);
+    box-shadow: 0 6px 18px var(--shadow);
+}
+
 html[data-theme="dark"] #stockList li {
     background: var(--surface);
     border-color: var(--border);
@@ -803,6 +809,10 @@ html[data-theme="dark"] #transList li:hover {
     background: var(--surface-2);
 }
 
+html[data-theme="dark"] #templateList li:hover {
+    background: var(--surface-2);
+}
+
 html[data-theme="dark"] #stockList li:hover {
     background: var(--surface-2);
 }
@@ -816,7 +826,9 @@ html[data-theme="dark"] #cryptoList .crypto-history-amount,
 html[data-theme="dark"] #loansList .crypto-history-title,
 html[data-theme="dark"] #loansList .crypto-history-amount,
 html[data-theme="dark"] #transList .crypto-history-title,
+html[data-theme="dark"] #templateList .crypto-history-title,
 html[data-theme="dark"] #transList .crypto-history-amount,
+html[data-theme="dark"] #templateList .crypto-history-amount,
 html[data-theme="dark"] #stockList .crypto-history-title,
 html[data-theme="dark"] #stockList .crypto-history-amount {
     color: var(--text);
@@ -833,6 +845,7 @@ html[data-theme="dark"] #cryptoList li.crypto-group-header,
 html[data-theme="dark"] #loansList .crypto-history-sub,
 html[data-theme="dark"] #loansList li.crypto-group-header,
 html[data-theme="dark"] #transList .crypto-history-sub,
+html[data-theme="dark"] #templateList .crypto-history-sub,
 html[data-theme="dark"] #transList li.crypto-group-header,
 html[data-theme="dark"] #stockList .crypto-history-sub {
     color: var(--muted);
@@ -1347,6 +1360,17 @@ button.pct-positive:hover {
     column-gap: 0;
 }
 
+#templateList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    column-gap: 0;
+}
+
 /* Settings page: keep the original layout, but box the values inside the main card. */
 #setListDiv .settings-field-box {
     width: 100%;
@@ -1384,7 +1408,24 @@ button.pct-positive:hover {
     box-sizing: border-box;
 }
 
+#templateList li {
+    list-style-type: none;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    box-sizing: border-box;
+}
+
 #transList li:hover {
+    background: #f8f9fa;
+}
+
+#templateList li:hover {
     background: #f8f9fa;
 }
 
@@ -1526,7 +1567,19 @@ button.pct-positive:hover {
     align-items: start;
 }
 
+#templateList .crypto-history-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px 14px;
+    align-items: start;
+}
+
 #transList .crypto-history-title {
+    font-weight: 800;
+    color: #222;
+}
+
+#templateList .crypto-history-title {
     font-weight: 800;
     color: #222;
 }
@@ -1535,7 +1588,16 @@ button.pct-positive:hover {
     text-align: right;
 }
 
+#templateList .crypto-history-right {
+    text-align: right;
+}
+
 #transList .crypto-history-amount {
+    font-weight: 800;
+    color: #222;
+}
+
+#templateList .crypto-history-amount {
     font-weight: 800;
     color: #222;
 }
@@ -1547,7 +1609,20 @@ button.pct-positive:hover {
     margin-top: 2px;
 }
 
+#templateList .crypto-history-sub {
+    color: #666;
+    font-weight: 600;
+    font-size: 13px;
+    margin-top: 2px;
+}
+
 #transList .crypto-history-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-self: center;
+}
+
+#templateList .crypto-history-actions {
     display: flex;
     justify-content: flex-end;
     align-self: center;
@@ -1679,6 +1754,14 @@ button.pct-positive:hover {
         grid-template-columns: 1fr auto;
     }
     #transList .crypto-history-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+    }
+
+    #templateList .crypto-history-row {
+        grid-template-columns: 1fr auto;
+    }
+    #templateList .crypto-history-actions {
         grid-column: 1 / -1;
         justify-content: flex-end;
     }
@@ -1848,7 +1931,7 @@ button.pct-positive:hover {
     .block-update .form-container form input[type="date"],
     .block-update .form-container form select { width: 100%; max-width: none; }
     /* keep list grid rule available on mobile as well */
-    #cryptoList, #stockList, #transList, #walletList, #settingsList { display: flex; flex-direction: column; align-items: center; padding: 0; }    
+    #cryptoList, #stockList, #transList, #templateList, #walletList, #settingsList { display: flex; flex-direction: column; align-items: center; padding: 0; }
 }
 
 /* Autocomplete styles */
