@@ -1,5 +1,5 @@
 Date,Crypto,Operation,Quantity,Price,Currency,Fee,Fee Currency,From Wallet,To Wallet,Note
-18/04/2026,DOGE,Sell,60,0.1,EUR,1.5,EUR,Revolut,,test
-08/07/2025,DOGE,Buy,128,0.1451,EUR,1.49,EUR,,Revolut,
-23/01/2026,BTC,Buy,0.00062,76759.2,EUR,1.99,EUR,,Crypto.com,test
-17/05/2026,BTC,Transfer,0.00062,0,EUR,0.00001,CRYPTO,Crypto.com,Revolut,
+2026-04-18,DOGE,Sell,60,0.1,EUR,1.5,EUR,Revolut,,test
+2025-07-08,DOGE,Buy,128,0.1451,EUR,1.49,EUR,,Revolut,
+2026-01-23,BTC,Buy,0.00062,76759.2,EUR,1.99,EUR,,Crypto.com,test
+2026-05-17,BTC,Transfer,0.00062,0,EUR,0.00001,CRYPTO,Crypto.com,Revolut,
