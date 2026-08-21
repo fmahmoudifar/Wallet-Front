@@ -571,7 +571,7 @@
             left.className = 'crypto-history-left';
             left.innerHTML = `
                 <div class="crypto-history-title">${type || 'Template'}</div>
-                <div class="crypto-history-sub">${String(li.getAttribute('data-cat') || '-')}</div>
+                <div class="crypto-history-sub">${String(li.getAttribute('data-cat') || '' )}</div>
                 ${walletsMarkup}
                 ${dayMarkup}
             `;
