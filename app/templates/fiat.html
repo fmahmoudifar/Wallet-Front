@@ -539,6 +539,11 @@
         out.innerHTML = '';
 
         const items = list ? Array.from(list.querySelectorAll('li[data-tdate]')).filter(isTemplateItem) : [];
+        const groups = {
+            transfer: [],
+            income: [],
+            expense: [],
+        };
         let transferTotal = 0;
         let incomeTotal = 0;
         let expenseTotal = 0;
@@ -550,10 +555,20 @@
 
             const amount = parseFloat(String(li.getAttribute('data-amount-setting') || li.getAttribute('data-amount') || '0')) || 0;
             plannedTotal += amount;
-            if (typeLc === 'transfer') transferTotal += amount;
-            if (typeLc === 'income') incomeTotal += amount;
-            if (typeLc === 'expense') expenseTotal += amount;
+            if (typeLc === 'transfer') {
+                transferTotal += amount;
+                groups.transfer.push(li);
+            } else if (typeLc === 'income') {
+                incomeTotal += amount;
+                groups.income.push(li);
+            } else if (typeLc === 'expense') {
+                expenseTotal += amount;
+                groups.expense.push(li);
+            }
+        });
 
+        const renderTemplateItem = (li) => {
+            const type = String(li.getAttribute('data-type') || '').trim();
             const fromId = String(li.getAttribute('data-from') || '');
             const toId = String(li.getAttribute('data-to') || '');
             const fromName = walletNameMap[fromId] || fromId || '';
@@ -565,7 +580,6 @@
             const dayMarkup = dayAttr ? `<div class="crypto-history-sub">Day ${dayAttr}</div>` : '';
 
             const row = document.createElement('li');
-
             const historyRow = document.createElement('div');
             historyRow.className = 'crypto-history-row';
 
@@ -608,14 +622,28 @@
             historyRow.appendChild(right);
             historyRow.appendChild(actions);
             row.appendChild(historyRow);
-            out.appendChild(row);
-        });
+            return row;
+        };
+
+        const renderGroup = (label, key) => {
+            const groupItems = groups[key];
+            if (!groupItems.length) return;
+            const header = document.createElement('li');
+            header.className = 'crypto-group-header';
+            header.textContent = label;
+            out.appendChild(header);
+            groupItems.forEach(li => out.appendChild(renderTemplateItem(li)));
+        };
 
         if (!items.length) {
             const empty = document.createElement('div');
             empty.className = 'small-muted';
             empty.textContent = 'No transaction templates yet.';
             out.appendChild(empty);
+        } else {
+            renderGroup('Transfer', 'transfer');
+            renderGroup('Income', 'income');
+            renderGroup('Expense', 'expense');
         }
 
         if (totalEl) totalEl.textContent = `${transferTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
@@ -2224,7 +2252,7 @@
                     <option value="Income">Income</option>
                     <option value="Expense">Expense</option>
                     <option value="Transfer">Transfer</option>
-                    <option value="FX Transfer">FX Transfer</option>
+                    <!-- <option value="FX Transfer">FX Transfer</option> -->
                 </select>
             </div>
             <div id="tplMainCatRow">

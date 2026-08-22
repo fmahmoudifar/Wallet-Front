@@ -1429,6 +1429,24 @@ button.pct-positive:hover {
     background: #f8f9fa;
 }
 
+#templateList li.crypto-group-header {
+    padding: 6px 4px !important;
+    margin: 8px 0 -4px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #666 !important;
+    font-weight: 800 !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+}
+
+#templateList li.crypto-group-header:hover {
+    background: transparent !important;
+}
+
 /* Loans transaction history: match crypto/stock/trans history (one full-width row per transaction) */
 #loansList {
     display: flex;
