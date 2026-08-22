@@ -1891,6 +1891,27 @@ button.pct-positive:hover {
     max-width: none;
     margin: 0;
 }
+
+.template-summary-card {
+    min-height: 0;
+}
+
+.template-summary-row {
+    width: 100%;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.template-summary-row .totals-label {
+    font-size: 0.95rem;
+}
+
+.template-summary-row .totals-value {
+    font-size: 1rem;
+    line-height: 1.1;
+}
 .totals-card{background:linear-gradient(180deg,#fff,#fbfbfb);border-radius:10px;padding:12px;border:1px solid rgba(0,0,0,0.10);box-shadow:0 6px 18px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:8px;height:100%}
 .totals-header{display:flex;justify-content:space-between;align-items:center}
 .pct-badge{font-weight:800;padding:0;border-radius:0;background:transparent;color:inherit;font-size:0.9rem}
