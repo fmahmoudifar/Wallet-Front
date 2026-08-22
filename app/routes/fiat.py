@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, redirect, render_template, request, sessio
 from app.services.user_scope import filter_records_by_user
 from config import API_URL, aws_auth
 
-from .home import _ensure_user_settings_row
+from .home import _dashboard_cache_invalidate_user, _ensure_user_settings_row
 
 # Reuse the same Settings currency + FX conversion helpers
 from .crypto import (
@@ -119,6 +119,7 @@ def create_fiat_transaction():
         try:
             response = requests.post(f"{API_URL}/transaction", json=data, auth=aws_auth)
             print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {response.json()}")
+            _dashboard_cache_invalidate_user(user_id)
             return redirect(url_for("fiat.fiat_page", view=return_section))
         except Exception as e:
             print(f"❌ [ERROR] Failed to create transaction: {str(e)}")
@@ -159,6 +160,7 @@ def update_fiat_transaction():
     try:
         response = requests.patch(f"{API_URL}/transaction", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {response.json()}")
+        _dashboard_cache_invalidate_user(user_id)
         return redirect(url_for("fiat.fiat_page", view=return_section))
     except Exception as e:
         print(f"❌ [ERROR] Failed to update transaction: {str(e)}")
@@ -183,6 +185,7 @@ def delete_fiat_transaction(trans_id, user_id):
     try:
         response = requests.delete(f"{API_URL}/transaction", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Delete Response: {response.status_code}, JSON: {response.json()}")
+        _dashboard_cache_invalidate_user(session_user_id)
         return redirect(url_for("fiat.fiat_page", view=return_section))
     except Exception as e:
         print(f"❌ [ERROR] Failed to delete transaction: {str(e)}")
