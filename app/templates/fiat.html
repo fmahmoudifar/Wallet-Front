@@ -530,8 +530,8 @@
         const list = document.getElementById('transList');
         const out = document.getElementById('templateList');
         const totalEl = document.getElementById('templateCount');
-        const incomeEl = document.getElementById('templateIncomeCount');
-        const expenseEl = document.getElementById('templateExpenseCount');
+        const incomeTotalEl = document.getElementById('templateIncomeTotal');
+        const expenseTotalEl = document.getElementById('templateExpenseTotal');
         const amountEl = document.getElementById('templatePlannedAmount');
         const baseCurrency = document.getElementById('fiatBaseCurrency')?.value || 'EUR';
 
@@ -539,18 +539,20 @@
         out.innerHTML = '';
 
         const items = list ? Array.from(list.querySelectorAll('li[data-tdate]')).filter(isTemplateItem) : [];
-        let incomeCount = 0;
-        let expenseCount = 0;
+        let transferTotal = 0;
+        let incomeTotal = 0;
+        let expenseTotal = 0;
         let plannedTotal = 0;
 
         items.forEach(li => {
             const type = String(li.getAttribute('data-type') || '').trim();
             const typeLc = type.toLowerCase();
-            if (typeLc === 'income') incomeCount += 1;
-            if (typeLc === 'expense') expenseCount += 1;
 
             const amount = parseFloat(String(li.getAttribute('data-amount-setting') || li.getAttribute('data-amount') || '0')) || 0;
             plannedTotal += amount;
+            if (typeLc === 'transfer') transferTotal += amount;
+            if (typeLc === 'income') incomeTotal += amount;
+            if (typeLc === 'expense') expenseTotal += amount;
 
             const fromId = String(li.getAttribute('data-from') || '');
             const toId = String(li.getAttribute('data-to') || '');
@@ -616,9 +618,9 @@
             out.appendChild(empty);
         }
 
-        if (totalEl) totalEl.textContent = String(items.length);
-        if (incomeEl) incomeEl.textContent = String(incomeCount);
-        if (expenseEl) expenseEl.textContent = String(expenseCount);
+        if (totalEl) totalEl.textContent = `${transferTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+        if (incomeTotalEl) incomeTotalEl.textContent = `${incomeTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
+        if (expenseTotalEl) expenseTotalEl.textContent = `${expenseTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
         if (amountEl) amountEl.textContent = `${plannedTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
     }
     window.renderFiatTemplates = renderFiatTemplates;
@@ -2176,7 +2178,15 @@
 <div id="fiatTemplatesDiv" class="form-container" style="display:none;">
     <div class="totals-grid fiat-dashboard-grid" style="margin-top:12px;">
         <div class="totals-card fiat-dashboard-card">
-            <div class="small-muted">Templates</div>
+            <div class="small-muted">Total Income</div>
+            <div class="totals-value" id="templateIncomeTotal">0</div>
+        </div>
+        <div class="totals-card fiat-dashboard-card">
+            <div class="small-muted">Total Expense</div>
+            <div class="totals-value" id="templateExpenseTotal">0</div>
+        </div>
+        <div class="totals-card fiat-dashboard-card">
+            <div class="small-muted">Total Transfer</div>
             <div class="totals-value" id="templateCount">0</div>
         </div>
         <div class="totals-card fiat-dashboard-card">
