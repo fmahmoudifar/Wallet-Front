@@ -38,14 +38,14 @@
         const showRecv = isFx;
         const showCurrency = !isFx;
 
-        const incomeCats = INCOME_CAT_DATA.length ? INCOME_CAT_DATA.map(c => c.name) : [
+        const incomeCats = (INCOME_CAT_DATA.length ? INCOME_CAT_DATA.map(c => c.name) : [
             'Salary, Wage','Savings','Debt','Gift','Interest, Dividends',
             'Lend, Rent','Lottery, Gambling','Refund','Sales','Other',
-        ];
-        const expenseCats = EXPENSE_CAT_DATA.length ? EXPENSE_CAT_DATA.map(c => c.name) : [
+        ]).slice().sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }));
+        const expenseCats = (EXPENSE_CAT_DATA.length ? EXPENSE_CAT_DATA.map(c => c.name) : [
             'Food and Beverage','Purchases','Housing','Transportation','Vehicle',
             'Entertainment','Communications','Financial Expenses','Investments','Loans','Other',
-        ];
+        ]).slice().sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }));
 
         function rebuildCategoryOptions(options) {
             if (!catSel) return;
