@@ -496,6 +496,8 @@ def dashboard_data():
     # Process regular transactions
     for transaction in transactions:
         try:
+            if str(transaction.get("isTemplate") or "").strip().lower() in ("y", "yes", "true", "1"):
+                continue
 
             def to_decimal_fiat(val):
                 try:
