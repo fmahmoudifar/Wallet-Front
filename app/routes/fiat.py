@@ -109,9 +109,9 @@ def create_fiat_transaction():
             "mainCat": request.form["mainCat"],
             "currency": request.form["currency"],
             "fee": request.form["fee"],
-            "receivedAmount": request.form.get("receivedAmount", ""),
+            "receivedAmount": request.form["receivedAmount"],
             "isTemplate": "Y" if str(request.form.get("isTemplate", "N")).strip().upper() in ("Y", "YES", "TRUE", "1") else "N",
-            "templateDayOfMonth": request.form.get("templateDayOfMonth", ""),
+            "templateDayOfMonth": request.form["templateDayOfMonth"],
             "note": request.form["note"],
         }
         print(data)
@@ -147,9 +147,9 @@ def update_fiat_transaction():
         "toWallet": request.form["toWallet"],
         "currency": request.form["currency"],
         "fee": request.form["fee"],
-        "receivedAmount": request.form.get("receivedAmount", ""),
+        "receivedAmount": request.form["receivedAmount"],
         "isTemplate": "Y" if str(request.form.get("isTemplate", "N")).strip().upper() in ("Y", "YES", "TRUE", "1") else "N",
-        "templateDayOfMonth": request.form.get("templateDayOfMonth", ""),
+        "templateDayOfMonth": request.form["templateDayOfMonth"],
         "note": request.form["note"],
     }
     print(f"🔄 [DEBUG] Updating transaction: {data}")
