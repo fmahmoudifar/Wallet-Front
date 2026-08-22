@@ -208,6 +208,8 @@
             const yes = (isTpl === 'y' || isTpl === 'yes' || isTpl === 'true' || isTpl === '1');
             if (hidden) hidden.value = yes ? 'Y' : 'N';
         }
+        const returnSection = document.getElementById("updateReturnSection");
+        if (returnSection) returnSection.value = 'history';
         document.getElementById("updateTransDiv").style.display = "block";
         document.getElementById("transListDiv").style.display = "none";
         const tplDiv = document.getElementById("fiatTemplatesDiv");
@@ -270,11 +272,43 @@
         if (recvLabel) recvLabel.textContent = toCcy ? `Received Amount (${toCcy}):` : 'Received Amount:';
     }
 
-    document.addEventListener("DOMContentLoaded", function() {
-        // Show dashboard by default
-        if (typeof showFiatDashboard === 'function') {
-            showFiatDashboard();
+    function getFiatReturnSection() {
+        try {
+            const params = new URLSearchParams(window.location.search || '');
+            return String(params.get('view') || '').trim();
+        } catch (e) {
+            return '';
         }
+    }
+
+    function openFiatSection(section) {
+        const view = String(section || '').trim().toLowerCase();
+        if (view === 'history') {
+            if (typeof transHistoryDiv === 'function') transHistoryDiv();
+            return;
+        }
+        if (view === 'templates') {
+            if (typeof showFiatTemplates === 'function') showFiatTemplates();
+            return;
+        }
+        if (view === 'category') {
+            if (typeof showFiatCategoryTrends === 'function') showFiatCategoryTrends();
+            return;
+        }
+        if (view === 'new') {
+            if (typeof newTransDiv === 'function') newTransDiv();
+            return;
+        }
+        if (view === 'dashboard' || !view) {
+            if (typeof showFiatDashboard === 'function') showFiatDashboard();
+            return;
+        }
+        if (typeof showFiatDashboard === 'function') showFiatDashboard();
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // Show the requested section, or dashboard by default.
+        openFiatSection(getFiatReturnSection());
 
         // Type -> wallet field behavior
         const createType = document.getElementById('transType');
@@ -2533,6 +2567,7 @@
         <form id="updateForm" action="/updateFiat" method="POST">
             <input type="hidden" id="updateTransId" name="transId">
             <input type="hidden" id="updateUserId" name="userId">
+            <input type="hidden" id="updateReturnSection" name="returnSection" value="history">
             <input type="hidden" id="updateIsTemplate" name="isTemplate" value="N">
             <div>
                 <label>Transaction Type:</label>
@@ -2611,7 +2646,9 @@
         </form>
     </div>
 
-    <form id="deleteForm" method="POST"></form>
+    <form id="deleteForm" method="POST">
+            <input type="hidden" name="returnSection" id="deleteReturnSection" value="history">
+        </form>
 </div>
 
 {% endblock %}

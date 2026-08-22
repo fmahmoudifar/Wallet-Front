@@ -98,6 +98,7 @@ def create_fiat_transaction():
     user = session.get("user")
     if user:
         user_id = user.get("username")
+        return_section = (request.form.get("returnSection") or "history").strip() or "history"
         data = {
             "transId": trans_id,
             "userId": user_id,
@@ -118,7 +119,7 @@ def create_fiat_transaction():
         try:
             response = requests.post(f"{API_URL}/transaction", json=data, auth=aws_auth)
             print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {response.json()}")
-            return redirect(url_for("fiat.fiat_page"))
+            return redirect(url_for("fiat.fiat_page", view=return_section))
         except Exception as e:
             print(f"❌ [ERROR] Failed to create transaction: {str(e)}")
             return jsonify({"error": "Internal Server Error"}), 500
@@ -134,6 +135,7 @@ def update_fiat_transaction():
     if not user:
         return redirect(url_for("home.home_page"))
     user_id = user.get("username")
+    return_section = (request.form.get("returnSection") or "history").strip() or "history"
 
     data = {
         "transId": request.form["transId"],
@@ -157,7 +159,7 @@ def update_fiat_transaction():
     try:
         response = requests.patch(f"{API_URL}/transaction", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {response.json()}")
-        return redirect(url_for("fiat.fiat_page"))
+        return redirect(url_for("fiat.fiat_page", view=return_section))
     except Exception as e:
         print(f"❌ [ERROR] Failed to update transaction: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
@@ -169,6 +171,7 @@ def delete_fiat_transaction(trans_id, user_id):
     if not user:
         return redirect(url_for("home.home_page"))
     session_user_id = user.get("username")
+    return_section = (request.form.get("returnSection") or "history").strip() or "history"
 
     data = {
         "transId": trans_id,
@@ -180,7 +183,7 @@ def delete_fiat_transaction(trans_id, user_id):
     try:
         response = requests.delete(f"{API_URL}/transaction", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Delete Response: {response.status_code}, JSON: {response.json()}")
-        return redirect(url_for("fiat.fiat_page"))
+        return redirect(url_for("fiat.fiat_page", view=return_section))
     except Exception as e:
         print(f"❌ [ERROR] Failed to delete transaction: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
