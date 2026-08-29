@@ -2199,6 +2199,27 @@ button.pct-positive:hover {
 }
 
 @media (min-width: 1200px) {
+    /* Fiat dashboard filters: <<, From, To, >>, Month, Year, Reset */
+    #dashFilters .filters-grid {
+        grid-template-columns: auto 1.25fr 1.25fr auto 1fr 0.85fr auto;
+        column-gap: 16px;
+        row-gap: 14px;
+    }
+
+    /* Fiat category trend filters: <<, From, To, >>, Year, Type, Category, Reset */
+    #dashCategoryFilters .filters-grid {
+        grid-template-columns: auto 1.15fr 1.15fr auto 0.85fr 0.9fr 1.2fr auto;
+        column-gap: 16px;
+        row-gap: 14px;
+    }
+
+    .history-filters .filters-grid {
+        /* From, To, Crypto, Note, From Wallet, To Wallet, Actions */
+        grid-template-columns: 1.25fr 1.25fr 1.1fr 1.1fr 1fr 1fr auto;
+        column-gap: 16px;
+        row-gap: 14px;
+    }
+
     /* Fiat desktop: all 8 items in one row */
     #filters .filters-grid {
         grid-template-columns: 1.25fr 1.25fr 1.1fr 1.1fr 1fr 1fr 1fr auto;

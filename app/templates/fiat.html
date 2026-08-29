@@ -375,12 +375,14 @@
         const de = document.getElementById('dashEnd');
         const dm = document.getElementById('dashMonth');
         const dy = document.getElementById('dashYear');
+        const dw = document.getElementById('dashWallet');
         ['input','change'].forEach(evt => {
             if (ds) ds.addEventListener(evt, function(){ renderFiatDashboard(); });
             if (de) de.addEventListener(evt, function(){ renderFiatDashboard(); });
         });
         if (dm) dm.addEventListener('change', applyDashMonthYearSelection);
         if (dy) dy.addEventListener('change', applyDashMonthYearSelection);
+        if (dw) dw.addEventListener('change', function(){ renderFiatDashboard(); });
 
         // Category monthly trend filters
         const cts = document.getElementById('catDashStart');
@@ -388,6 +390,7 @@
         const cty = document.getElementById('catTrendYear');
         const ctt = document.getElementById('catTrendType');
         const ctc = document.getElementById('catTrendCategory');
+        const ctw = document.getElementById('catTrendWallet');
         ['input','change'].forEach(evt => {
             if (cts) cts.addEventListener(evt, function(){ renderFiatCategoryDashboard(); });
             if (cte) cte.addEventListener(evt, function(){ renderFiatCategoryDashboard(); });
@@ -398,6 +401,7 @@
             renderFiatCategoryDashboard();
         });
         if (ctc) ctc.addEventListener('change', function(){ renderFiatCategoryDashboard(); });
+        if (ctw) ctw.addEventListener('change', function(){ renderFiatCategoryDashboard(); });
 
         // Initialize dashboard default range and render
         if (typeof initFiatDashboardDefaults === 'function') {
@@ -1277,6 +1281,7 @@
 
         const typeVal = String(typeEl.value || 'expense').trim().toLowerCase();
         const selectedCat = String(catEl.value || '').trim();
+        const walletVal = (document.getElementById('catTrendWallet')?.value || '').trim().toLowerCase();
         const startDtRaw = parseLocalDateTime(document.getElementById('catDashStart')?.value || '');
         const endDtRaw = parseLocalDateTime(document.getElementById('catDashEnd')?.value || '');
 
@@ -1327,6 +1332,13 @@
 
             const t = String(li.getAttribute('data-type') || '').trim().toLowerCase();
             if (t !== typeVal) return;
+
+            if (walletVal) {
+                const fromWallet = String(li.getAttribute('data-from') || '').trim().toLowerCase();
+                const toWallet = String(li.getAttribute('data-to') || '').trim().toLowerCase();
+                const walletMatch = t === 'income' ? toWallet === walletVal : fromWallet === walletVal;
+                if (!walletMatch) return;
+            }
 
             const cat = String(li.getAttribute('data-cat') || '').trim() || 'Other';
             if (cat.toLowerCase() !== catCmp) return;
@@ -1531,6 +1543,7 @@
 
         const startVal = document.getElementById('dashStart')?.value || '';
         const endVal = document.getElementById('dashEnd')?.value || '';
+        const walletVal = (document.getElementById('dashWallet')?.value || '').trim().toLowerCase();
         const startDt = parseLocalDateTime(startVal);
         const endDt = parseLocalDateTime(endVal);
 
@@ -1549,6 +1562,13 @@
 
             const type = String(li.getAttribute('data-type') || '').trim().toLowerCase();
             if (type !== 'income' && type !== 'expense') return;
+
+            if (walletVal) {
+                const fromWallet = String(li.getAttribute('data-from') || '').trim().toLowerCase();
+                const toWallet = String(li.getAttribute('data-to') || '').trim().toLowerCase();
+                const walletMatch = type === 'income' ? toWallet === walletVal : fromWallet === walletVal;
+                if (!walletMatch) return;
+            }
 
             const cat = String(li.getAttribute('data-cat') || '').trim() || 'Other';
             const amount = parseFloat(String(li.getAttribute('data-amount-setting') || li.getAttribute('data-amount') || '0')) || 0;
@@ -2138,6 +2158,15 @@
                     <option value="" selected>-- Select --</option>
                 </select>
             </div>
+            <div>
+                <label for="dashWallet">Wallet:</label>
+                <select id="dashWallet" name="dashWallet">
+                    <option value="" selected>-- All Wallets --</option>
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
             <div class="filters-actions">
                 <button type="button" class="btn-clear" onclick="resetFiatDashboardDates()">Reset</button>
             </div>
@@ -2211,6 +2240,15 @@
                 <label for="catTrendCategory">Category:</label>
                 <select id="catTrendCategory" name="catTrendCategory">
                     <option value="">-- Select --</option>
+                </select>
+            </div>
+            <div>
+                <label for="catTrendWallet">Wallet:</label>
+                <select id="catTrendWallet" name="catTrendWallet">
+                    <option value="" selected>-- All Wallets --</option>
+                    {% for wallet in wallets|sort(attribute='walletName', case_sensitive=false) %}
+                    <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="filters-actions">
