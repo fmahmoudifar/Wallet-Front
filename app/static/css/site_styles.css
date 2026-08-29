@@ -2161,20 +2161,6 @@ button.pct-positive:hover {
 }
 
 @media (min-width: 768px) {
-    /* Fiat dashboard filters: <<, From, To, >>, Month, Year, Reset */
-    #dashFilters .filters-grid {
-        grid-template-columns: auto 1.25fr 1.25fr auto 1fr 0.85fr auto;
-        column-gap: 16px;
-        row-gap: 14px;
-    }
-
-    /* Fiat category trend filters: <<, From, To, >>, Year, Type, Category, Reset */
-    #dashCategoryFilters .filters-grid {
-        grid-template-columns: auto 1.15fr 1.15fr auto 0.85fr 0.9fr 1.2fr auto;
-        column-gap: 16px;
-        row-gap: 14px;
-    }
-
     .history-filters .filters-grid {
         /* From, To, Crypto, Note, From Wallet, To Wallet, Actions */
         grid-template-columns: 1.25fr 1.25fr 1.1fr 1.1fr 1fr 1fr auto;
@@ -2182,12 +2168,81 @@ button.pct-positive:hover {
         row-gap: 14px;
     }
 
-    /* Fiat tablet: row 1 = From Date, To Date, Type, Category; row 2 = Note, From Wallet, To Wallet, Clear */
+    /* Fiat tablet: keep the original two-row layout, but match field widths */
+    #dashFilters .filters-grid {
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        column-gap: 14px;
+        row-gap: 14px;
+    }
+    #dashFilters .filters-grid > div {
+        min-width: 0;
+    }
+    #dashFilters .filters-grid > div > button[onclick*="shiftFiatDashboardMonth"] {
+        width: 100%;
+        min-width: 0;
+        padding: 0;
+        height: 40px;
+        font-size: 0.78rem;
+        line-height: 1;
+    }
+    #dashFilters .filters-grid input[type="date"],
+    #dashFilters .filters-grid select {
+        height: 40px;
+        width: 100%;
+    }
+    #dashFilters .filters-actions .btn-clear {
+        width: 100%;
+        height: 40px;
+        max-width: none;
+    }
+
+    /* Fiat category trends tablet: two rows, compact arrows, equal field widths */
+    #dashCategoryFilters .filters-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        column-gap: 14px;
+        row-gap: 14px;
+    }
+    #dashCategoryFilters .filters-grid > div {
+        min-width: 0;
+    }
+    #dashCategoryFilters .filters-grid > div:nth-child(1) { grid-column: 1; grid-row: 1; }
+    #dashCategoryFilters .filters-grid > div:nth-child(2) { grid-column: 2; grid-row: 1; }
+    #dashCategoryFilters .filters-grid > div:nth-child(3) { grid-column: 3; grid-row: 1; }
+    #dashCategoryFilters .filters-grid > div:nth-child(4) { grid-column: 4; grid-row: 1; }
+    #dashCategoryFilters .filters-grid > div:nth-child(5) { grid-column: 1; grid-row: 2; }
+    #dashCategoryFilters .filters-grid > div:nth-child(6) { grid-column: 2; grid-row: 2; }
+    #dashCategoryFilters .filters-grid > div:nth-child(7) { grid-column: 3; grid-row: 2; }
+    #dashCategoryFilters .filters-grid > div:nth-child(8) { grid-column: 4; grid-row: 2; }
+    #dashCategoryFilters .filters-grid > div:nth-child(9) { grid-column: 5; grid-row: 2; }
+    #dashCategoryFilters .filters-grid > div > button[onclick*="shiftFiatCategoryTrendYear"] {
+        width: 100%;
+        min-width: 0;
+        padding: 0;
+        height: 40px;
+        font-size: 0.78rem;
+        line-height: 1;
+    }
+    #dashCategoryFilters .filters-grid input[type="date"],
+    #dashCategoryFilters .filters-grid select {
+        height: 40px;
+        width: 100%;
+    }
+    #dashCategoryFilters .filters-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+    }
+    #dashCategoryFilters .filters-actions .btn-clear {
+        width: 100%;
+        height: 40px;
+        max-width: none;
+    }
+
+    /* Fiat history tablet */
     #filters .filters-grid {
         grid-template-columns: 1.25fr 1.25fr 1.1fr 1.1fr;
     }
 
-    /* Stock tablet: row 1 = From Date, To Date, Stock, Note; row 2 = From Wallet, To Wallet, Clear */
+    /* Stock tablet */
     #stockFilters .filters-grid {
         grid-template-columns: 1.25fr 1.25fr 1.1fr 1.1fr;
     }
@@ -2199,18 +2254,56 @@ button.pct-positive:hover {
 }
 
 @media (min-width: 1200px) {
-    /* Fiat dashboard filters: <<, From, To, >>, Month, Year, Reset */
+    /* Fiat dashboard filters: <<, From, To, >>, Month, Year, Wallet, Reset */
     #dashFilters .filters-grid {
-        grid-template-columns: auto 1.25fr 1.25fr auto 1fr 0.85fr auto;
+        grid-template-columns: 52px minmax(0, 1.25fr) minmax(0, 1.25fr) 52px minmax(0, 1fr) minmax(0, 0.95fr) minmax(0, 1.2fr) 140px;
         column-gap: 16px;
         row-gap: 14px;
     }
 
-    /* Fiat category trend filters: <<, From, To, >>, Year, Type, Category, Reset */
+    /* Fiat category trend filters: <<, From, To, >>, Year, Type, Category, Wallet, Reset */
     #dashCategoryFilters .filters-grid {
-        grid-template-columns: auto 1.15fr 1.15fr auto 0.85fr 0.9fr 1.2fr auto;
-        column-gap: 16px;
+        grid-template-columns: 52px minmax(0, 1.15fr) minmax(0, 1.15fr) 52px minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1.2fr) 140px;
+        column-gap: 14px;
         row-gap: 14px;
+    }
+    #dashCategoryFilters .filters-grid > div {
+        min-width: 0;
+        grid-row: auto !important;
+        grid-column: auto !important;
+    }
+    #dashCategoryFilters .filters-grid > div:nth-child(1),
+    #dashCategoryFilters .filters-grid > div:nth-child(2),
+    #dashCategoryFilters .filters-grid > div:nth-child(3),
+    #dashCategoryFilters .filters-grid > div:nth-child(4),
+    #dashCategoryFilters .filters-grid > div:nth-child(5),
+    #dashCategoryFilters .filters-grid > div:nth-child(6),
+    #dashCategoryFilters .filters-grid > div:nth-child(7),
+    #dashCategoryFilters .filters-grid > div:nth-child(8),
+    #dashCategoryFilters .filters-grid > div:nth-child(9) {
+        grid-row: auto !important;
+        grid-column: auto !important;
+    }
+    #dashCategoryFilters .filters-grid > div > button[onclick*="shiftFiatCategoryTrendYear"] {
+        width: 52px;
+        min-width: 52px;
+        padding: 0;
+        height: 40px;
+        font-size: 0.78rem;
+        line-height: 1;
+    }
+    #dashCategoryFilters .filters-grid input[type="date"],
+    #dashCategoryFilters .filters-grid select {
+        height: 40px;
+        width: 100%;
+    }
+    #dashCategoryFilters .filters-actions {
+        grid-column: auto;
+        justify-content: flex-end;
+    }
+    #dashCategoryFilters .filters-actions .btn-clear {
+        max-width: 140px;
+        height: 40px;
     }
 
     .history-filters .filters-grid {
@@ -2230,7 +2323,6 @@ button.pct-positive:hover {
         grid-template-columns: 1.25fr 1.25fr 1.1fr 1fr 1.1fr 1fr 1fr auto;
     }
 }
-
 /* ── Import / Export Page ──────────────────────────────── */
 
 .data-io-sections {
