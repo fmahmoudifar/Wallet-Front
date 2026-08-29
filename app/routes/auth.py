@@ -104,6 +104,7 @@ def auth_callback():
 
     user_info = oauth.oidc.userinfo()
     session["user"] = user_info
+    session["clearCachesOnNextLoad"] = True
 
     # Persist ID token claims so Cognito group membership (cognito:groups) is available.
     # The UserInfo endpoint typically does NOT include groups.

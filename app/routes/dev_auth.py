@@ -125,6 +125,7 @@ def dev_login():
         "cognito:groups": groups,
     }
     session["cognito_groups"] = groups
+    session["clearCachesOnNextLoad"] = True
 
     next_url = (request.args.get("next") or "").strip()
     if next_url.startswith("/") and not next_url.startswith("//"):

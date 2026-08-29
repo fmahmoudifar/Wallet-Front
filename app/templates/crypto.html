@@ -1588,7 +1588,7 @@
                 <strong>Wallets:</strong> For Buy/Sell, only the crypto wallet is required. The cash wallet (From in Buy, To in Sell) is optional. Fill it to track cash flow per wallet.
             </div>
         </div>
-        <form id="createCryptoForm" action="/crypto" method="POST">
+        <form id="createCryptoForm" action="/crypto" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
             <div>
                 <label for="cryptoName">Crypto:</label>
                 <input type="text" id="cryptoSearch" autocomplete="off" required />
@@ -1738,7 +1738,7 @@
 <div id="updateCryptoDiv" class="block-update" style="display: none;">
     <h2 class="center-text" style="display:none;">Update Crypto Transaction</h2>
     <div class="form-container">
-        <form id="updateForm" action="/updateCrypto" method="POST">
+        <form id="updateForm" action="/updateCrypto" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
             <input type="hidden" id="updateCryptoId" name="cryptoId">
             <input type="hidden" id="updateUserId" name="userId">
             <div id="updateFormError" class="small-muted" style="display:none;color:#b42318;margin-bottom:10px;"></div>
@@ -1830,7 +1830,7 @@
         </form>
     </div>
 
-    <form id="deleteForm" method="POST"></form>
+    <form id="deleteForm" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();"></form>
 </div>
 
 {% endblock %}

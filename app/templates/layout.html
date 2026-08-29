@@ -161,6 +161,14 @@
             }
         };
 
+        {% if session.pop('clearCachesOnNextLoad', False) %}
+        try {
+            window.pageDataCache.clearAll();
+            window.markSettingsChanged();
+            console.log('[Cache] Cleared browser caches after login');
+        } catch (e) {}
+        {% endif %}
+
         // Call this when settings that affect computed totals (like currency)
         // change so cached page/price data is bypassed on next loads.
         window.markSettingsChanged = function() {

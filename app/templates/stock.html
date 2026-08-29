@@ -1671,7 +1671,7 @@ function stockWalletsDiv() { showStockWallets(); }
             </div>
         </div>
 
-    <form action="/stock" method="POST">
+    <form action="/stock" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
         <div>
         <label for="stockName">Stock:</label>
         <input type="text" id="stockSearch" autocomplete="off" required>
@@ -1820,7 +1820,7 @@ function stockWalletsDiv() { showStockWallets(); }
 <div id="updateStockDiv" class="block-update" style="display: none;">
     <!-- <h2 class="center-text">Update Stock Transaction</h2> -->
     <div class="form-container">
-        <form id="updateForm" action="/updateStock" method="POST">
+        <form id="updateForm" action="/updateStock" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
             <input type="hidden" id="updateStockId" name="stockId">
             <input type="hidden" id="updateUserId" name="userId">
             <div>
@@ -1909,7 +1909,7 @@ function stockWalletsDiv() { showStockWallets(); }
         </form>
     </div>
 
-    <form id="deleteForm" method="POST"></form>
+    <form id="deleteForm" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();"></form>
 </div>
 
 {% endblock %}

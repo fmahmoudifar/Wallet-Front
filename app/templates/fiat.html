@@ -2269,7 +2269,7 @@
                 <strong>Use last day:</strong> If the day does not exist in a month (e.g. 31 in February), the last day of that month is used automatically.
             </div>
         </div>
-        <form id="templateForm" action="/fiat" method="POST">
+        <form id="templateForm" action="/fiat" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
             <input type="hidden" id="tplMode" value="create">
             <input type="hidden" id="tplTransId" name="transId">
             <input type="hidden" id="tplTdateHidden" name="tdate">
@@ -2368,7 +2368,7 @@
                 <strong>FX Transfer:</strong> Cross-currency transfer. Amount + fee deducted in From Wallet's currency, Received Amount credited in To Wallet's currency.
             </div>
         </div>
-        <form action="/fiat" method="POST">
+        <form action="/fiat" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
     <input type="hidden" name="isTemplate" value="N">
     <div>
     <label for="transType">Transaction Type:</label>
@@ -2564,7 +2564,7 @@
 <div id="updateTransDiv" class="block-update" style="display: none;">
     <h2 class="center-text" style="display:none;">Update Transaction</h2>
     <div class="form-container">
-        <form id="updateForm" action="/updateFiat" method="POST">
+        <form id="updateForm" action="/updateFiat" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
             <input type="hidden" id="updateTransId" name="transId">
             <input type="hidden" id="updateUserId" name="userId">
             <input type="hidden" id="updateReturnSection" name="returnSection" value="history">
@@ -2646,7 +2646,7 @@
         </form>
     </div>
 
-    <form id="deleteForm" method="POST">
+    <form id="deleteForm" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
             <input type="hidden" name="returnSection" id="deleteReturnSection" value="history">
         </form>
 </div>
