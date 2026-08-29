@@ -1239,7 +1239,7 @@
 
         const ph = document.createElement('option');
         ph.value = '';
-        ph.textContent = sorted.length ? '-- Select --' : '-- No categories --';
+        ph.textContent = sorted.length ? '-- All Categories --' : '-- No categories --';
         catEl.appendChild(ph);
 
         sorted.forEach(c => {
@@ -1250,7 +1250,7 @@
         });
 
         if (prev && sorted.includes(prev)) catEl.value = prev;
-        else if (sorted.length) catEl.value = sorted[0];
+        else if (sorted.length) catEl.value = '';
         else catEl.value = '';
     }
     window.populateFiatCategoryTrendOptions = populateFiatCategoryTrendOptions;
@@ -1296,7 +1296,7 @@
             endDt = tmp;
         }
 
-        if (!list || !selectedCat) {
+        if (!list) {
             if (emptyEl) emptyEl.style.display = '';
             if (chartWrap) chartWrap.style.display = 'none';
             if (metaEl) metaEl.style.display = 'none';
@@ -1323,6 +1323,7 @@
         monthKeys.forEach(k => { valuesByMonth[k] = 0; });
 
         const catCmp = selectedCat.toLowerCase();
+        const showAllCats = !selectedCat;
         const items = Array.from(list.querySelectorAll('li[data-tdate]'));
         items.forEach(li => {
             if (isTemplateItem(li)) return;
@@ -1341,7 +1342,7 @@
             }
 
             const cat = String(li.getAttribute('data-cat') || '').trim() || 'Other';
-            if (cat.toLowerCase() !== catCmp) return;
+            if (!showAllCats && cat.toLowerCase() !== catCmp) return;
 
             const amount = parseFloat(String(li.getAttribute('data-amount-setting') || li.getAttribute('data-amount') || '0')) || 0;
             if (!amount) return;
@@ -1360,7 +1361,7 @@
 
         if (titleEl) {
             const prettyType = typeVal === 'income' ? 'Income' : 'Expense';
-            titleEl.textContent = `${prettyType} - ${selectedCat}`;
+            titleEl.textContent = showAllCats ? `${prettyType} - All Categories` : `${prettyType} - ${selectedCat}`;
         }
         if (totalEl) totalEl.textContent = `Total: ${total.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
         if (avgEl) avgEl.textContent = `Avg/Active Month: ${avgPerActiveMonth.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${baseCurrency}`;
@@ -1399,7 +1400,7 @@
         }
 
         const _allCatData = [...INCOME_CAT_DATA, ...EXPENSE_CAT_DATA];
-        const _catEntry = _allCatData.find(c => c.name === selectedCat);
+        const _catEntry = showAllCats ? null : _allCatData.find(c => c.name === selectedCat);
         const _catHex = (_catEntry && _catEntry.color) || '#00b09a';
         const _catBg  = hexToRgbaFiat(_catHex, 0.85) || 'rgba(0, 176, 154, 0.85)';
         const _catBorder = hexToRgbaFiat(_catHex, 1)  || 'rgba(0, 176, 154, 1)';
@@ -1409,7 +1410,7 @@
             data: {
                 labels: monthLabels,
                 datasets: [{
-                    label: `${typeVal === 'income' ? 'Income' : 'Expense'}: ${selectedCat}`,
+                    label: `${typeVal === 'income' ? 'Income' : 'Expense'}: ${showAllCats ? 'All Categories' : selectedCat}`,
                     data: values,
                     backgroundColor: _catBg,
                     borderColor: _catBorder,
@@ -2239,7 +2240,7 @@
             <div>
                 <label for="catTrendCategory">Category:</label>
                 <select id="catTrendCategory" name="catTrendCategory">
-                    <option value="">-- Select --</option>
+                    <option value="">-- All Categories --</option>
                 </select>
             </div>
             <div>
