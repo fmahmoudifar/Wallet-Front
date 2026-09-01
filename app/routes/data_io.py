@@ -26,7 +26,6 @@ FIAT_COLUMNS = [
     ("receivedAmount", "Received Amount"),
     ("currency", "Currency"),
     ("isTemplate", "isTemplate"),
-    ("currency", "Currency"),
     ("fee", "Fee"),
     ("mainCat", "Category"),
     ("note", "Note"),
