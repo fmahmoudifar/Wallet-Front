@@ -20,6 +20,32 @@
         });
     }
 
+    function getCryptoReturnSection() {
+        try {
+            const params = new URLSearchParams(window.location.search || '');
+            return String(params.get('view') || '').trim();
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function openCryptoSection(section) {
+        const view = String(section || '').trim().toLowerCase();
+        if (view === 'history') {
+            if (typeof showCryptoHistory === 'function') showCryptoHistory();
+            return;
+        }
+        if (view === 'new') {
+            if (typeof showCryptoNew === 'function') showCryptoNew();
+            return;
+        }
+        if (view === 'wallets') {
+            if (typeof showCryptoWallets === 'function') showCryptoWallets();
+            return;
+        }
+        if (typeof showCryptoPortfolio === 'function') showCryptoPortfolio();
+    }
+
     function showCryptoPortfolio() {
         const title = document.getElementById('cryptoPageTitle');
         const panel = document.getElementById('panel');
@@ -129,8 +155,14 @@
     window.showCryptoWallets = showCryptoWallets;
 
     document.addEventListener('DOMContentLoaded', function() {
-        // Default view is Portfolio; hide its button.
-        setCryptoNavVisibility('portfolio');
+        const reqSection = getCryptoReturnSection();
+        if (reqSection === 'history') {
+            showCryptoHistory();
+        } else if (reqSection) {
+            openCryptoSection(reqSection);
+        } else {
+            setCryptoNavVisibility('portfolio');
+        }
     });
 
     function editCrypto(cryptoId, userId, cryptoName, tdate, fromWallet, toWallet, operation, quantity, price, currency, fee, feeCurrency, note) {
@@ -705,7 +737,7 @@
 
                     if (response.ok) {
                         if (typeof window.markTransactionChanged === 'function') window.markTransactionChanged();
-                        window.location.href = '/crypto';
+                        window.location.href = '/crypto?view=history';
                         return;
                     }
 
@@ -1129,7 +1161,14 @@
             _buildCryptoTotals(data.totals || [], data.baseCurrency || 'EUR');
             _buildCryptoWalletHoldings(data.walletHoldings || [], data.baseCurrency || 'EUR');
             _buildCryptoHistoryList(data.cryptos || [], data.wallets || []);
-            setCryptoNavVisibility('portfolio');
+            const reqSection = getCryptoReturnSection();
+            if (reqSection === 'history' || document.body.classList.contains('crypto-mode-history')) {
+                showCryptoHistory();
+            } else if (reqSection) {
+                openCryptoSection(reqSection);
+            } else {
+                setCryptoNavVisibility('portfolio');
+            }
         }
 
         function loadCryptoPage(forceReload, forcePriceRefresh) {
@@ -1589,6 +1628,7 @@
             </div>
         </div>
         <form id="createCryptoForm" action="/crypto" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
+            <input type="hidden" name="returnSection" value="history">
             <div>
                 <label for="cryptoName">Crypto:</label>
                 <input type="text" id="cryptoSearch" autocomplete="off" required />
@@ -1739,6 +1779,7 @@
     <h2 class="center-text" style="display:none;">Update Crypto Transaction</h2>
     <div class="form-container">
         <form id="updateForm" action="/updateCrypto" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
+            <input type="hidden" name="returnSection" value="history">
             <input type="hidden" id="updateCryptoId" name="cryptoId">
             <input type="hidden" id="updateUserId" name="userId">
             <div id="updateFormError" class="small-muted" style="display:none;color:#b42318;margin-bottom:10px;"></div>
@@ -1825,12 +1866,14 @@
             <div>
                 <button type="submit" class="btn-insert pct-positive">Save</button>
                 <button type="submit" form="deleteForm" class="btn-delete" onclick="return confirm('Are you sure?')">Delete</button>
-                <button type="button" class="btn-cancel" onclick="location.reload();">Cancel</button>
+                <button type="button" class="btn-cancel" onclick="showCryptoHistory();">Cancel</button>
             </div>
         </form>
     </div>
 
-    <form id="deleteForm" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();"></form>
+    <form id="deleteForm" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
+        <input type="hidden" name="returnSection" value="history">
+    </form>
 </div>
 
 {% endblock %}

@@ -414,6 +414,7 @@ def create_loan_transaction():
 
     user_id = user.get("username")
     loan_id = str(uuid.uuid4())
+    return_section = (request.form.get("returnSection") or "history").strip() or "history"
 
     from_wallet = (request.form.get("fromWallet", "") or "").strip()
     to_wallet = (request.form.get("toWallet", "") or "").strip()
@@ -454,8 +455,14 @@ def create_loan_transaction():
 
     try:
         resp = requests.post(f"{API_URL}/loan", json=data, auth=aws_auth, timeout=12)
+        try:
+            from .home import _dashboard_cache_invalidate_user
+            _dashboard_cache_invalidate_user(user_id)
+        except Exception:
+            pass
+
         if resp.status_code in (200, 201):
-            return redirect(url_for("loans.loans_page"))
+            return redirect(url_for("loans.loans_page", view=return_section))
 
         # Bubble up backend message for debugging
         try:
@@ -464,10 +471,10 @@ def create_loan_transaction():
             detail = {"text": resp.text}
         print(f"❌ [Loans] Create failed: {resp.status_code} detail={detail} text={resp.text}")
         # Keep UX consistent with other pages: redirect back even on failure.
-        return redirect(url_for("loans.loans_page"))
+        return redirect(url_for("loans.loans_page", view=return_section))
     except Exception as e:
         print(f"[Loans] Create exception: {e}")
-        return redirect(url_for("loans.loans_page"))
+        return redirect(url_for("loans.loans_page", view=return_section))
 
 
 @loans_bp.route("/updateLoan", methods=["POST"])
@@ -478,6 +485,7 @@ def update_loan_transaction():
 
     # Never trust userId from the client; scope to the logged-in user.
     user_id = user.get("username")
+    return_section = (request.form.get("returnSection") or "history").strip() or "history"
 
     from_wallet = (request.form.get("fromWallet", "") or "").strip()
     to_wallet = (request.form.get("toWallet", "") or "").strip()
@@ -526,11 +534,18 @@ def update_loan_transaction():
         print(f"✅ [Loans] Update Response: {response.status_code}, JSON: {j}")
         if response.status_code not in (200, 201):
             print(f"❌ [Loans] Update failed. Text: {response.text}")
+
+        try:
+            from .home import _dashboard_cache_invalidate_user
+            _dashboard_cache_invalidate_user(user_id)
+        except Exception:
+            pass
+
         # Keep UX consistent with other pages: always redirect back.
-        return redirect(url_for("loans.loans_page"))
+        return redirect(url_for("loans.loans_page", view=return_section))
     except Exception as e:
         print(f"❌ [Loans] Failed to update loan: {str(e)}")
-        return redirect(url_for("loans.loans_page"))
+        return redirect(url_for("loans.loans_page", view=return_section))
 
 
 @loans_bp.route("/deleteloan/<loan_id>", methods=["POST"])
@@ -540,6 +555,7 @@ def delete_loan_transaction(loan_id):
         return redirect(url_for("home.home_page"))
 
     user_id = user.get("username")
+    return_section = (request.form.get("returnSection") or "history").strip() or "history"
     data = {
         "loanId": loan_id,
         "userId": user_id,
@@ -551,7 +567,14 @@ def delete_loan_transaction(loan_id):
             print(f"✅ [Loans] Delete Response: {response.status_code}, JSON: {response.json()}")
         except Exception:
             print(f"✅ [Loans] Delete Response: {response.status_code}, Text: {response.text}")
-        return redirect(url_for("loans.loans_page"))
+
+        try:
+            from .home import _dashboard_cache_invalidate_user
+            _dashboard_cache_invalidate_user(user_id)
+        except Exception:
+            pass
+
+        return redirect(url_for("loans.loans_page", view=return_section))
     except Exception as e:
         print(f"❌ [Loans] Failed to delete loan: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500

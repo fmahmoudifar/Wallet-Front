@@ -587,6 +587,7 @@ def create_stock():
     stock_id = str(uuid.uuid4())
     user = session.get("user")
     user_id = user.get("username")
+    return_section = (request.form.get("returnSection") or "history").strip() or "history"
     data = {
         "stockId": stock_id,
         "userId": user_id,
@@ -608,7 +609,13 @@ def create_stock():
         response = _send_stock_with_compat(f"{API_URL}/stock", data, method="post")
         print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {_response_json_safe(response)}")
 
-        return redirect(url_for("stock.stock_page"))
+        try:
+            from .home import _dashboard_cache_invalidate_user
+            _dashboard_cache_invalidate_user(user_id)
+        except Exception:
+            pass
+
+        return redirect(url_for("stock.stock_page", view=return_section))
     except Exception as e:
         print(f"❌ [ERROR] Failed to create stock: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
@@ -620,6 +627,7 @@ def update_stock():
     if not user:
         return redirect(url_for("home.home_page"))
     user_id = user.get("username")
+    return_section = (request.form.get("returnSection") or "history").strip() or "history"
 
     data = {
         "stockId": request.form["stockId"],
@@ -643,7 +651,13 @@ def update_stock():
         response = _send_stock_with_compat(f"{API_URL}/stock", data, method="patch")
         print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {_response_json_safe(response)}")
 
-        return redirect(url_for("stock.stock_page"))
+        try:
+            from .home import _dashboard_cache_invalidate_user
+            _dashboard_cache_invalidate_user(user_id)
+        except Exception:
+            pass
+
+        return redirect(url_for("stock.stock_page", view=return_section))
     except Exception as e:
         print(f"❌ [ERROR] Failed to update stock: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
@@ -656,6 +670,7 @@ def delete_stock(stock_id, user_id):
     if not user:
         return redirect(url_for("home.home_page"))
     session_user_id = user.get("username")
+    return_section = (request.form.get("returnSection") or "history").strip() or "history"
 
     data = {
         "stockId": stock_id,
@@ -668,7 +683,13 @@ def delete_stock(stock_id, user_id):
         response = requests.delete(f"{API_URL}/stock", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Delete Response: {response.status_code}, JSON: {response.json()}")
 
-        return redirect(url_for("stock.stock_page"))
+        try:
+            from .home import _dashboard_cache_invalidate_user
+            _dashboard_cache_invalidate_user(session_user_id)
+        except Exception:
+            pass
+
+        return redirect(url_for("stock.stock_page", view=return_section))
     except Exception as e:
         print(f"❌ [ERROR] Failed to delete stock: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500

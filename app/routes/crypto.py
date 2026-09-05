@@ -1399,6 +1399,7 @@ def create_crypto():
     crypto_id = str(uuid.uuid4())
     user = session.get("user")
     user_id = user.get("username")
+    return_section = (request.form.get("returnSection") or "history").strip() or "history"
     data = {
         "cryptoId": crypto_id,
         "userId": user_id,
@@ -1423,7 +1424,13 @@ def create_crypto():
         if response.status_code >= 400:
             return jsonify({"error": _response_message(response) or "Create crypto failed"}), response.status_code
 
-        return redirect(url_for("crypto.crypto_page"))
+        try:
+            from .home import _dashboard_cache_invalidate_user
+            _dashboard_cache_invalidate_user(user_id)
+        except Exception:
+            pass
+
+        return redirect(url_for("crypto.crypto_page", view=return_section))
     except Exception as e:
         print(f"❌ [ERROR] Failed to create crypto: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
@@ -1435,6 +1442,7 @@ def update_crypto():
     if not user:
         return redirect(url_for("home.home_page"))
     user_id = user.get("username")
+    return_section = (request.form.get("returnSection") or "history").strip() or "history"
 
     data = {
         "cryptoId": request.form["cryptoId"],
@@ -1461,7 +1469,13 @@ def update_crypto():
         if response.status_code >= 400:
             return jsonify({"error": _response_message(response) or "Update crypto failed"}), response.status_code
 
-        return redirect(url_for("crypto.crypto_page"))
+        try:
+            from .home import _dashboard_cache_invalidate_user
+            _dashboard_cache_invalidate_user(user_id)
+        except Exception:
+            pass
+
+        return redirect(url_for("crypto.crypto_page", view=return_section))
     except Exception as e:
         print(f"❌ [ERROR] Failed to update crypto: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
@@ -1474,6 +1488,7 @@ def delete_crypto(crypto_id, user_id):
     if not user:
         return redirect(url_for("home.home_page"))
     session_user_id = user.get("username")
+    return_section = (request.form.get("returnSection") or "history").strip() or "history"
 
     data = {
         "cryptoId": crypto_id,
@@ -1486,7 +1501,13 @@ def delete_crypto(crypto_id, user_id):
         response = requests.delete(f"{API_URL}/crypto", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Delete Response: {response.status_code}, JSON: {response.json()}")
 
-        return redirect(url_for("crypto.crypto_page"))
+        try:
+            from .home import _dashboard_cache_invalidate_user
+            _dashboard_cache_invalidate_user(session_user_id)
+        except Exception:
+            pass
+
+        return redirect(url_for("crypto.crypto_page", view=return_section))
     except Exception as e:
         print(f"❌ [ERROR] Failed to delete crypto: {str(e)}")
         return jsonify({"error": "Internal Server Error"}), 500
