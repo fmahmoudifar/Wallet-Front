@@ -322,6 +322,30 @@ def _copy_delete_rekey(
     client.delete_item(TableName=table_name, Key=key)
 
 
+def _scan_all_user_ids_from_table(client, table_name: str) -> list[str]:
+    user_ids: set[str] = set()
+    start_key = None
+    while True:
+        kwargs: dict[str, Any] = {
+            "TableName": table_name,
+            "ProjectionExpression": "#u",
+            "ExpressionAttributeNames": {"#u": "userId"},
+        }
+        if start_key:
+            kwargs["ExclusiveStartKey"] = start_key
+        resp = client.scan(**kwargs)
+        for item in resp.get("Items", []):
+            uid = (item.get("userId") or {}).get("S", "").strip()
+            if uid:
+                user_ids.add(uid)
+        start_key = resp.get("LastEvaluatedKey")
+        if not start_key:
+            break
+    return sorted(user_ids)
+
+
+@admin_tools_bp.route("", methods=["GET", "POST"])
+@admin_tools_bp.route("/", methods=["GET", "POST"])
 @admin_tools_bp.route("/userid-migrate", methods=["GET", "POST"])
 def userid_migrate():
     _require_allowed_admin_user()
@@ -333,12 +357,13 @@ def userid_migrate():
     selected_field = (request.values.get("field") or "userId").strip()
     old_user_id = (request.values.get("old_user_id") or "").strip()
     new_user_id = (request.values.get("new_user_id") or "").strip()
-    mode = (request.values.get("mode") or "preview").strip().lower()  # preview | apply
+    action_btn = (request.values.get("action_btn") or "").strip().lower()
+    mode = "apply" if action_btn == "apply" else (request.values.get("mode") or "preview").strip().lower()
 
     try:
-        max_items = int(request.values.get("max_items") or "2000")
+        max_items = int(request.values.get("max_items") or "20")
     except Exception:
-        max_items = 2000
+        max_items = 20
 
     max_items = max(1, min(max_items, 20000))
 
@@ -411,6 +436,7 @@ def userid_migrate():
 
     return render_template(
         "admin_tools.html",
+        active_section="userid_migrate",
         tables=tables,
         selected_table=selected_table,
         candidate_fields=candidate_fields,
@@ -430,11 +456,21 @@ def userid_migrate():
         drop_selected_column="",
         drop_key_fields=key_fields,
         drop_field_is_key=False,
-        drop_max_items=2000,
+        drop_max_items=20,
         drop_mode="preview",
         drop_sample_keys=[],
         drop_matched=0,
         drop_changed=0,
+        # delete-user-data section defaults
+        del_tables=tables,
+        del_user_ids=[],
+        del_table="Transactions" if "Transactions" in tables else (tables[0] if tables else ""),
+        del_mode="preview",
+        del_user_id="",
+        del_lookup_error="",
+        del_matched=0,
+        del_deleted=0,
+        del_sample_keys=[],
     )
 
 
@@ -447,12 +483,13 @@ def column_delete():
 
     drop_selected_table = (request.values.get("drop_table") or (tables[0] if tables else "")).strip()
     drop_selected_column = (request.values.get("drop_column") or "").strip()
-    drop_mode = (request.values.get("drop_mode") or "preview").strip().lower()  # preview | apply
+    action_btn = (request.values.get("action_btn") or "").strip().lower()
+    drop_mode = "apply" if action_btn == "delete" else (request.values.get("drop_mode") or "preview").strip().lower()
 
     try:
-        drop_max_items = int(request.values.get("drop_max_items") or "2000")
+        drop_max_items = int(request.values.get("drop_max_items") or "20")
     except Exception:
-        drop_max_items = 2000
+        drop_max_items = 20
     drop_max_items = max(1, min(drop_max_items, 20000))
 
     drop_candidate_columns: list[str] = []
@@ -516,6 +553,7 @@ def column_delete():
 
     return render_template(
         "admin_tools.html",
+        active_section="column_delete",
         # userid_migrate section defaults
         tables=tables,
         selected_table=drop_selected_table,
@@ -525,7 +563,7 @@ def column_delete():
         field_is_key=False,
         old_user_id="",
         new_user_id="",
-        max_items=2000,
+        max_items=20,
         sample_keys=[],
         changed=0,
         # seed section defaults
@@ -543,6 +581,16 @@ def column_delete():
         drop_sample_keys=drop_sample_keys,
         drop_matched=drop_matched,
         drop_changed=drop_changed,
+        # delete-user-data section defaults
+        del_tables=tables,
+        del_user_ids=[],
+        del_table="Transactions" if "Transactions" in tables else (tables[0] if tables else ""),
+        del_mode="preview",
+        del_user_id="",
+        del_lookup_error="",
+        del_matched=0,
+        del_deleted=0,
+        del_sample_keys=[],
     )
 
 
@@ -612,6 +660,7 @@ def seed_settings():
 
     return render_template(
         "admin_tools.html",
+        active_section="seed_settings",
         # userid_migrate section gets empty defaults
         tables=[],
         selected_table="",
@@ -621,7 +670,7 @@ def seed_settings():
         field_is_key=False,
         old_user_id="",
         new_user_id="",
-        max_items=2000,
+        max_items=20,
         sample_keys=[],
         changed=0,
         # seed section
@@ -634,9 +683,124 @@ def seed_settings():
         drop_selected_column="",
         drop_key_fields=[],
         drop_field_is_key=False,
-        drop_max_items=2000,
+        drop_max_items=20,
         drop_mode="preview",
         drop_sample_keys=[],
         drop_matched=0,
         drop_changed=0,
+        # delete-user-data section defaults
+        del_tables=[],
+        del_user_ids=[],
+        del_table="",
+        del_mode="preview",
+        del_user_id="",
+        del_lookup_error="",
+        del_matched=0,
+        del_deleted=0,
+        del_sample_keys=[],
     )
+
+
+@admin_tools_bp.route("/delete-user-data", methods=["GET", "POST"])
+def delete_user_data():
+    _require_allowed_admin_user()
+
+    ddb = _ddb_client()
+    tables = _list_tables(ddb)
+
+    del_table = (
+        request.values.get("del_table")
+        or ("Transactions" if "Transactions" in tables else (tables[0] if tables else ""))
+    ).strip()
+    action_btn = (request.values.get("action_btn") or "").strip().lower()
+    del_mode = "apply" if action_btn == "delete" else (request.values.get("del_mode") or "preview").strip().lower()
+    del_user_id = (request.values.get("del_user_id") or "").strip()
+
+    del_user_ids: list[str] = []
+    del_lookup_error = ""
+    del_matched = 0
+    del_deleted = 0
+    del_sample_keys: list[str] = []
+
+    if del_table:
+        try:
+            del_user_ids = _scan_all_user_ids_from_table(ddb, del_table)
+        except Exception as e:
+            del_lookup_error = f"Error scanning {del_table} for user ids: {e}"
+
+    if request.method == "POST":
+        if not del_table:
+            flash("No table selected.", "danger")
+        elif not del_user_id:
+            flash("Please select a user.", "danger")
+        else:
+            table_desc = _describe_table(ddb, del_table)
+            matches = _scan_matching_keys(
+                client=ddb,
+                table_name=del_table,
+                table_desc=table_desc,
+                field_name="userId",
+                old_value=del_user_id,
+                max_items=20000,
+            )
+            del_matched = len(matches)
+            del_sample_keys = [
+                ", ".join([f"{k}={_attrval_to_str(v)}" for k, v in key.items()]) for key in matches[:10]
+            ]
+
+            if del_mode == "apply":
+                for key in matches:
+                    ddb.delete_item(TableName=del_table, Key=key)
+                    del_deleted += 1
+                flash(
+                    f"Deleted {del_deleted} row(s) for userId={del_user_id} from {del_table}.",
+                    "success",
+                )
+            else:
+                flash(
+                    f"Preview: {del_matched} row(s) found for userId={del_user_id} in {del_table}.",
+                    "info",
+                )
+
+    return render_template(
+        "admin_tools.html",
+        active_section="delete_user_data",
+        # userid_migrate section defaults
+        tables=[],
+        selected_table="",
+        candidate_fields=[],
+        selected_field="userId",
+        key_fields=[],
+        field_is_key=False,
+        old_user_id="",
+        new_user_id="",
+        max_items=20,
+        sample_keys=[],
+        changed=0,
+        # seed section defaults
+        seed_user_ids=[],
+        seed_selected_user="",
+        # column delete section defaults
+        drop_tables=[],
+        drop_selected_table="",
+        drop_candidate_columns=[],
+        drop_selected_column="",
+        drop_key_fields=[],
+        drop_field_is_key=False,
+        drop_max_items=20,
+        drop_mode="preview",
+        drop_sample_keys=[],
+        drop_matched=0,
+        drop_changed=0,
+        # delete-user-data section
+        del_tables=tables,
+        del_user_ids=del_user_ids,
+        del_table=del_table,
+        del_mode=del_mode,
+        del_user_id=del_user_id,
+        del_lookup_error=del_lookup_error,
+        del_matched=del_matched,
+        del_deleted=del_deleted,
+        del_sample_keys=del_sample_keys,
+    )
+

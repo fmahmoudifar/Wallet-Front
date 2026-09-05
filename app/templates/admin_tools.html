@@ -2,230 +2,296 @@
 
 {% block title %}Admin Tools{% endblock %}
 
+{% block head_extra %}
+    <link rel="stylesheet" href="/static/css/site_styles.css">
+{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width: 980px;">
-    <div class="card shadow-sm" style="border-radius: 14px;">
-        <div class="card-body">
-            <h4 class="mb-2">Admin Tools</h4>
-            <p class="text-muted mb-3" style="max-width: 72ch;">
-                UserId migration tool (temporary). This uses DynamoDB <strong>Scan</strong> and can be slow/expensive.
-                Use <strong>Preview</strong> first, then <strong>Apply</strong>.
-            </p>
+<h1 class="page-title">Admin Tools</h1>
 
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div class="mb-3">
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }} mb-2" role="alert">{{ message }}</div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
+{% set _all_flashes = get_flashed_messages(with_categories=true) %}
+{% set _current_section = active_section|default('userid_migrate') %}
 
-            {% if field_is_key %}
-                <div class="alert alert-warning" role="alert">
-                    Selected field <code>{{ selected_field }}</code> is part of the table key for <code>{{ selected_table }}</code>.
-                    Updates will be done via <strong>copy + delete</strong> (re-key).
-                </div>
-            {% endif %}
+<div class="admin-grid">
 
-            <form method="post" action="/admin/userid-migrate" class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label">Table:</label>
-                    <select class="form-select" name="table" onchange="this.form.submit()">
-                        {% for t in tables %}
-                            <option value="{{ t }}" {% if t == selected_table %}selected{% endif %}>{{ t }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+    <!-- ════════ 1. USERID MIGRATION ════════ -->
+    <div class="admin-panel" id="panel-userid-migrate">
+        <div class="admin-panel-header">
+            <svg class="admin-panel-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="8.5" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M17 11l4-4m0 0l-4-4m4 4H11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <h2 class="admin-panel-title">UserId Migration</h2>
+        </div>
+        <p class="admin-panel-desc">
+            Migrate records from an old Cognito <code>sub</code> to a new one across any DynamoDB table. Uses table Scan.
+        </p>
 
-                <div class="col-md-6">
-                    <label class="form-label">UserId field (attribute name):</label>
-                    <input class="form-control" name="field" value="{{ selected_field }}" list="candidateFields" placeholder="userId" />
-                    <datalist id="candidateFields">
-                        {% for f in candidate_fields %}
-                            <option value="{{ f }}">{% if f in key_fields %}{{ f }} (KEY){% else %}{{ f }}{% endif %}</option>
-                        {% endfor %}
-                    </datalist>
-                    <div class="form-text">Pick from suggestions or type your own attribute name.</div>
-                </div>
+        {% if _current_section == 'userid_migrate' and _all_flashes %}
+            {% for cat, msg in _all_flashes %}
+                <div class="admin-panel-alert admin-panel-alert-{{ cat }}">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
 
-                <div class="col-md-6">
-                    <label class="form-label">Old userId (current value):</label>
-                    <input class="form-control" name="old_user_id" value="{{ old_user_id }}" placeholder="old Cognito sub" />
-                </div>
+        {% if field_is_key %}
+            <div class="admin-panel-alert admin-panel-alert-warning">
+                <code>{{ selected_field }}</code> is part of the table key for <code>{{ selected_table }}</code>.
+                Updates will copy and re-key rows.
+            </div>
+        {% endif %}
 
-                <div class="col-md-6">
-                    <label class="form-label">New userId (replacement):</label>
-                    <input class="form-control" name="new_user_id" value="{{ new_user_id }}" placeholder="new Cognito sub" />
-                </div>
+        <form method="post" action="/admin/userid-migrate" class="admin-form">
+            <div class="admin-form-row">
+                <label>Table:</label>
+                <select name="table" onchange="this.form.submit()">
+                    {% for t in tables %}
+                        <option value="{{ t }}" {% if t == selected_table %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-                <div class="col-md-6">
-                    <label class="form-label">Max items (safety cap):</label>
-                    <input class="form-control" name="max_items" value="{{ max_items }}" />
-                </div>
+            <div class="admin-form-row">
+                <label>UserId attribute:</label>
+                <input name="field" value="{{ selected_field }}" list="candidateFields" placeholder="userId" />
+                <datalist id="candidateFields">
+                    {% for f in candidate_fields %}
+                        <option value="{{ f }}">{% if f in key_fields %}{{ f }} (KEY){% else %}{{ f }}{% endif %}</option>
+                    {% endfor %}
+                </datalist>
+            </div>
 
-                <div class="col-md-6">
-                    <label class="form-label">Mode:</label>
-                    <select class="form-select" name="mode">
-                        <option value="preview">Preview (dry run)</option>
-                        <option value="apply">Apply (write changes)</option>
-                    </select>
-                </div>
+            <div class="admin-form-row">
+                <label>Old userId:</label>
+                <input name="old_user_id" value="{{ old_user_id }}" placeholder="old Cognito sub" />
+            </div>
 
-                <div class="col-12 d-flex gap-2">
-                    <button class="btn btn-outline-secondary" type="submit">Run</button>
-                    <button class="btn btn-danger" type="submit" onclick="this.form.mode.value='apply'">Apply changes</button>
-                </div>
-            </form>
+            <div class="admin-form-row">
+                <label>New userId:</label>
+                <input name="new_user_id" value="{{ new_user_id }}" placeholder="new Cognito sub" />
+            </div>
 
-            <hr class="my-4" />
+            <div class="admin-form-row">
+                <label>Max items:</label>
+                <input name="max_items" value="{{ max_items }}" />
+            </div>
 
-            <div class="row g-3">
-                <div class="col-12">
-                    <div class="small text-muted">Key schema</div>
-                    <div>
-                        {% if key_fields and key_fields|length > 0 %}
-                            {% for k in key_fields %}
-                                <span class="badge text-bg-light me-1">{{ k }}</span>
-                            {% endfor %}
-                        {% else %}
-                            <span class="text-muted">(unknown)</span>
-                        {% endif %}
-                    </div>
-                </div>
+            <div class="admin-form-actions">
+                <button class="admin-btn admin-btn-preview" type="submit" name="action_btn" value="preview">Preview matches</button>
+                <button class="admin-btn admin-btn-apply" type="submit" name="action_btn" value="apply" onclick="return confirm('Apply userId migration to all matching rows?');">Apply changes</button>
+            </div>
+        </form>
 
-                {% if sample_keys and sample_keys|length > 0 %}
-                    <div class="col-12">
-                        <div class="small text-muted mb-2">Sample matching keys (first 10)</div>
-                        <pre class="p-3 bg-body-tertiary border rounded" style="max-height: 260px; overflow:auto;">{% for s in sample_keys %}{{ s }}
-{% endfor %}</pre>
-                    </div>
+        <div class="admin-results">
+            <div class="admin-results-title">
+                Key schema:
+                {% if key_fields and key_fields|length > 0 %}
+                    {% for k in key_fields %}
+                        <span class="admin-badge">{{ k }}</span>
+                    {% endfor %}
+                {% else %}
+                    <span style="color:var(--muted);">(unknown)</span>
                 {% endif %}
             </div>
+            {% if sample_keys and sample_keys|length > 0 %}
+                <div class="admin-results-title">Sample matching keys (first 10):</div>
+                <pre>{% for s in sample_keys %}{{ s }}
+{% endfor %}</pre>
+            {% endif %}
         </div>
     </div>
 
-    <!-- ── Seed Default Settings ──────────────────────────────────────── -->
-    <div class="card shadow-sm mt-4" style="border-radius: 14px;">
-        <div class="card-body">
-            <h4 class="mb-2">Seed Default Categories &amp; Colors</h4>
-            <p class="text-muted mb-3" style="max-width: 72ch;">
-                Select an existing user from the Settings table and write the default
-                <strong>income/expense categories</strong> and <strong>dashboard chart colors</strong>
-                to their settings row. This overwrites any existing values for those fields only
-                (<code>currency</code> and <code>theme</code> are left untouched).
-            </p>
+    <!-- ════════ 2. DELETE USER DATA ════════ -->
+    <div class="admin-panel" id="panel-delete-user-data">
+        <div class="admin-panel-header">
+            <svg class="admin-panel-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="8.5" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M17 8l6 6m0-6l-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <h2 class="admin-panel-title">Delete User Data</h2>
+        </div>
+        <p class="admin-panel-desc">
+            Permanently delete every row for a given userId from a table (e.g. <code>Transactions</code> for fiat data).
+        </p>
 
-            {% if seed_user_ids is defined and seed_user_ids | length > 0 %}
-            <form method="post" action="/admin/seed-settings" class="row g-3">
-                <div class="col-md-8">
-                    <label class="form-label">Select User:</label>
-                    <select class="form-select" name="user_id">
+        {% if _current_section == 'delete_user_data' and _all_flashes %}
+            {% for cat, msg in _all_flashes %}
+                <div class="admin-panel-alert admin-panel-alert-{{ cat }}">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {% if del_lookup_error %}
+            <div class="admin-panel-alert admin-panel-alert-warning">{{ del_lookup_error }}</div>
+        {% endif %}
+
+        <form method="post" action="/admin/delete-user-data" class="admin-form">
+            <div class="admin-form-row">
+                <label>Table:</label>
+                <select name="del_table" onchange="this.form.submit()">
+                    {% if del_tables is defined %}
+                        {% for t in del_tables %}
+                            <option value="{{ t }}" {% if t == del_table %}selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+
+            <div class="admin-form-row">
+                <label>User (userId):</label>
+                <input name="del_user_id" value="{{ del_user_id }}" list="delUserIds" placeholder="Cognito sub" />
+                <datalist id="delUserIds">
+                    {% if del_user_ids is defined %}
+                        {% for uid in del_user_ids %}
+                            <option value="{{ uid }}">
+                        {% endfor %}
+                    {% endif %}
+                </datalist>
+                <span class="admin-form-help">Type or pick a userId discovered in this table.</span>
+            </div>
+
+            <div class="admin-form-actions">
+                <button class="admin-btn admin-btn-preview" type="submit" name="action_btn" value="preview">Preview matches</button>
+                <button class="admin-btn admin-btn-danger" type="submit" name="action_btn" value="delete" onclick="return confirm('Permanently delete all matching rows for this user in this table?');">Delete data</button>
+            </div>
+        </form>
+
+        {% if del_sample_keys and del_sample_keys|length > 0 %}
+            <div class="admin-results">
+                <div class="admin-results-title">
+                    Sample matching rows (first 10){% if del_matched is defined %} - total: {{ del_matched }}{% endif %}
+                </div>
+                <pre>{% for s in del_sample_keys %}{{ s }}
+{% endfor %}</pre>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- ════════ 3. SEED DEFAULT SETTINGS ════════ -->
+    <div class="admin-panel" id="panel-seed-settings">
+        <div class="admin-panel-header">
+            <svg class="admin-panel-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2l2.4 5 5.6.8-4 4 .9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-4 5.6-.8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <h2 class="admin-panel-title">Seed Default Settings</h2>
+        </div>
+        <p class="admin-panel-desc">
+            Write default categories & chart colors to an existing user's settings row. Currency and theme are untouched.
+        </p>
+
+        {% if _current_section == 'seed_settings' and _all_flashes %}
+            {% for cat, msg in _all_flashes %}
+                <div class="admin-panel-alert admin-panel-alert-{{ cat }}">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {% if seed_user_ids is defined and seed_user_ids | length > 0 %}
+            <form method="post" action="/admin/seed-settings" class="admin-form">
+                <div class="admin-form-row">
+                    <label>Select User:</label>
+                    <select name="user_id">
                         <option value="">-- Select a user --</option>
                         {% for uid in seed_user_ids %}
                             <option value="{{ uid }}" {% if uid == seed_selected_user %}selected{% endif %}>{{ uid }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-12">
-                    <label class="form-label">Fields to update:</label>
-                    <div class="d-flex flex-wrap gap-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="fields" value="dashboardColors" id="chkColors" checked>
-                            <label class="form-check-label" for="chkColors">Dashboard Colors</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="fields" value="incomeCategories" id="chkIncome" checked>
-                            <label class="form-check-label" for="chkIncome">Income Categories</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="fields" value="expenseCategories" id="chkExpense" checked>
-                            <label class="form-check-label" for="chkExpense">Expense Categories</label>
-                        </div>
+
+                <div class="admin-form-row">
+                    <label>Fields to update:</label>
+                    <div class="admin-check-group">
+                        <label class="admin-check-label">
+                            <input type="checkbox" name="fields" value="dashboardColors" checked>
+                            Dashboard Colors
+                        </label>
+                        <label class="admin-check-label">
+                            <input type="checkbox" name="fields" value="incomeCategories" checked>
+                            Income Categories
+                        </label>
+                        <label class="admin-check-label">
+                            <input type="checkbox" name="fields" value="expenseCategories" checked>
+                            Expense Categories
+                        </label>
                     </div>
-                    <div class="small text-muted mt-2">Only the checked fields will be overwritten. Other settings (currency, theme) are never touched.</div>
                 </div>
-                <div class="col-12">
-                    <button class="btn btn-outline-secondary" type="submit">Apply to selected user</button>
+
+                <div class="admin-form-actions">
+                    <button class="admin-btn admin-btn-apply" type="submit">Apply to selected user</button>
                 </div>
             </form>
-            {% else %}
-            <p class="text-muted">
-                <a href="/admin/seed-settings" class="btn btn-outline-secondary btn-sm">Load user list from Settings table</a>
-            </p>
-            {% endif %}
-        </div>
+        {% else %}
+            <div class="admin-form-actions">
+                <a href="/admin/seed-settings" class="admin-btn admin-btn-secondary">Load users from Settings table</a>
+            </div>
+        {% endif %}
     </div>
 
-    <!-- ── Delete Column From Table ─────────────────────────────────── -->
-    <div class="card shadow-sm mt-4" style="border-radius: 14px;">
-        <div class="card-body">
-            <h4 class="mb-2">Delete Column From Table</h4>
-            <p class="text-muted mb-3" style="max-width: 72ch;">
-                Remove one non-key column from all matching rows in a selected table.
-                Run <strong>Preview</strong> first, then <strong>Apply</strong>.
-                Key attributes cannot be deleted.
-            </p>
+    <!-- ════════ 4. DELETE COLUMN FROM TABLE ════════ -->
+    <div class="admin-panel" id="panel-column-delete">
+        <div class="admin-panel-header">
+            <svg class="admin-panel-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <h2 class="admin-panel-title">Delete Column From Table</h2>
+        </div>
+        <p class="admin-panel-desc">
+            Remove a non-key attribute from all rows in a selected table. DynamoDB key attributes cannot be removed.
+        </p>
 
-            {% if drop_field_is_key %}
-                <div class="alert alert-warning" role="alert">
-                    Selected column <code>{{ drop_selected_column }}</code> is part of the table key for
-                    <code>{{ drop_selected_table }}</code> and cannot be removed.
-                </div>
-            {% endif %}
+        {% if _current_section == 'column_delete' and _all_flashes %}
+            {% for cat, msg in _all_flashes %}
+                <div class="admin-panel-alert admin-panel-alert-{{ cat }}">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
 
-            <form method="post" action="/admin/column-delete" class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label">Table:</label>
-                    <select class="form-select" name="drop_table" onchange="this.form.submit()">
-                        {% for t in drop_tables %}
-                            <option value="{{ t }}" {% if t == drop_selected_table %}selected{% endif %}>{{ t }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+        {% if drop_field_is_key %}
+            <div class="admin-panel-alert admin-panel-alert-warning">
+                <code>{{ drop_selected_column }}</code> is part of the table key for <code>{{ drop_selected_table }}</code> and cannot be removed.
+            </div>
+        {% endif %}
 
-                <div class="col-md-6">
-                    <label class="form-label">Column (attribute name):</label>
-                    <input class="form-control" name="drop_column" value="{{ drop_selected_column }}" list="dropColumns" placeholder="side" />
-                    <datalist id="dropColumns">
-                        {% for c in drop_candidate_columns %}
-                            <option value="{{ c }}">{% if c in drop_key_fields %}{{ c }} (KEY){% else %}{{ c }}{% endif %}</option>
-                        {% endfor %}
-                    </datalist>
-                </div>
+        <form method="post" action="/admin/column-delete" class="admin-form">
+            <div class="admin-form-row">
+                <label>Table:</label>
+                <select name="drop_table" onchange="this.form.submit()">
+                    {% for t in drop_tables %}
+                        <option value="{{ t }}" {% if t == drop_selected_table %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-                <div class="col-md-6">
-                    <label class="form-label">Max items (safety cap):</label>
-                    <input class="form-control" name="drop_max_items" value="{{ drop_max_items|default(2000) }}" />
-                </div>
+            <div class="admin-form-row">
+                <label>Column (attribute name):</label>
+                <input name="drop_column" value="{{ drop_selected_column }}" list="dropColumns" placeholder="attribute name" />
+                <datalist id="dropColumns">
+                    {% for c in drop_candidate_columns %}
+                        <option value="{{ c }}">{% if c in drop_key_fields %}{{ c }} (KEY){% else %}{{ c }}{% endif %}</option>
+                    {% endfor %}
+                </datalist>
+            </div>
 
-                <div class="col-md-6">
-                    <label class="form-label">Mode:</label>
-                    <select class="form-select" name="drop_mode">
-                        <option value="preview" {% if drop_mode == 'preview' %}selected{% endif %}>Preview (dry run)</option>
-                        <option value="apply" {% if drop_mode == 'apply' %}selected{% endif %}>Apply (delete column)</option>
-                    </select>
-                </div>
+            <div class="admin-form-row">
+                <label>Max items:</label>
+                <input name="drop_max_items" value="{{ drop_max_items|default(20) }}" />
+            </div>
 
-                <div class="col-12 d-flex gap-2">
-                    <button class="btn btn-outline-secondary" type="submit">Run</button>
-                    <button class="btn btn-danger" type="submit" onclick="this.form.drop_mode.value='apply'">Apply delete</button>
-                </div>
-            </form>
+            <div class="admin-form-actions">
+                <button class="admin-btn admin-btn-preview" type="submit" name="action_btn" value="preview">Preview matches</button>
+                <button class="admin-btn admin-btn-danger" type="submit" name="action_btn" value="delete" onclick="return confirm('Permanently remove column \'' + (this.form.drop_column.value || '') + '\' from matching rows?');">Apply delete</button>
+            </div>
+        </form>
 
-            {% if drop_sample_keys and drop_sample_keys|length > 0 %}
-                <hr class="my-4" />
-                <div class="small text-muted mb-2">
-                    Sample matching keys (first 10)
-                    {% if drop_matched is defined %}
-                        - total matches: {{ drop_matched }}
-                    {% endif %}
+        {% if drop_sample_keys and drop_sample_keys|length > 0 %}
+            <div class="admin-results">
+                <div class="admin-results-title">
+                    Sample matching keys (first 10){% if drop_matched is defined %} - total: {{ drop_matched }}{% endif %}
                 </div>
-                <pre class="p-3 bg-body-tertiary border rounded" style="max-height: 260px; overflow:auto;">{% for s in drop_sample_keys %}{{ s }}
+                <pre>{% for s in drop_sample_keys %}{{ s }}
 {% endfor %}</pre>
-            {% endif %}
-        </div>
+            </div>
+        {% endif %}
     </div>
+
 </div>
 {% endblock %}
