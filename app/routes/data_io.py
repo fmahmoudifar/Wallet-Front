@@ -1,5 +1,6 @@
 import csv
 import io
+import re
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -131,6 +132,22 @@ SAMPLE_ROWS = {
 
 
 WALLET_FIELDS = {"fromWallet", "toWallet"}
+ASSET_WALLET_TYPES = {
+    "fiat": "Fiat",
+    "loans": "Fiat",
+    "crypto": "Crypto",
+    "stock": "Stock",
+}
+
+REQUIRED_FIELDS = {
+    "fiat": {"transType", "amount"},
+    "crypto": {"cryptoName", "operation", "quantity", "price", "currency", "feeCurrency"},
+    "stock": {"stockName", "operation", "quantity", "price", "currency", "feeCurrency"},
+    "loans": {"type", "action", "counterparty", "amount", "currency"},
+}
+
+DATE_FIELDS = {"tdate", "ddate"}
+DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _derive_position(counterparty, currency, tdate):
@@ -143,8 +160,8 @@ def _derive_position(counterparty, currency, tdate):
     return ""
 
 
-def _fetch_wallets(user_id):
-    """Return list of wallet dicts for the user."""
+def _fetch_wallets(user_id, asset_type=None):
+    """Return the user's wallets applicable to an asset type."""
     try:
         resp = requests.get(
             f"{API_URL}/wallets",
@@ -153,7 +170,14 @@ def _fetch_wallets(user_id):
             timeout=15,
         )
         wallets = resp.json().get("wallets", []) if resp.status_code == 200 else []
-        return filter_records_by_user(wallets, user_id)
+        wallets = filter_records_by_user(wallets, user_id)
+        wallet_type = ASSET_WALLET_TYPES.get(asset_type)
+        if wallet_type:
+            wallets = [
+                wallet for wallet in wallets
+                if str(wallet.get("walletType", "")).strip().lower() == wallet_type.lower()
+            ]
+        return wallets
     except Exception:
         return []
 
@@ -163,9 +187,34 @@ def _wallet_id_to_name(wallets):
     return {w["walletId"]: w.get("walletName", w["walletId"]) for w in wallets if w.get("walletId")}
 
 
-def _wallet_name_to_id(wallets):
-    """Build {walletName (lower): walletId} mapping."""
-    return {w.get("walletName", "").strip().lower(): w["walletId"] for w in wallets if w.get("walletId") and w.get("walletName")}
+def _wallet_name_candidates(wallets):
+    """Build {walletName (lower): [wallets]} for duplicate-name resolution."""
+    candidates = {}
+    for wallet in wallets:
+        wallet_id = wallet.get("walletId")
+        wallet_name = str(wallet.get("walletName", "")).strip().lower()
+        if wallet_id and wallet_name:
+            candidates.setdefault(wallet_name, []).append(wallet)
+    return candidates
+
+
+def _resolve_wallet_name(wallet_candidates, wallet_name, transaction_currency):
+    """Resolve a wallet name, using currency only when the name is duplicated."""
+    name = str(wallet_name or "").strip().lower()
+    candidates = wallet_candidates.get(name, [])
+    if not candidates:
+        return None, f'wallet "{wallet_name}" not found'
+    if len(candidates) == 1:
+        return candidates[0]["walletId"], ""
+
+    currency = str(transaction_currency or "").strip().lower()
+    matches = [
+        wallet for wallet in candidates
+        if str(wallet.get("currency", "")).strip().lower() == currency
+    ]
+    if len(matches) == 1:
+        return matches[0]["walletId"], ""
+    return None, f'wallet "{wallet_name}" is ambiguous; no unique wallet matches currency "{transaction_currency}"'
 
 
 def _parse_date(s):
@@ -181,6 +230,73 @@ def _parse_date(s):
         return datetime.strptime(s[:10], "%Y-%m-%d").date()
     except Exception:
         return None
+
+
+def _validate_import_record(asset_type, record):
+    """Return an import error message, or an empty string when the row is valid."""
+    missing = sorted(field for field in REQUIRED_FIELDS[asset_type] if not str(record.get(field, "")).strip())
+    if missing:
+        return f"required field(s) missing: {', '.join(missing)}"
+
+    is_template = asset_type == "fiat" and str(record.get("isTemplate", "")).strip().upper() == "Y"
+    transaction_type = str(
+        record.get("operation") if asset_type in {"crypto", "stock"} else record.get("transType", "")
+    ).strip().lower()
+
+    if asset_type == "fiat" and not is_template:
+        if transaction_type != "fx transfer" and not str(record.get("currency", "")).strip():
+            return "required field missing: currency"
+        if transaction_type in {"income", "transfer", "fx transfer"} and not str(record.get("toWallet", "")).strip():
+            return "required field missing: toWallet"
+        if transaction_type in {"expense", "transfer", "fx transfer"} and not str(record.get("fromWallet", "")).strip():
+            return "required field missing: fromWallet"
+        if transaction_type in {"income", "expense"} and not str(record.get("mainCat", "")).strip():
+            return "required field missing: mainCat"
+        if transaction_type == "fx transfer" and not str(record.get("receivedAmount", "")).strip():
+            return "required field missing: receivedAmount"
+    elif asset_type == "fiat":
+        for field in ("mainCat", "amount", "currency"):
+            if not str(record.get(field, "")).strip():
+                return f"required field missing: {field}"
+
+    if asset_type in {"crypto", "stock"}:
+        if transaction_type in {"buy", "income"} and not str(record.get("toWallet", "")).strip():
+            return "required field missing: toWallet"
+        if transaction_type in {"sell", "expense"} and not str(record.get("fromWallet", "")).strip():
+            return "required field missing: fromWallet"
+        if transaction_type == "transfer":
+            for wallet_field in ("fromWallet", "toWallet"):
+                if not str(record.get(wallet_field, "")).strip():
+                    return f"required field missing: {wallet_field}"
+
+    if asset_type == "loans":
+        loan_type = str(record.get("type", "")).strip().lower()
+        action = str(record.get("action", "")).strip().lower()
+        required_wallet = {
+            ("borrow", "new"): "toWallet",
+            ("borrow", "repay"): "fromWallet",
+            ("lend", "new"): "fromWallet",
+            ("lend", "repay"): "toWallet",
+        }.get((loan_type, action))
+        if required_wallet and not str(record.get(required_wallet, "")).strip():
+            return f"required field missing: {required_wallet}"
+
+    for field in DATE_FIELDS:
+        value = str(record.get(field, "")).strip()
+        if not value:
+            if field == "tdate" and is_template:
+                continue
+            if field == "ddate":
+                continue
+            return "required field missing: Date"
+        if not DATE_PATTERN.fullmatch(value):
+            return f"{field} must use YYYY-MM-DD format"
+        try:
+            datetime.strptime(value, "%Y-%m-%d")
+        except ValueError:
+            return f"{field} is not a valid calendar date"
+
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -257,7 +373,7 @@ def export_csv(asset_type):
 
     # Resolve wallet IDs to names if this asset type has wallet columns
     has_wallet_cols = any(f in WALLET_FIELDS for f, _ in columns)
-    id_to_name = _wallet_id_to_name(_fetch_wallets(user_id)) if has_wallet_cols else {}
+    id_to_name = _wallet_id_to_name(_fetch_wallets(user_id, asset_type)) if has_wallet_cols else {}
 
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=headers)
@@ -358,7 +474,8 @@ def import_csv(asset_type):
 
         # Resolve wallet names to IDs if this asset type has wallet columns
         has_wallet_cols = any(f in WALLET_FIELDS for f, _ in columns)
-        name_to_id = _wallet_name_to_id(_fetch_wallets(user_id)) if has_wallet_cols else {}
+        # Import wallet type filtering is intentionally deferred until the rules are finalized.
+        wallet_candidates = _wallet_name_candidates(_fetch_wallets(user_id)) if has_wallet_cols else {}
 
         imported = 0
         errors = 0
@@ -372,14 +489,28 @@ def import_csv(asset_type):
                 internal_field = label_to_field.get(header_clean)
                 if internal_field:
                     val = (value or "").strip()
-                    if internal_field in WALLET_FIELDS and val:
-                        resolved = name_to_id.get(val.lower())
-                        if resolved is None:
-                            skip = True
-                            skipped_rows.append(f"Row {row_num}: wallet \"{val}\" not found")
-                            break
-                        val = resolved
                     record[internal_field] = val
+
+            if not skip:
+                for wallet_field in WALLET_FIELDS:
+                    wallet_name = record.get(wallet_field, "")
+                    if not wallet_name:
+                        continue
+                    resolved, wallet_error = _resolve_wallet_name(
+                        wallet_candidates,
+                        wallet_name,
+                        record.get("currency", "") if asset_type == "fiat" else "",
+                    )
+                    if wallet_error:
+                        skip = True
+                        skipped_rows.append(f"Row {row_num}: {wallet_error}")
+                        break
+                    record[wallet_field] = resolved
+
+            validation_error = _validate_import_record(asset_type, record)
+            if validation_error:
+                skip = True
+                skipped_rows.append(f"Row {row_num}: {validation_error}")
 
             if skip:
                 errors += 1
