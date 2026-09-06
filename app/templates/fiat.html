@@ -747,6 +747,8 @@
         if (update) update.style.display = "none";
         if (title) title.innerText = 'New Transaction';
         setFiatNavVisibility('new');
+        const tdate = document.getElementById('tdate');
+        if (tdate && !tdate.value) tdate.value = formatLocalDateTime(new Date());
         syncTransTypeUI('');
     }
 

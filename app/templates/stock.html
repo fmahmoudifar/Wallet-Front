@@ -1076,6 +1076,11 @@
         if (listDiv) listDiv.style.display = 'none';
         if (updateDiv) updateDiv.style.display = 'none';
         setStockNavVisibility('new');
+        const tdate = document.getElementById('tdate');
+        if (tdate && !tdate.value) {
+            const today = new Date();
+            tdate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
     }
 
     function showStockHistory() {

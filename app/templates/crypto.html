@@ -86,6 +86,11 @@
         if (sectionTitle) sectionTitle.style.display = '';
 
         setCryptoNavVisibility('new');
+        const tdate = document.getElementById('tdate');
+        if (tdate && !tdate.value) {
+            const today = new Date();
+            tdate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
     }
 
     function showCryptoHistory() {

@@ -939,6 +939,11 @@
         if (listDiv) listDiv.style.display = 'none';
 
         setLoansNavVisibility('new');
+        const loansDate = document.getElementById('loansDate');
+        if (loansDate && !loansDate.value) {
+            const today = new Date();
+            loansDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
     }
 
     function showLoansHistory() {
