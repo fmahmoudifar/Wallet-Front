@@ -2308,6 +2308,7 @@
             <input type="hidden" id="tplMode" value="create">
             <input type="hidden" id="tplTransId" name="transId">
             <input type="hidden" id="tplTdateHidden" name="tdate">
+            <input type="hidden" name="returnSection" value="templates">
             <input type="hidden" name="isTemplate" value="Y">
 
             <div>
@@ -2387,7 +2388,9 @@
                 <button type="button" class="btn-cancel" onclick="cancelTemplateForm()">Cancel</button>
             </div>
         </form>
-        <form id="templateDeleteForm" method="POST"></form>
+        <form id="templateDeleteForm" method="POST">
+            <input type="hidden" name="returnSection" value="templates">
+        </form>
         </div>
     </div>
 </div>
