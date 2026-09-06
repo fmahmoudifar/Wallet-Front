@@ -542,16 +542,13 @@
         const tdateHidden = document.getElementById('tplTdateHidden');
         const dayInput = String(document.getElementById('tplDayOfMonth')?.value || '').trim();
 
-        const now = new Date();
-        const dt = dayInput
-            ? resolveTemplateDate(now.getFullYear(), now.getMonth(), Number(dayInput))
-            : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-        if (!dt) {
+        if (dayInput && !Number.isInteger(Number(dayInput))) {
             alert('Selected day is not valid.');
             return false;
         }
 
-        if (tdateHidden) tdateHidden.value = formatLocalDateTime(dt);
+        // Templates store their schedule only; the actual transaction gets its date on Create.
+        if (tdateHidden) tdateHidden.value = '';
         form.action = mode === 'update' ? '/updateFiat' : '/fiat';
 
         if (mode === 'update' && (!transId || !String(transId.value || '').trim())) {
@@ -718,9 +715,8 @@
         if (note) note.value = li.getAttribute('data-note') || '';
 
         const dayAttr = Number(li.getAttribute('data-template-day') || '0');
-        const fallbackDate = parseTxDate(li.getAttribute('data-tdate'));
-        const dom = dayAttr > 0 ? dayAttr : (fallbackDate ? fallbackDate.getDate() : new Date().getDate());
         const now = new Date();
+        const dom = dayAttr > 0 ? dayAttr : now.getDate();
         const computed = resolveTemplateDate(now.getFullYear(), now.getMonth(), dom);
         if (tdate) tdate.value = computed ? formatLocalDateTime(computed) : formatLocalDateTime(new Date());
 
@@ -2304,7 +2300,7 @@
         <div class="form-container">
         <div class="totals-card" style="padding: 12px 16px; margin-bottom: 14px; font-size: 12px; line-height: 1.6; text-align: left;">
             <div class="small-muted">
-                <strong>Day of Month:</strong> Optional. Leave it empty to use the saved template date's day.<br>
+                <strong>Day of Month:</strong> Optional. Leave it empty to use today's day when creating the transaction.<br>
                 <strong>Use last day:</strong> If the day does not exist in a month (e.g. 31 in February), the last day of that month is used automatically.
             </div>
         </div>

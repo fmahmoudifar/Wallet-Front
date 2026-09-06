@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 from decimal import Decimal
 
 import requests
@@ -99,11 +100,12 @@ def create_fiat_transaction():
     if user:
         user_id = user.get("username")
         return_section = (request.form.get("returnSection") or "history").strip() or "history"
+        is_template = str(request.form.get("isTemplate", "N")).strip().upper() in ("Y", "YES", "TRUE", "1")
         data = {
             "transId": trans_id,
             "userId": user_id,
             "transType": request.form["transType"],
-            "tdate": request.form["tdate"],
+            "tdate": "" if is_template else (request.form.get("tdate", "").strip() or date.today().isoformat()),
             "fromWallet": request.form["fromWallet"],
             "amount": request.form["amount"],
             "toWallet": request.form["toWallet"],
@@ -111,7 +113,7 @@ def create_fiat_transaction():
             "currency": request.form["currency"],
             "fee": request.form["fee"],
             "receivedAmount": request.form["receivedAmount"],
-            "isTemplate": "Y" if str(request.form.get("isTemplate", "N")).strip().upper() in ("Y", "YES", "TRUE", "1") else "N",
+            "isTemplate": "Y" if is_template else "N",
             "templateDayOfMonth": request.form.get("templateDayOfMonth", ""),
             "note": request.form["note"],
         }
