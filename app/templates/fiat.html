@@ -2390,7 +2390,7 @@
                 <button type="button" class="btn-cancel" onclick="cancelTemplateForm()">Cancel</button>
             </div>
         </form>
-        <form id="templateDeleteForm" method="POST">
+        <form id="templateDeleteForm" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
             <input type="hidden" name="returnSection" value="templates">
         </form>
         </div>

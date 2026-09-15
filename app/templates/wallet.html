@@ -164,7 +164,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <strong>Color:</strong> The color used to represent this wallet in the Wallet Balances chart on the Dashboard.
             </div>
         </div>
-        <form action="/wallet" method="POST">
+        <form action="/wallet" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
     <div>
         <label for="walletName">Wallet Name:</label>
         <input type="text" name="walletName" required>
@@ -255,7 +255,7 @@ document.addEventListener("DOMContentLoaded", function() {
 <div id="updateWalletDiv" class="block-update" style="display: none;">
     <!-- <h2 class="center-text">Update Wallet</h2> -->
     <div class="form-container">
-        <form id="updateForm" action="/updateWallet" method="POST">
+        <form id="updateForm" action="/updateWallet" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
             <input type="hidden" id="updateUserId" name="userId">
             <input type="hidden" id="updateWalletId" name="walletId">
             <div>
@@ -309,7 +309,7 @@ document.addEventListener("DOMContentLoaded", function() {
         </form>
     </div>
 
-    <form id="deleteForm" method="POST"></form>
+    <form id="deleteForm" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();"></form>
 
 </div>
 

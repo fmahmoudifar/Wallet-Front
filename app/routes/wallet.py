@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, redirect, render_template, request, sessio
 
 from app.services.user_scope import filter_records_by_user
 from config import API_URL, aws_auth
-from .home import _ensure_user_settings_row
+from .home import _dashboard_cache_invalidate_user, _ensure_user_settings_row
 
 wallet_bp = Blueprint("wallet", __name__)
 
@@ -50,6 +50,8 @@ def create_wallet():
     try:
         response = requests.post(f"{API_URL}/wallet", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Create Response: {response.status_code}, JSON: {response.json()}")
+        if response.status_code in (200, 201):
+            _dashboard_cache_invalidate_user(user_id)
 
         return redirect(url_for("wallet.wallet_page"))
     except Exception as e:
@@ -81,6 +83,8 @@ def update_wallet():
     try:
         response = requests.patch(f"{API_URL}/wallet", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Update Response: {response.status_code}, JSON: {response.json()}")
+        if response.status_code in (200, 201):
+            _dashboard_cache_invalidate_user(user_id)
 
         return redirect(url_for("wallet.wallet_page"))
     except Exception as e:
@@ -106,6 +110,8 @@ def delete_wallet(wallet_id, user_id):
     try:
         response = requests.delete(f"{API_URL}/wallet", json=data, auth=aws_auth)
         print(f"✅ [DEBUG] Delete Response: {response.status_code}, JSON: {response.json()}")
+        if response.status_code in (200, 204):
+            _dashboard_cache_invalidate_user(session_user_id)
 
         return redirect(url_for("wallet.wallet_page"))
     except Exception as e:

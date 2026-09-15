@@ -10,7 +10,7 @@ from flask import Blueprint, Response, redirect, render_template, request, send_
 
 from app.services.user_scope import filter_records_by_user
 from config import API_URL, aws_auth
-from .home import _ensure_user_settings_row
+from .home import _dashboard_cache_invalidate_user, _ensure_user_settings_row
 
 data_io_bp = Blueprint("data_io", __name__)
 
@@ -550,6 +550,8 @@ def import_csv(asset_type):
             "errors": errors,
             "skipped": skipped_rows,
         }
+        if imported:
+            _dashboard_cache_invalidate_user(user_id)
     except Exception as e:
         print(f"Import parse error ({asset_type}): {e}")
         session["import_result"] = {

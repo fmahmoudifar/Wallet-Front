@@ -88,7 +88,7 @@
         </div>
         <p class="data-io-panel-desc">Upload a CSV file to import transactions. Select the asset type, then choose your file. Download a sample template first for the correct format.</p>
 
-        <form id="importForm" action="" method="POST" enctype="multipart/form-data" class="data-io-form">
+        <form id="importForm" action="" method="POST" enctype="multipart/form-data" class="data-io-form" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
             <div class="data-io-form-row">
                 <label for="importAsset">Asset:</label>
                 <select id="importAsset" name="asset" required onchange="updateImportAction()">
