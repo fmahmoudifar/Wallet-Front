@@ -707,10 +707,10 @@ html[data-theme="dark"] .refresh-prices-btn:focus {
     /* Theme tokens (light defaults) */
     --bg: #ffffff;
     --surface: #ffffff;
-    --surface-2: #f8f9fa;
+    --surface-2: #eef0f2;
     --text: #222222;
     --muted: #6b7280;
-    --border: #cfd4da;
+    --border: #bec6cf;
     --shadow: rgba(0,0,0,0.04);
 }
 
