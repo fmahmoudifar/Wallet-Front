@@ -173,11 +173,7 @@
     const DEFAULT_DASHBOARD_COLORS = {{ default_dashboard_colors   | tojson | safe }};
 
     function persistTheme(val) {
-        try {
-            const t = String(val || '').toLowerCase().startsWith('d') ? 'dark' : 'light';
-            localStorage.setItem('theme', t);
-            document.documentElement.setAttribute('data-theme', t);
-        } catch (e) {}
+        if (typeof window.applyThemeMode === 'function') window.applyThemeMode(val);
     }
 
     function showButtonSaveResult(btn, ok) {
@@ -396,8 +392,9 @@
             <div>
                 <label>Theme:</label>
                 <select id="themeSel" name="theme" required>
-                    <option value="Light" {% if not setting or setting.theme == 'Light' %}selected{% endif %}>Light</option>
+                    <option value="Light" {% if setting and setting.theme == 'Light' %}selected{% endif %}>Light</option>
                     <option value="Dark"  {% if setting and setting.theme == 'Dark'  %}selected{% endif %}>Dark</option>
+                    <option value="System" {% if not setting or setting.theme == 'System' %}selected{% endif %}>System Mode</option>
                 </select>
             </div>
             <div class="set-save-row">

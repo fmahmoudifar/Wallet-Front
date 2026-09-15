@@ -1,6 +1,6 @@
 {
     "currency": "EUR",
-    "theme": "Light",
+    "theme": "System",
     "dashboardColors": {
         "colorNow":    "#0B7369",
         "colorPaid":   "#465665",

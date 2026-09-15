@@ -5,21 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Wallets Portfolio{% endblock %}</title>
     <script>
-        // Theme: prefer localStorage, fallback to server session setting.
+        // Resolve the user's saved mode, or the device mode for public pages.
         (function () {
-            try {
-                const serverTheme = "{{ session.get('theme', '') }}";
-                const stored = localStorage.getItem('theme');
-                // Server session is authoritative (always freshly fetched from DB).
-                // localStorage is only a fallback when there is no server value.
-                const raw = (serverTheme || stored || 'Light');
-                const t = String(raw).toLowerCase();
-                const theme = t.startsWith('d') ? 'dark' : 'light';
-                // Keep localStorage in sync with the server value.
-                localStorage.setItem('theme', theme);
-                document.documentElement.setAttribute('data-theme', theme);
-            } catch (e) {
-                document.documentElement.setAttribute('data-theme', 'light');
+            const isAuthenticated = {{ 'true' if session.get('user') else 'false' }};
+            const serverTheme = {{ session.get('theme', '') | tojson }};
+            let activeMode = 'System';
+
+            function normalizeMode(value) {
+                const mode = String(value || '').toLowerCase();
+                if (mode.startsWith('d')) return 'Dark';
+                if (mode.startsWith('l')) return 'Light';
+                return 'System';
+            }
+
+            function applyThemeMode(value) {
+                activeMode = normalizeMode(value);
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const resolvedTheme = activeMode === 'System'
+                    ? (prefersDark ? 'dark' : 'light')
+                    : activeMode.toLowerCase();
+                document.documentElement.setAttribute('data-theme', resolvedTheme);
+                if (isAuthenticated) {
+                    try { localStorage.setItem('themePreference', activeMode); } catch (e) {}
+                }
+            }
+
+            window.applyThemeMode = applyThemeMode;
+            applyThemeMode(isAuthenticated ? serverTheme : 'System');
+
+            if (window.matchMedia) {
+                const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                const handleSystemThemeChange = function () {
+                    if (activeMode === 'System') applyThemeMode('System');
+                };
+                if (mediaQuery.addEventListener) mediaQuery.addEventListener('change', handleSystemThemeChange);
+                else if (mediaQuery.addListener) mediaQuery.addListener(handleSystemThemeChange);
             }
         })();
     </script>
