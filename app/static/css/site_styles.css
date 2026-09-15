@@ -710,7 +710,7 @@ html[data-theme="dark"] .refresh-prices-btn:focus {
     --surface-2: #f8f9fa;
     --text: #222222;
     --muted: #6b7280;
-    --border: #e6e6e6;
+    --border: #cfd4da;
     --shadow: rgba(0,0,0,0.04);
 }
 
@@ -750,6 +750,31 @@ html[data-theme="dark"] .crypto-section-title {
 
 html[data-theme="dark"] .small-muted {
     color: var(--muted);
+}
+
+/* Light-mode frames need enough contrast to separate adjacent surfaces. */
+html:not([data-theme="dark"]) .history-filters,
+html:not([data-theme="dark"]) .totals-card,
+html:not([data-theme="dark"]) .block-new .form-container,
+html:not([data-theme="dark"]) .block-update .form-container,
+html:not([data-theme="dark"]) .data-io-panel,
+html:not([data-theme="dark"]) #cryptoList li,
+html:not([data-theme="dark"]) #loansList li,
+html:not([data-theme="dark"]) #transList li,
+html:not([data-theme="dark"]) #templateList li,
+html:not([data-theme="dark"]) #stockList li,
+html:not([data-theme="dark"]) #walletList li {
+    background: var(--surface-2);
+    border-color: var(--border);
+}
+
+html:not([data-theme="dark"]) #cryptoList li.crypto-group-header,
+html:not([data-theme="dark"]) #stockList li.crypto-group-header,
+html:not([data-theme="dark"]) #loansList li.crypto-group-header,
+html:not([data-theme="dark"]) #transList li.crypto-group-header {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
 }
 
 html[data-theme="dark"] .history-filters {
@@ -2632,10 +2657,10 @@ html[data-theme="dark"] .data-io-alert-warn {
 }
 
 .admin-panel {
-    background: linear-gradient(180deg, #fff, #fbfbfb);
+    background: var(--surface-2, #f8f9fa);
     border-radius: 10px;
     padding: 24px 26px;
-    border: 1px solid rgba(0,0,0,0.10);
+    border: 1px solid var(--border, #cfd4da);
     box-shadow: 0 6px 18px rgba(0,0,0,0.04);
     display: flex;
     flex-direction: column;
