@@ -547,105 +547,177 @@
     }
 
     .app-bottom-nav {
-        display: flex;
         position: fixed;
         left: 0;
         right: 0;
         bottom: 0;
-        height: 64px;
-        background: #111827;
-        border-top: 1px solid rgba(255,255,255,0.12);
+        display: block;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #141b28;
+        border-top: 1px solid #252e3f;
+        box-shadow: 0 -8px 24px rgba(0,0,0,0.35);
         z-index: 1100;
     }
 
-    .app-bottom-link {
-        flex: 1 1 0;
-        text-decoration: none;
+    .app-bottom-handle {
+        position: absolute;
+        left: 50%;
+        top: -23px;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 23px;
+        padding: 0;
+        border: 1px solid #252e3f;
+        border-bottom: 0;
+        border-radius: 30px 30px 0 0;
+        background: #141b28;
         color: #fff;
-        font-weight: 600;
-        font-size: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .app-bottom-handle::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 2px;
+        background: #141b28;
+    }
+
+    .app-bottom-handle svg {
+        width: 22px;
+        height: 22px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: transform 350ms cubic-bezier(.4,0,.2,1);
+    }
+
+    .app-bottom-handle[aria-expanded="true"] svg {
+        transform: rotate(180deg);
+    }
+
+    .app-bottom-handle:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+    }
+
+    .app-bottom-floor {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 380ms cubic-bezier(.4,0,.2,1);
+    }
+
+    .app-bottom-floor.open {
+        grid-template-rows: 1fr;
+    }
+
+    .app-bottom-floor > div {
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .app-bottom-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2px;
+        padding: 14px 10px 8px;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 300ms ease, transform 380ms cubic-bezier(.4,0,.2,1);
+    }
+
+    .app-bottom-floor.open .app-bottom-grid {
+        opacity: 1;
+        transform: none;
+        transition-delay: 60ms;
+    }
+
+    .app-bottom-divider {
+        height: 1px;
+        background: #252e3f;
+    }
+
+    .app-bottom-primary {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    .app-bottom-item {
+        all: unset;
+        box-sizing: border-box;
+        cursor: pointer;
+        color: #fff;
+        text-decoration: none;
+        transition: background 200ms ease;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .app-bottom-item svg {
+        width: 22px;
+        height: 22px;
+        flex: none;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .app-bottom-primary .app-bottom-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        gap: 4px;
-        padding: 6px 6px;
-    }
-
-    .app-bottom-icon {
-        width: 22px;
-        height: 22px;
-        display: block;
-        color: #fff;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        shape-rendering: geometricPrecision;
-    }
-
-    .app-bottom-text {
-        display: block;
+        gap: 5px;
+        padding: 12px 2px 10px;
         font-size: 11px;
-        line-height: 1;
+        font-weight: 700;
         text-align: center;
-        white-space: nowrap;
     }
 
-    .app-bottom-link:hover { background: rgba(255,255,255,0.12); }
-
-    .app-bottom-link[aria-current="page"] {
-        background: rgba(255,255,255,0.14);
+    .app-bottom-primary .app-bottom-item:not(.active) svg,
+    .app-bottom-grid .app-bottom-item svg {
+        color: #9aa4b5;
     }
 
-    .app-bottom-more {
-        position: relative;
-        cursor: pointer;
-    }
-
-    .app-more-menu {
-        display: none;
-        position: absolute;
-        bottom: 68px;
-        right: 0;
-        min-width: 170px;
-        background: #1f2937;
-        border: 1px solid rgba(255,255,255,0.15);
-        border-radius: 12px;
-        padding: 6px 0;
-        box-shadow: 0 -4px 16px rgba(0,0,0,0.35);
-        z-index: 1200;
-    }
-
-    .app-more-menu.is-open {
-        display: block;
-    }
-
-    .app-more-item {
+    .app-bottom-grid .app-bottom-item {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 10px 16px;
-        color: #fff;
-        text-decoration: none;
+        gap: 14px;
+        padding: 12px 14px;
+        border-radius: 8px;
         font-size: 14px;
-        font-weight: 500;
-        transition: background 120ms ease;
+        font-weight: 400;
     }
 
-    .app-more-item:hover {
-        background: rgba(255,255,255,0.10);
+    .app-bottom-item:hover,
+    .app-bottom-item.active {
+        background: #2a3242;
     }
 
-    .app-more-logout {
-        border-top: 1px solid rgba(255,255,255,0.12);
-        margin-top: 4px;
-        padding-top: 10px;
-        color: #f05757;
+    .app-bottom-item.danger,
+    .app-bottom-item.danger svg {
+        color: #ef5350;
     }
 
-    .app-more-icon {
-        width: 18px;
-        height: 18px;
-        flex-shrink: 0;
+    .app-bottom-item:focus-visible {
+        outline: 2px solid #9aa4b5;
+        outline-offset: -2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .app-bottom-nav *,
+        .app-bottom-nav *::before,
+        .app-bottom-nav *::after {
+            transition: none !important;
+        }
     }
 }
 

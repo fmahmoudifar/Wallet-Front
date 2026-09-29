@@ -214,7 +214,7 @@
     <meta name="apple-mobile-web-app-title" content="Wallets Portfolio">
     <meta name="theme-color" content="#000000">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/static/css/site_styles.css">
+    <link rel="stylesheet" href="/static/css/site_styles.css?v=20260929-two-floor-sample">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     {% block head_extra %}{% endblock %}
 </head>
@@ -617,126 +617,62 @@
 
     {% if session.get('user') %}
     <nav class="app-bottom-nav" aria-label="Bottom navigation">
-        <a class="app-bottom-link" href="/" aria-label="Home" {% if request.path == '/' %}aria-current="page"{% endif %}>
-            <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M3 10.5 12 3l9 7.5v9.5a1 1 0 0 1-1 1h-5.5v-6.5h-5V21H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-            </svg>
-            <span class="app-bottom-text">Home</span>
-        </a>
-        <a class="app-bottom-link" href="/dashboard" aria-label="Dashboard" {% if request.path.startswith('/dashboard') %}aria-current="page"{% endif %}>
-            <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                <rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                <rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                <rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
-            </svg>
-            <span class="app-bottom-text">Dashboard</span>
-        </a>
-        <a class="app-bottom-link" href="/fiat" aria-label="Fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>
-            <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M7 7h13l-3-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M17 17H4l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span class="app-bottom-text">Fiat</span>
-        </a>
-        <a class="app-bottom-link" href="/crypto" aria-label="Crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>
-            <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <!-- Coin stack (clean + crisp) -->
-                <ellipse cx="12" cy="7" rx="6.5" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                <path d="M5.5 7v4c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5V7" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                <path d="M5.5 11v4c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5v-4" fill="none" stroke="currentColor" stroke-width="1.8"/>
-            </svg>
-            <span class="app-bottom-text">Crypto</span>
-        </a>
-        <a class="app-bottom-link" href="/stock" aria-label="Stocks" {% if request.path.startswith('/stock') %}aria-current="page"{% endif %}>
-            <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 19V5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M4 19h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M6.5 15.5 10 12l3 2.2 4.5-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span class="app-bottom-text">Stock</span>
-        </a>
-        <a class="app-bottom-link" href="/loans" aria-label="Loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>
-            <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M3 21h18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M5 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M9 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M15 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M19 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M3 12l9-7 9 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2 17h20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-            <span class="app-bottom-text">Debt & Loan</span>
-        </a>
-        <div class="app-bottom-link app-bottom-more" aria-label="More" {% if request.path.startswith('/settings') or request.path.startswith('/wallet') %}aria-current="page"{% endif %}>
-            <svg class="app-bottom-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="5" r="1.8" fill="currentColor"/>
-                <circle cx="12" cy="12" r="1.8" fill="currentColor"/>
-                <circle cx="12" cy="19" r="1.8" fill="currentColor"/>
-            </svg>
-            <span class="app-bottom-text">More</span>
-            <div class="app-more-menu" id="moreMenu">
-                <a class="app-more-item" href="/data">
-                    <svg class="app-more-icon" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 5v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        <path d="M8 9l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M8 15l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M4 3h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        <path d="M4 21h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                    <span>Import / Export</span>
-                </a>
-                <a class="app-more-item" href="/settings">
-                    <svg class="app-more-icon" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M5 7h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                        <path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                        <path d="M5 17h14" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                        <circle cx="9" cy="7" r="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                        <circle cx="15" cy="12" r="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                        <circle cx="11" cy="17" r="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                    </svg>
-                    <span>Settings</span>
-                </a>
-                <a class="app-more-item" href="/wallet">
-                    <svg class="app-more-icon" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                        <path d="M20 9h-4.5a2 2 0 0 0 0 4H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        <path d="M16.5 11h.01" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-                    </svg>
-                    <span>Wallets</span>
-                </a>
-                <a class="app-more-item" href="/contact">
-                    <svg class="app-more-icon" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                        <path d="m4 7 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <span>Contact Us</span>
-                </a>
-                <a class="app-more-item app-more-logout" href="/logout">
-                    <svg class="app-more-icon" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M10 7v-2a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        <path d="M4 12h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        <path d="M7.5 9 4 12l3.5 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <span>Logout</span>
-                </a>
+        <button type="button" class="app-bottom-handle" aria-expanded="false" aria-controls="appBottomFloor" aria-label="Show more menu items">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
+        </button>
+        <div class="app-bottom-floor" id="appBottomFloor">
+            <div>
+                <div class="app-bottom-grid">
+                    <a class="app-bottom-item{% if request.path == '/' %} active{% endif %}" href="/" aria-current="{% if request.path == '/' %}page{% else %}false{% endif %}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Home</span>
+                    </a>
+                    <a class="app-bottom-item{% if request.path.startswith('/wallet') %} active{% endif %}" href="/wallet" {% if request.path.startswith('/wallet') %}aria-current="page"{% endif %}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg><span>Wallets</span>
+                    </a>
+                    <a class="app-bottom-item{% if request.path.startswith('/data') or request.path.startswith('/export') or request.path.startswith('/import') %} active{% endif %}" href="/data" {% if request.path.startswith('/data') or request.path.startswith('/export') or request.path.startswith('/import') %}aria-current="page"{% endif %}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16M4 21h16M12 7v10"/><path d="m9 10 3-3 3 3M9 14l3 3 3-3"/></svg><span>Import / Export</span>
+                    </a>
+                    <a class="app-bottom-item{% if request.path.startswith('/settings') %} active{% endif %}" href="/settings" {% if request.path.startswith('/settings') %}aria-current="page"{% endif %}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></svg><span>Settings</span>
+                    </a>
+                    <a class="app-bottom-item{% if request.path.startswith('/contact') %} active{% endif %}" href="/contact" {% if request.path.startswith('/contact') %}aria-current="page"{% endif %}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg><span>Contact Us</span>
+                    </a>
+                    <a class="app-bottom-item danger" href="/logout">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 17-5-5 5-5M3 12h12M15 21h4a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-4"/></svg><span>Logout</span>
+                    </a>
+                </div>
+                <div class="app-bottom-divider"></div>
             </div>
+        </div>
+        <div class="app-bottom-primary">
+            <a class="app-bottom-item{% if request.path.startswith('/dashboard') %} active{% endif %}" href="/dashboard" {% if request.path.startswith('/dashboard') %}aria-current="page"{% endif %}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg><span>Dashboard</span>
+            </a>
+            <a class="app-bottom-item{% if request.path.startswith('/fiat') %} active{% endif %}" href="/fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4M4 7h16m-4 14 4-4-4-4m4 4H4"/></svg><span>Fiat</span>
+            </a>
+            <a class="app-bottom-item{% if request.path.startswith('/crypto') %} active{% endif %}" href="/crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0"/></svg><span>Crypto</span>
+            </a>
+            <a class="app-bottom-item{% if request.path.startswith('/stock') %} active{% endif %}" href="/stock" {% if request.path.startswith('/stock') %}aria-current="page"{% endif %}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16m-2-12-5 5-4-4-3 3"/></svg><span>Stock</span>
+            </a>
+            <a class="app-bottom-item{% if request.path.startswith('/loans') %} active{% endif %}" href="/loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 22h18M6 18v-7m4 7v-7m4 7v-7m4 7v-7M12 2 20 7H4z"/></svg><span>Debt &amp; Loan</span>
+            </a>
         </div>
     </nav>
     <script>
     (function() {
-        const moreBtn = document.querySelector('.app-bottom-more');
-        const moreMenu = document.getElementById('moreMenu');
-        if (!moreBtn || !moreMenu) return;
-        moreBtn.addEventListener('click', function(e) {
-            if (e.target.closest('.app-more-item')) return;
-            e.stopPropagation();
-            moreMenu.classList.toggle('is-open');
-        });
-        document.addEventListener('click', function(e) {
-            if (!moreBtn.contains(e.target)) {
-                moreMenu.classList.remove('is-open');
-            }
+        const handle = document.querySelector('.app-bottom-handle');
+        const floor = document.getElementById('appBottomFloor');
+        if (!handle || !floor) return;
+        handle.addEventListener('click', function() {
+            const isOpen = !floor.classList.contains('open');
+            floor.classList.toggle('open', isOpen);
+            handle.setAttribute('aria-expanded', String(isOpen));
+            handle.setAttribute('aria-label', isOpen ? 'Hide more menu items' : 'Show more menu items');
         });
     })();
     </script>
