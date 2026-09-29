@@ -6,7 +6,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
-from flask import Blueprint, jsonify, render_template, session
+from flask import Blueprint, jsonify, render_template, send_from_directory, session
 
 from app.services.user_scope import filter_records_by_user
 from config import API_URL, aws_auth
@@ -25,6 +25,16 @@ from .stock import (
 )
 
 home_bp = Blueprint("home", __name__, url_prefix="/")
+
+
+@home_bp.get("/service-worker.js")
+def service_worker():
+    return send_from_directory(
+        os.path.join(os.path.dirname(__file__), "..", "static"),
+        "service-worker.js",
+        mimetype="application/javascript",
+        max_age=0,
+    )
 
 _SETTINGS_DEFAULTS_PATH = os.path.join(os.path.dirname(__file__), "..", "static", "settings_defaults.json")
 with open(_SETTINGS_DEFAULTS_PATH, "r") as _f:

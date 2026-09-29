@@ -220,6 +220,17 @@
 </head>
 <body>
 
+    <aside id="installPrompt" class="install-prompt" aria-labelledby="installPromptTitle" hidden>
+        <div class="install-prompt-copy">
+            <strong id="installPromptTitle">Install Wallets Portfolio</strong>
+            <span>Get quick access from your device.</span>
+        </div>
+        <div class="install-prompt-actions">
+            <button type="button" id="installAppButton" class="btn-insert">Install</button>
+            <button type="button" id="dismissInstallButton" class="install-prompt-dismiss" aria-label="Dismiss install prompt">&times;</button>
+        </div>
+    </aside>
+
     <div class="app-shell">
         <aside class="app-sidebar" aria-label="Main navigation">
             {% set _user = session.get('user') %}
@@ -545,6 +556,63 @@
                 initSidebarSubmenus();
             }
         })();
+    </script>
+    <script>
+        (function () {
+            if (!('serviceWorker' in navigator)) return;
+
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/service-worker.js').catch(function () {
+                    // Installation remains optional when service workers are unavailable.
+                });
+            });
+        })();
+
+        (function () {
+            const prompt = document.getElementById('installPrompt');
+            const installButton = document.getElementById('installAppButton');
+            const dismissButton = document.getElementById('dismissInstallButton');
+            if (!prompt || !installButton || !dismissButton) return;
+
+            let installEvent = null;
+            const dismissedKey = 'walletInstallPromptDismissed';
+
+            function hidePrompt() {
+                prompt.hidden = true;
+            }
+
+            if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+                return;
+            }
+
+            window.addEventListener('beforeinstallprompt', function (event) {
+                event.preventDefault();
+                installEvent = event;
+                try {
+                    if (localStorage.getItem(dismissedKey) === '1') return;
+                } catch (error) {}
+                prompt.hidden = false;
+            });
+
+            installButton.addEventListener('click', async function () {
+                if (!installEvent) return;
+                installEvent.prompt();
+                await installEvent.userChoice;
+                installEvent = null;
+                hidePrompt();
+            });
+
+            dismissButton.addEventListener('click', function () {
+                try { localStorage.setItem(dismissedKey, '1'); } catch (error) {}
+                hidePrompt();
+            });
+
+            window.addEventListener('appinstalled', function () {
+                installEvent = null;
+                hidePrompt();
+            });
+        })();
+
     </script>
 
     {% if session.get('user') %}

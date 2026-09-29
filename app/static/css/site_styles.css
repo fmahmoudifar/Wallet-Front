@@ -2511,6 +2511,66 @@ button.pct-positive:hover {
 }
 
 /* Alert banners */
+.install-prompt {
+    position: fixed;
+    z-index: 1100;
+    right: 18px;
+    top: 18px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    max-width: min(420px, calc(100vw - 36px));
+    padding: 14px 16px;
+    color: #fff;
+    background: #111827;
+    border: 1px solid rgba(41, 212, 255, 0.45);
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+}
+
+.install-prompt[hidden] { display: none; }
+
+.install-prompt-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.install-prompt-copy strong { font-size: 14px; }
+.install-prompt-copy span { color: rgba(255,255,255,0.72); font-size: 12px; }
+
+.install-prompt-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.install-prompt-dismiss {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    color: rgba(255,255,255,0.75);
+    background: transparent;
+    border: 0;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.install-prompt-dismiss:hover { color: #fff; }
+
+@media (max-width: 560px) {
+    .install-prompt {
+        right: 12px;
+        top: 12px;
+        left: 12px;
+        max-width: none;
+        align-items: flex-start;
+    }
+}
+
 .data-io-alert {
     max-width: 920px;
     margin: 0 auto 18px;
