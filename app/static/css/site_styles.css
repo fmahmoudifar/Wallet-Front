@@ -579,6 +579,15 @@
         -webkit-tap-highlight-color: transparent;
     }
 
+    .app-bottom-handle:hover,
+    .app-bottom-handle:active,
+    .app-bottom-handle:focus {
+        background: #141b28;
+        border-color: #252e3f;
+        color: #fff;
+        box-shadow: none;
+    }
+
     .app-bottom-handle::after {
         content: "";
         position: absolute;
