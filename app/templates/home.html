@@ -115,6 +115,18 @@
         </div>
     </div>
 
+    <aside id="iosHomeScreenGuide" class="ios-home-screen-guide" aria-labelledby="iosHomeScreenGuideTitle" hidden>
+        <div class="ios-home-screen-guide-header">
+            <strong id="iosHomeScreenGuideTitle">Add to Home Screen</strong>
+            <span aria-hidden="true">&times;</span>
+        </div>
+        <ol>
+            <li>Tap the Share button in your browser.</li>
+            <li>Choose <strong>Add to Home Screen.</strong></li>
+            <li>Tap <strong>Add</strong> to finish.</li>
+        </ol>
+    </aside>
+
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;">
         <div class="totals-card" style="padding: 16px 18px;">
             <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px;">💵 Fiat Tracking</div>
@@ -155,6 +167,15 @@
     </div>
 
 </div>
+<script>
+(function () {
+    const guide = document.getElementById('iosHomeScreenGuide');
+    if (!guide) return;
+
+    const isIPhone = /iPhone/i.test(window.navigator.userAgent || '');
+    if (isIPhone) guide.hidden = false;
+})();
+</script>
 {% endif %}
 {% if session.get('user') %}
 <script>

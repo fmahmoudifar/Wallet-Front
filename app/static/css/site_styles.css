@@ -2642,6 +2642,43 @@ button.pct-positive:hover {
 
 .install-prompt-dismiss:hover { color: #fff; }
 
+.ios-home-screen-guide {
+    display: none;
+    max-width: 302px;
+    margin: 0 auto 16px;
+    padding: 21px 16px 15px;
+    color: #f4f5f8;
+    background: #111827;
+    border: 1px solid rgba(41, 212, 255, 0.55);
+    border-radius: 8px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.ios-home-screen-guide[hidden] { display: none; }
+
+.ios-home-screen-guide-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 13px;
+    font-size: 15px;
+}
+
+.ios-home-screen-guide-header span {
+    color: rgba(255,255,255,0.72);
+    font-size: 17px;
+    line-height: 1;
+}
+
+.ios-home-screen-guide ol {
+    margin: 0;
+    padding-left: 22px;
+    color: rgba(255,255,255,0.86);
+    font-size: 12px;
+    line-height: 1.7;
+}
+
 @media (max-width: 560px) {
     .install-prompt {
         right: 12px;
@@ -2650,6 +2687,10 @@ button.pct-positive:hover {
         max-width: none;
         align-items: flex-start;
     }
+}
+
+@media (max-width: 767px) {
+    .ios-home-screen-guide:not([hidden]) { display: block; }
 }
 
 .data-io-alert {
