@@ -574,6 +574,8 @@
             const dismissButton = document.getElementById('dismissInstallButton');
             if (!prompt || !installButton || !dismissButton) return;
 
+            if (/iPhone/i.test(window.navigator.userAgent || '')) return;
+
             let installEvent = null;
             const dismissedKey = 'walletInstallPromptDismissed';
 
