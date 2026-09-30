@@ -2644,14 +2644,10 @@ button.pct-positive:hover {
 
 .ios-home-screen-guide {
     display: none;
-    max-width: 302px;
-    margin: 0 auto 16px;
-    padding: 21px 16px 15px;
-    color: #f4f5f8;
-    background: #111827;
-    border: 1px solid rgba(41, 212, 255, 0.55);
-    border-radius: 8px;
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+    width: 100%;
+    margin: 0 0 14px;
+    padding: 16px 18px;
+    height: auto;
 }
 
 .ios-home-screen-guide[hidden] { display: none; }
@@ -2661,8 +2657,8 @@ button.pct-positive:hover {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 13px;
-    font-size: 15px;
+    margin-bottom: 6px;
+    font-size: 14px;
 }
 
 .ios-home-screen-guide-header span {
@@ -2674,9 +2670,9 @@ button.pct-positive:hover {
 .ios-home-screen-guide ol {
     margin: 0;
     padding-left: 22px;
-    color: rgba(255,255,255,0.86);
-    font-size: 12px;
-    line-height: 1.7;
+    color: var(--muted, #6b7280);
+    font-size: 13px;
+    line-height: 1.45;
 }
 
 @media (max-width: 560px) {
