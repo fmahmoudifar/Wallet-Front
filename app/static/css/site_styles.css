@@ -2642,45 +2642,6 @@ button.pct-positive:hover {
 
 .install-prompt-dismiss:hover { color: #fff; }
 
-.ios-install-guide {
-    width: min(360px, calc(100vw - 32px));
-    padding: 20px;
-    color: #fff;
-    background: #111827;
-    border: 1px solid rgba(41, 212, 255, 0.45);
-    border-radius: 10px;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
-}
-
-.ios-install-guide::backdrop {
-    background: rgba(0, 0, 0, 0.55);
-}
-
-.ios-install-guide-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-}
-
-.ios-install-guide h2 {
-    margin: 0;
-    font-size: 18px;
-}
-
-.ios-install-guide ol {
-    margin: 0;
-    padding-left: 22px;
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 14px;
-    line-height: 1.55;
-}
-
-.ios-install-guide li + li {
-    margin-top: 8px;
-}
-
 @media (max-width: 560px) {
     .install-prompt {
         right: 12px;
