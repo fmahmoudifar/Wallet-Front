@@ -391,6 +391,7 @@
         const ctt = document.getElementById('catTrendType');
         const ctc = document.getElementById('catTrendCategory');
         const ctw = document.getElementById('catTrendWallet');
+        const ctn = document.getElementById('catTrendNote');
         ['input','change'].forEach(evt => {
             if (cts) cts.addEventListener(evt, function(){ renderFiatCategoryDashboard(); });
             if (cte) cte.addEventListener(evt, function(){ renderFiatCategoryDashboard(); });
@@ -402,6 +403,7 @@
         });
         if (ctc) ctc.addEventListener('change', function(){ renderFiatCategoryDashboard(); });
         if (ctw) ctw.addEventListener('change', function(){ renderFiatCategoryDashboard(); });
+        if (ctn) ctn.addEventListener('input', function(){ renderFiatCategoryDashboard(); });
 
         // Initialize dashboard default range and render
         if (typeof initFiatDashboardDefaults === 'function') {
@@ -1280,6 +1282,7 @@
         const typeVal = String(typeEl.value || 'expense').trim().toLowerCase();
         const selectedCat = String(catEl.value || '').trim();
         const walletVal = (document.getElementById('catTrendWallet')?.value || '').trim().toLowerCase();
+        const noteVal = (document.getElementById('catTrendNote')?.value || '').trim().toLowerCase();
         const startDtRaw = parseLocalDateTime(document.getElementById('catDashStart')?.value || '');
         const endDtRaw = parseLocalDateTime(document.getElementById('catDashEnd')?.value || '');
 
@@ -1337,6 +1340,11 @@
                 const toWallet = String(li.getAttribute('data-to') || '').trim().toLowerCase();
                 const walletMatch = t === 'income' ? toWallet === walletVal : fromWallet === walletVal;
                 if (!walletMatch) return;
+            }
+
+            if (noteVal) {
+                const note = String(li.getAttribute('data-note') || '').trim().toLowerCase();
+                if (!note.includes(noteVal)) return;
             }
 
             const cat = String(li.getAttribute('data-cat') || '').trim() || 'Other';
@@ -1990,10 +1998,40 @@
         syncTransGroupHeaders();
     }
 
+    function populateTransCategoryOptions() {
+        const list = document.getElementById('transList');
+        const select = document.getElementById('filterCategory');
+        if (!list || !select) return;
+
+        const currentValue = String(select.value || '').trim();
+        const categories = Array.from(list.querySelectorAll('li[data-tdate]'))
+            .filter(li => !isTemplateItem(li))
+            .map(li => String(li.getAttribute('data-cat') || '').trim())
+            .filter(Boolean);
+        const uniqueCategories = Array.from(new Set(categories))
+            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+        select.innerHTML = '';
+        const allOption = document.createElement('option');
+        allOption.value = '';
+        allOption.textContent = '-- All Categories --';
+        select.appendChild(allOption);
+
+        uniqueCategories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            select.appendChild(option);
+        });
+
+        select.value = uniqueCategories.includes(currentValue) ? currentValue : '';
+    }
+
     function applyTransFilters() {
         const list = document.getElementById('transList');
         if (!list) return;
 
+        populateTransCategoryOptions();
         ensureTransGroupsBuilt(false);
         const items = Array.from(list.querySelectorAll('li[data-tdate]'));
 
@@ -2249,6 +2287,10 @@
                     <option value="{{ wallet['walletId'] }}">{{ wallet['walletName'] }}{% if wallet.get('walletType') %} - {{ wallet.get('walletType') }}{% endif %}{% if wallet.get('currency') %} - {{ wallet.get('currency') }}{% endif %}</option>
                     {% endfor %}
                 </select>
+            </div>
+            <div>
+                <label for="catTrendNote">Note:</label>
+                <input type="text" id="catTrendNote" name="catTrendNote" placeholder="Contains..." autocomplete="off">
             </div>
             <div class="filters-actions">
                 <button type="button" class="btn-clear" onclick="resetFiatCategoryTrendDates()">Reset</button>
@@ -2517,7 +2559,9 @@
             </div>
             <div>
                 <label for="filterCategory">Category:</label>
-                <input type="text" id="filterCategory" name="category" placeholder="Contains..." autocomplete="off" />
+                <select id="filterCategory" name="category">
+                    <option value="">-- All Categories --</option>
+                </select>
             </div>
             <div>
                 <label for="filterNote">Note:</label>
