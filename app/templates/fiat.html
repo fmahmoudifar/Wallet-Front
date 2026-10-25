@@ -1069,6 +1069,8 @@
     function resetFiatDashboardDates() {
         const startEl = document.getElementById('dashStart');
         const endEl = document.getElementById('dashEnd');
+        const walletEl = document.getElementById('dashWallet');
+        if (walletEl) walletEl.value = '';
         if (!startEl || !endEl) return;
         startEl.value = '';
         endEl.value = '';
@@ -1197,6 +1199,12 @@
         if (!startEl || !endEl) return;
         startEl.value = '';
         endEl.value = '';
+        const categoryEl = document.getElementById('catTrendCategory');
+        const walletEl = document.getElementById('catTrendWallet');
+        const noteEl = document.getElementById('catTrendNote');
+        if (categoryEl) categoryEl.value = '';
+        if (walletEl) walletEl.value = '';
+        if (noteEl) noteEl.value = '';
         initFiatCategoryTrendDefaults();
         ensureFiatCategoryTrendYearDropdownPopulated();
         syncFiatCategoryTrendYearFromDates();
