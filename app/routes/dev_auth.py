@@ -114,6 +114,7 @@ def dev_login():
     raw_groups = _strip_quotes(os.getenv("DEV_DUMMY_GROUPS") or "")
     groups = [g.strip() for g in raw_groups.split(",") if g.strip()] if raw_groups else []
 
+    session.permanent = True
     session["user"] = {
         "username": effective_user_id,
         "email": dummy_email,

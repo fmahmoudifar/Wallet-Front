@@ -103,6 +103,7 @@ def auth_callback():
         pass
 
     user_info = oauth.oidc.userinfo()
+    session.permanent = True
     session["user"] = user_info
     session["clearCachesOnNextLoad"] = True
 

@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 from flask import Flask, redirect, request, session, url_for
 
@@ -19,6 +20,9 @@ from app.services.authz import is_admin_user
 
 def create_app():
     app = Flask(__name__)
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
     def _strip_quotes(val: str) -> str:
         s = (val or "").strip()
