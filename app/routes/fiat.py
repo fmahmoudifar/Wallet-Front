@@ -114,7 +114,6 @@ def create_fiat_transaction():
             "fee": request.form["fee"],
             "receivedAmount": request.form["receivedAmount"],
             "isTemplate": "Y" if is_template else "N",
-            "templateDayOfMonth": request.form.get("templateDayOfMonth", ""),
             "note": request.form["note"],
         }
         print(data)
@@ -154,7 +153,6 @@ def update_fiat_transaction():
         "fee": request.form["fee"],
         "receivedAmount": request.form["receivedAmount"],
         "isTemplate": "Y" if str(request.form.get("isTemplate", "N")).strip().upper() in ("Y", "YES", "TRUE", "1") else "N",
-        "templateDayOfMonth": request.form.get("templateDayOfMonth", ""),
         "note": request.form["note"],
     }
     print(f"🔄 [DEBUG] Updating transaction: {data}")

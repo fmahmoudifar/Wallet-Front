@@ -438,16 +438,6 @@
         });
     });
 
-    function resolveTemplateDate(year, monthIndex, dayOfMonth) {
-        const y = Number(year);
-        const m = Number(monthIndex);
-        const d = Number(dayOfMonth);
-        if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d) || d < 1) return null;
-
-        const lastDay = new Date(y, m + 1, 0).getDate();
-        return new Date(y, m, Math.min(d, lastDay), 0, 0, 0);
-    }
-
     function showTemplateForm() {
         const panel = document.getElementById('templateFormPanel');
         const listPanel = document.getElementById('templateListPanel');
@@ -462,11 +452,8 @@
 
         const transId = document.getElementById('tplTransId');
         const hiddenDate = document.getElementById('tplTdateHidden');
-        const day = document.getElementById('tplDayOfMonth');
-
         if (transId) transId.value = '';
         if (hiddenDate) hiddenDate.value = '';
-        if (day) day.value = '';
 
         syncTemplateFormActions('create');
 
@@ -509,8 +496,6 @@
         if (transId) transId.value = li.getAttribute('data-id') || '';
         syncTemplateFormActions('update', li.getAttribute('data-id') || '');
 
-        const dayAttr = li.getAttribute('data-template-day');
-
         const setValue = (id, val) => {
             const el = document.getElementById(id);
             if (!el) return;
@@ -527,8 +512,6 @@
         setValue('tplFee', li.getAttribute('data-fee') || '');
         setValue('tplReceivedAmount', li.getAttribute('data-received') || '');
         setValue('tplNote', li.getAttribute('data-note') || '');
-        setValue('tplDayOfMonth', dayAttr || '');
-
         updateFxLabels('tpl');
     }
     window.editTemplate = editTemplate;
@@ -542,14 +525,7 @@
         const mode = (document.getElementById('tplMode')?.value || 'create').toLowerCase();
         const transId = document.getElementById('tplTransId');
         const tdateHidden = document.getElementById('tplTdateHidden');
-        const dayInput = String(document.getElementById('tplDayOfMonth')?.value || '').trim();
-
-        if (dayInput && !Number.isInteger(Number(dayInput))) {
-            alert('Selected day is not valid.');
-            return false;
-        }
-
-        // Templates store their schedule only; the actual transaction gets its date on Create.
+        // Templates store their values only; the actual transaction gets its date on Create.
         if (tdateHidden) tdateHidden.value = '';
         form.action = mode === 'update' ? '/updateFiat' : '/fiat';
 
@@ -613,9 +589,6 @@
             const walletsLabel = fromName && toName ? `${fromName} -> ${toName}` : (fromName || toName || '');
             const walletsMarkup = walletsLabel ? `<div class="crypto-history-sub">${walletsLabel}</div>` : '';
 
-            const dayAttr = String(li.getAttribute('data-template-day') || '').trim();
-            const dayMarkup = dayAttr ? `<div class="crypto-history-sub">Day ${dayAttr}</div>` : '';
-
             const row = document.createElement('li');
             const historyRow = document.createElement('div');
             historyRow.className = 'crypto-history-row';
@@ -626,7 +599,6 @@
                 <div class="crypto-history-title">${type || 'Template'}</div>
                 <div class="crypto-history-sub">${String(li.getAttribute('data-cat') || '' )}</div>
                 ${walletsMarkup}
-                ${dayMarkup}
             `;
 
             const right = document.createElement('div');
@@ -716,11 +688,7 @@
         if (received) received.value = li.getAttribute('data-received') || '';
         if (note) note.value = li.getAttribute('data-note') || '';
 
-        const dayAttr = Number(li.getAttribute('data-template-day') || '0');
-        const now = new Date();
-        const dom = dayAttr > 0 ? dayAttr : now.getDate();
-        const computed = resolveTemplateDate(now.getFullYear(), now.getMonth(), dom);
-        if (tdate) tdate.value = computed ? formatLocalDateTime(computed) : formatLocalDateTime(new Date());
+        if (tdate) tdate.value = formatLocalDateTime(new Date());
 
         updateFxLabels('');
     }
@@ -2350,12 +2318,6 @@
     <div id="templateFormPanel" class="block-new" style="display:none; margin-top:12px;">
         <h2 id="templateFormTitle" class="center-text" style="display:none;">New Template</h2>
         <div class="form-container">
-        <div class="totals-card" style="padding: 12px 16px; margin-bottom: 14px; font-size: 12px; line-height: 1.6; text-align: left;">
-            <div class="small-muted">
-                <strong>Day of Month:</strong> Optional. Leave it empty to use today's day when creating the transaction.<br>
-                <strong>Use last day:</strong> If the day does not exist in a month (e.g. 31 in February), the last day of that month is used automatically.
-            </div>
-        </div>
         <form id="templateForm" action="/fiat" method="POST" onsubmit="if(window.pageDataCache) window.pageDataCache.clearAll(); if(window.markTransactionChanged) window.markTransactionChanged();">
             <input type="hidden" id="tplMode" value="create">
             <input type="hidden" id="tplTransId" name="transId">
@@ -2378,10 +2340,6 @@
                 <select id="tplMainCat" name="mainCat" required>
                     <option value="">-- Select --</option>
                 </select>
-            </div>
-            <div>
-                <label for="tplDayOfMonth">Day of Month:</label>
-                <input type="number" id="tplDayOfMonth" name="templateDayOfMonth" min="1" max="31">
             </div>
             <div id="tplFromWalletRow">
                 <label for="tplFromWallet">From Wallet:</label>
@@ -2617,7 +2575,7 @@
 {% endfor %}
 <ul id="transList">
     {% for transaction in transactions %}
-        <li data-id="{{ transaction.transId }}" data-tdate="{{ transaction.tdate }}" data-type="{{ transaction.transType|default('') }}" data-cat="{{ transaction.mainCat|default('') }}" data-note="{{ transaction.note|default('') }}" data-from="{{ transaction.fromWallet|default('') }}" data-to="{{ transaction.toWallet|default('') }}" data-currency="{{ transaction.currency|default('') }}" data-amount="{{ transaction.amount|default(0) }}" data-fee="{{ transaction.fee|default('') }}" data-received="{{ transaction.receivedAmount|default('', true) }}" data-istemplate="{{ transaction.isTemplate|default('N') }}" data-template-day="{{ transaction.templateDayOfMonth|default('') }}" data-amount-setting="{{ transaction.amountSetting|default(transaction.amount|default(0)) }}">
+        <li data-id="{{ transaction.transId }}" data-tdate="{{ transaction.tdate }}" data-type="{{ transaction.transType|default('') }}" data-cat="{{ transaction.mainCat|default('') }}" data-note="{{ transaction.note|default('') }}" data-from="{{ transaction.fromWallet|default('') }}" data-to="{{ transaction.toWallet|default('') }}" data-currency="{{ transaction.currency|default('') }}" data-amount="{{ transaction.amount|default(0) }}" data-fee="{{ transaction.fee|default('') }}" data-received="{{ transaction.receivedAmount|default('', true) }}" data-istemplate="{{ transaction.isTemplate|default('N') }}" data-amount-setting="{{ transaction.amountSetting|default(transaction.amount|default(0)) }}">
             <div class="crypto-history-row">
                 <div class="crypto-history-left">
                     <div class="crypto-history-title">{{ transaction.transType }}</div>
