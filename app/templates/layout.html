@@ -648,19 +648,19 @@
             </div>
         </div>
         <div class="app-bottom-primary">
-            <a class="app-bottom-item{% if request.path.startswith('/dashboard') %} active{% endif %}" href="/dashboard" {% if request.path.startswith('/dashboard') %}aria-current="page"{% endif %}>
+            <a class="app-bottom-item app-bottom-dashboard{% if request.path.startswith('/dashboard') %} active{% endif %}" href="/dashboard" {% if request.path.startswith('/dashboard') %}aria-current="page"{% endif %}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg><span>Dashboard</span>
             </a>
-            <a class="app-bottom-item{% if request.path.startswith('/fiat') %} active{% endif %}" href="/fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>
+            <a class="app-bottom-item app-bottom-fiat{% if request.path.startswith('/fiat') %} active{% endif %}" href="/fiat" {% if request.path.startswith('/fiat') %}aria-current="page"{% endif %}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4M4 7h16m-4 14 4-4-4-4m4 4H4"/></svg><span>Fiat</span>
             </a>
-            <a class="app-bottom-item{% if request.path.startswith('/crypto') %} active{% endif %}" href="/crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>
+            <a class="app-bottom-item app-bottom-crypto{% if request.path.startswith('/crypto') %} active{% endif %}" href="/crypto" {% if request.path.startswith('/crypto') %}aria-current="page"{% endif %}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0"/></svg><span>Crypto</span>
             </a>
-            <a class="app-bottom-item{% if request.path.startswith('/stock') %} active{% endif %}" href="/stock" {% if request.path.startswith('/stock') %}aria-current="page"{% endif %}>
+            <a class="app-bottom-item app-bottom-stock{% if request.path.startswith('/stock') %} active{% endif %}" href="/stock" {% if request.path.startswith('/stock') %}aria-current="page"{% endif %}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16m-2-12-5 5-4-4-3 3"/></svg><span>Stock</span>
             </a>
-            <a class="app-bottom-item{% if request.path.startswith('/loans') %} active{% endif %}" href="/loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>
+            <a class="app-bottom-item app-bottom-loans{% if request.path.startswith('/loans') %} active{% endif %}" href="/loans" {% if request.path.startswith('/loans') %}aria-current="page"{% endif %}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 22h18M6 18v-7m4 7v-7m4 7v-7m4 7v-7M12 2 20 7H4z"/></svg><span>Debt &amp; Loan</span>
             </a>
         </div>

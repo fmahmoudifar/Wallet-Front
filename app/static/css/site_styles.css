@@ -659,6 +659,12 @@
         grid-template-columns: repeat(5, 1fr);
     }
 
+    .app-bottom-primary .app-bottom-fiat { order: 1; }
+    .app-bottom-primary .app-bottom-loans { order: 2; }
+    .app-bottom-primary .app-bottom-dashboard { order: 3; }
+    .app-bottom-primary .app-bottom-crypto { order: 4; }
+    .app-bottom-primary .app-bottom-stock { order: 5; }
+
     .app-bottom-item {
         all: unset;
         box-sizing: border-box;
